@@ -2,6 +2,10 @@
 
 > Goal: play the prototype on a phone without running a server and without ongoing costs.
 
+## Quick preview (available now)
+
+A single-file build of branch `m3-playable-ui` is published as a private claude.ai artifact: https://claude.ai/artifact/754PwvoYfLyR29b2eVg3h5. Open it on the phone while logged in to claude.ai. Saves use that page's browser storage, so use **Meny → Exportera** before switching to another URL. It is a snapshot: it updates only when it is republished, not on every push.
+
 ## Options compared
 
 | Option | Works with a **private** repo for free? | Account needed | Auto-deploy on push | Notes |

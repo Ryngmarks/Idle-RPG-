@@ -55,6 +55,7 @@ export function MenuModal({ state, storageOk, onClose }: { state: GameState; sto
   const [exported, setExported] = useState<string | null>(null);
   const [importText, setImportText] = useState('');
   const [message, setMessage] = useState<string | null>(null);
+  const [confirmReset, setConfirmReset] = useState(false);
 
   return (
     <Modal title="Meny" onClose={onClose}>
@@ -111,17 +112,17 @@ export function MenuModal({ state, storageOk, onClose }: { state: GameState; sto
 
       <section className="menu-section">
         <h3>Nytt spel</h3>
-        <button
-          className="btn btn--danger"
-          onClick={() => {
-            if (window.confirm('Börja om från början? Nuvarande framsteg raderas.')) {
-              store.reset();
-              onClose();
-            }
-          }}
-        >
-          Börja om
-        </button>
+        {confirmReset ? (
+          <>
+            <p className="small">Allt framsteg i det här spelet raderas. Exportera först om du vill spara det.</p>
+            <div className="row">
+              <button className="btn btn--danger" onClick={() => { store.reset(); onClose(); }}>Ja, radera och börja om</button>
+              <button className="btn" onClick={() => setConfirmReset(false)}>Avbryt</button>
+            </div>
+          </>
+        ) : (
+          <button className="btn btn--danger" onClick={() => setConfirmReset(true)}>Börja om</button>
+        )}
       </section>
       {message && <p className="small" role="status">{message}</p>}
     </Modal>

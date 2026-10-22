@@ -26,7 +26,7 @@
 ```mermaid
 flowchart TB
     subgraph content["content/: data only"]
-        R[races] --- A[activities] --- E[enemies & zones] --- B[buildings] --- G[gear tiers]
+        R[races] --- A[activities] --- E[enemies & zones] --- B[buildings] --- G[weapons, tiers, qualities, recipes]
     end
     subgraph core["core/: pure TypeScript, no DOM/React/Date"]
         ST[state types] --> CMD[commands]
@@ -139,6 +139,14 @@ interface TroopState {
 
 ---
 
+### 3.3 Equipment (planned, see [Equipment & Crafting §6](EQUIPMENT_AND_CRAFTING.md#6-technical-foundation-))
+
+- `troop.gearTier` (a placeholder in the current code) is replaced by `troop.weaponTypeId` + `troop.equipment: { tier, quality, count }[]` with the invariant Σ count ≤ size.
+- `state.armoury: Record<"weapon:tN:quality", number>`, plus `state.crafting` (orders, mastery, quality carry).
+- Combat is computed **per equipment bucket** and summed, so mixed tiers and qualities stay exact under the non-linear armour/overkill formula.
+- Crafting orders are linear progress, like construction. `craftOrderCompleted` is a new simulation event. Quality is distributed deterministically (no RNG).
+- Save v1 → v2 migration: every troop becomes `{ tier 1, normal, count: size }`.
+
 ## 4. Simulation model
 
 ### 4.1 One function for online and offline
@@ -189,7 +197,7 @@ interface Modifier {
   source: string;                      // 'race:orcs', 'building:farm#1' → used in tooltips & debugging
 }
 // resolution: final = (base + Σ add) × (1 + Σ mult)   — mults stack additively within a stat;
-// gear tier and troop level are separate multiplicative factors (see src/core/stats.ts)
+// weapon power (tier × quality) and troop level are separate multiplicative factors (see src/core/stats.ts)
 ```
 
 **Traits** that cannot be expressed as a flat modifier (Orc *Horde*: bonus depends on fullness; Orc *Raiders*: extra loot) are **small named functions** in `core/traits/`, each with its own tests. There is no DSL and no scripting.

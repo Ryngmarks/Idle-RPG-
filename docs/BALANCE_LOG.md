@@ -77,6 +77,8 @@ orcs     balanced          39%     21%     9%   20%    11%   155 + 153
 
 ### Known limitations / next tuning questions
 
+- ⚠️ **The ×1.4 "gear tier 1" from the Forge is a placeholder that will be removed** ([Equipment §6.5](EQUIPMENT_AND_CRAFTING.md#65-migration-from-todays-code)). The boss pacing above relies on it, so a retune pass is needed after M2.5.
+
 - The bot is better than a human at optimisation and worse at "fun" choices. Real playtests (M4) must confirm the feel.
 - Boss HP (7000, armour 3) is untested against human timing. Revisit after the UI exists.
 - The balanced bot's "one troop always fights" is a strong rule. A cleverer bot could find better allocations. A dominant-strategy search (many random allocation policies) is a good M2+ extension.

@@ -40,7 +40,7 @@ If every output is simply `size × quality`, then *1000 orcs × 0.5* equals *200
 | 1 | **Overkill** in combat: one hit kills at most one enemy | ✔ swarms of weak enemies | |
 | 2 | **Armour** reduces weak hits proportionally more | | ✔ armoured enemies and bosses |
 | 3 | **Recruitment cost and cap**: how fast a troop can grow | ✔ cheap and fast | expensive and slow |
-| 4 | **Gear is paid per soldier** (ore × size) | | ✔ cheap to equip a small elite |
+| 4 | **Equipment is per soldier** (every soldier needs a weapon, and crafting cost scales with size) | | ✔ cheap to equip a small elite |
 | 5 | **Food upkeep per soldier** (P1) | | ✔ small armies eat little |
 | 6 | **Activity skill profile** per race | depends on the race | depends on the race |
 
@@ -71,7 +71,7 @@ Each race defines a **soldier profile**. Every value is a per-soldier rate.
 ```
 effective per-soldier stat =
     race base stat
-  × gear tier multiplier        (e.g. ×1.0 / ×1.4 / ×1.9 …)        P0: tier 0–1
+  × weapon multiplier           (weapon type × tier × quality, per equipment bucket; see EQUIPMENT_AND_CRAFTING.md)
   × troop level (veterancy)     (+10% per level, XP from combat)     P0 ✅
   × doctrine multiplier         (specialisation, see §7)             P1
   × racial trait multiplier     (e.g. Orc "Horde", see §6)           P0 for Orcs
@@ -119,7 +119,7 @@ constraint: T.size + N ≤ cap(T)
 | Dwarves | 15 food (at 2) | ~182 food (at 16) | Each recruit is an investment |
 | Elves | 19 food (at 2) | ~163 food (at 12) | Few, precious |
 
-- **Gear cost is per soldier.** Recruiting into an equipped troop also costs ore for the new soldiers' gear. Upgrading a troop's gear tier costs `size × ore`. → *Equipping a horde is expensive; equipping an elite is cheap* (lever 4).
+- **Equipment is per soldier.** Every soldier needs a weapon, and weapons are crafted in batches that cost materials per item. → *Equipping a horde is expensive; equipping an elite is cheap* (lever 4). The current code still uses a placeholder `gearTier` (ore per recruit). It will be replaced by aggregated equipment buckets; see [Equipment & Crafting §6.5](EQUIPMENT_AND_CRAFTING.md#65-migration-from-todays-code).
 - 💡 **Recruitment is a manual purchase** in P0 (buttons: +1 / +10 / +max). That is a clear decision point and easy to tune.
   - ❓ Alternative: *continuous mustering* (troops grow automatically over time while food is consumed). More "idle", fewer decisions. Could arrive later as an upgrade ("Recruiting Sergeant: auto-recruit").
 - 💡 **Troops do not shrink** in P0 (no casualties). Losses offline feel punishing. Revisit later with care.
@@ -194,7 +194,7 @@ kills/second  = size × attacksPerSecond / hitsPerKill
 - **Bosses** have one large HP pool and a time limit. The relevant number is `DPS = size × damagePerHit × attacksPerSecond`.
 - Kills are tracked as a **fractional, continuous** number, so offline uses the same formula.
 
-#### Worked example: troops at max cap, gear tier 0, Orc "Horde" active (+50%)
+#### Worked example: troops at max cap, T1 Normal weapons, Orc "Horde" active (+50%)
 
 | Enemy | Humans 500 | Orcs 1000 | Dwarves 200 | Elves 150 |
 |---|---|---|---|---|
@@ -268,7 +268,7 @@ flowchart LR
     MINE --> ORE[(Ore)]
     WOOD[🪓 Woodcutting] --> WOODR[(Wood)]
     FOOD -->|recruit| SIZE[Troop size ↑]
-    ORE -->|gear tier| QUAL[Soldier quality ↑]
+    ORE -->|crafting| QUAL[Weapon quality ↑]
     WOODR --> BUILD[🔨 Construction]
     STONE --> BUILD
     BUILD -->|Barracks| CAP[Troop cap ↑]

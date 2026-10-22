@@ -11,6 +11,7 @@ A fantasy idle army RPG for mobile and desktop. Your **troops** (groups of soldi
 | [Concept v0.2](docs/FANTASY_IDLE_RPG_CONCEPT_V0.2.md) | Vision, core loop, summary of all systems. **Start here.** |
 | [First 15 Minutes](docs/FIRST_15_MINUTES.md) | The opening session minute by minute: goals, numbers, settlement presentation |
 | [Troop Model](docs/TROOP_MODEL.md) | Troop size, soldier quality, races, recruitment, activities, formulas |
+| [Equipment & Crafting](docs/EQUIPMENT_AND_CRAFTING.md) | Long-term T1–T8 tiers, quality, crafting, aggregated equipment model |
 | [Architecture](docs/ARCHITECTURE.md) | Game core, simulation, data model, persistence, dependencies |
 | [Roadmap & Prototype](docs/ROADMAP.md) | Milestones and the first playable prototype (P0) |
 | [Balance Log](docs/BALANCE_LOG.md) | Simulator results and every tuning pass |

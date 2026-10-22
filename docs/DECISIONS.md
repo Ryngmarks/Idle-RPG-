@@ -32,6 +32,12 @@
 | D-23 | **Dwarves & Elves are shown but locked** in the P0 race picker (was Q-10) | 2026-10-22 | Owner, v0.4 |
 | D-24 | **Troop 2 forms with free soldiers**: 3 Humans / 6 Orcs (was Q-11) | 2026-10-22 | Owner, v0.4 |
 | D-25 | Start M1–M2. Dev dependencies approved: `typescript`, `vitest`, `tsx` | 2026-10-22 | Owner, v0.4 |
+| D-26 | **One weapon type per troop**; weapons have a **tier (T1–T8)** and a **quality**; a troop can mix qualities and possibly tiers | 2026-10-22 | Owner, v0.5 |
+| D-27 | Equipment is **aggregated counts**, never individual soldier objects | 2026-10-22 | Owner, v0.5 |
+| D-28 | **Albion Online-inspired** crafting & equipment (tiers, quality, crafting) | 2026-10-22 | Owner, v0.5 |
+| D-29 | Tier progression is **very slow**: T1 lasts, T2 is a real milestone, T8 is an extreme long-term goal. Meaningful progress *within* a tier comes from quality, crafting, soldier count, specialisation and upgrades. | 2026-10-22 | Owner, v0.5 |
+| D-30 | Tiers unlock through **progression, resources, developed buildings and crafting**, not just waiting | 2026-10-22 | Owner, v0.5 |
+| D-31 | T1–T8 is a long-term structure. No PvP, no advanced race balancing. The first prototype stays very small. | 2026-10-22 | Owner, v0.5 |
 
 ## Proposed 💡 (awaiting confirmation)
 
@@ -59,6 +65,12 @@
 | P-21 | **Recruit cost escalates with troop size**: `foodPerSoldier × (size/startSize)^1.2` (found by the simulator; flat costs snowball) | [Balance Log](BALANCE_LOG.md) |
 | P-22 | Tuned numbers: combat food loot ÷3, Training Camp 50/30/25 + 500 work, Orc construction 0.4 | [Balance Log](BALANCE_LOG.md) |
 | P-23 | Pacing targets are enforced by an automated balance test (`tools/sim/balance.test.ts`) | [Balance Log](BALANCE_LOG.md) |
+| P-24 | Equipment as **buckets** `(tier, quality) → count` per troop + a shared armoury; combat computed per bucket and summed | [Equipment §2–3](EQUIPMENT_AND_CRAFTING.md#2-core-model-) |
+| P-25 | Five qualities (Normal → Masterpiece, ×1.00–×1.35); **Masterpiece of tier N ≈ Normal of tier N+1**; tiers ×1.35 each (T8 ≈ ×8.2) | [Equipment §2](EQUIPMENT_AND_CRAFTING.md#2-core-model-) |
+| P-26 | Crafting in **batches**, with **deterministic quality distribution** (expected value + carry-over, no RNG) | [Equipment §4.2](EQUIPMENT_AND_CRAFTING.md#42-quality-outcome-deterministic-not-random-) |
+| P-27 | **Crafting mastery** per weapon type and tier; T(n) mastery is one gate for T(n+1) | [Equipment §4.3](EQUIPMENT_AND_CRAFTING.md#43-crafting-mastery--albions-specialisation-simplified) |
+| P-28 | Tier gates: region progress + Smithy level + tiered materials (+ refining from T2) + mastery; never a pure timer | [Equipment §4.5](EQUIPMENT_AND_CRAFTING.md#45-what-gates-a-tier-e-6-progression-not-waiting) |
+| P-29 | **M2.5 Equipment foundation** before the UI: replace the `gearTier` placeholder (×1.4 = T2-level power after 25 min, which conflicts with D-29) | [Equipment §6.5, §7](EQUIPMENT_AND_CRAFTING.md#7-scope-what-to-build-when) |
 
 ## Open ❓
 
@@ -73,6 +85,11 @@
 | Q-07 | Documentation language: English (current) or Swedish? | |
 | Q-08 | Final names for the world, races and regions | Before the art phase |
 | Q-12 | Should XP also be a spendable currency? | No, per-troop levels only |
+| Q-13 | Who does crafting labour: a 6th activity "Crafting", the Construction activity, or the buildings themselves? | 6th activity, unlocked with the Smithy |
+| Q-14 | T1 crafting in P0, or only the equipment foundation now and crafting in P1? | Foundation now; crafting in P1 unless it's trivially small |
+| Q-15 | Do recruits come with a free T1 Normal weapon? | Yes (included in recruit cost) |
+| Q-16 | Tier pacing targets (T2 ≈ day 1 … T8 ≈ many months) | Tie to Q-04 / Q-05 |
+| Q-17 | Names for tiers and qualities | Our own, not Albion's |
 
 ## Superseded 🗄️
 

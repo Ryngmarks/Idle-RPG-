@@ -1,7 +1,7 @@
 # FANTASY IDLE RPG — Concept v0.2
 
 > **Status:** Planning. No code has been written.
-> **Date:** 2026-10-22 · **Supersedes:** [v0.1](archive/FANTASY_IDLE_RPG_CONCEPT_V0.1.md)
+> **Date:** 2026-10-22 (v0.2.1: race profiles adjusted) · **Supersedes:** [v0.1](archive/FANTASY_IDLE_RPG_CONCEPT_V0.1.md)
 > **Detailed documents:** [Troop Model](TROOP_MODEL.md) · [Architecture](ARCHITECTURE.md) · [Roadmap & Prototype](ROADMAP.md) · [Decisions](DECISIONS.md)
 
 **Labels:** ✅ Confirmed · 💡 Proposed · ❓ Open
@@ -84,7 +84,7 @@ The full resource-flow diagram is in [Troop Model §9](TROOP_MODEL.md#9-resource
 | 5–8 | The Barracks and Training Grounds need wood + stone + labour. Woodcutting, Mining, then Construction. | Order of work |
 | 8–10 | Barracks done (cap 125), *or* Training Grounds done (🎉 Troop 2). | Bigger troop vs second troop |
 
-**Orcs, same 10 minutes:** they start with 30 and recruit very cheaply, so they hit their cap almost immediately and steamroll the chickens. But they gather slowly, so the buildings take longer and every activity switch hurts more. **The same start area, but a different first ten minutes.** ✅ goal
+**Orcs, same 10 minutes:** they start with 30 and recruit very cheaply, so they hit their cap almost immediately and steamroll the chickens. They are excellent woodcutters, but poor at mining, food and construction labour. Wood piles up quickly, while stone, food and building work lag behind, so every activity switch hurts more. **The same start area, but a different first ten minutes.** ✅ goal
 
 ---
 
@@ -97,8 +97,8 @@ The full specification is in [Troop Model §3–6](TROOP_MODEL.md#3-per-soldier-
 | Max troop size 💡 | 500 | 1000 | 200 | 150 |
 | Soldier quality | Medium | Low | High | High + precision |
 | Growth | Steady | Very fast, cheap | Slow, expensive | Slow, expensive |
-| Strong at | Everything, decently; construction | Swarms; raiding for loot | Mining, construction, armour | Wood, food, armour, bosses |
-| Weak at | Nothing in particular | Armour, all labour | Swarms, food | Swarms, mining |
+| Strong at | Everything, decently; **best at Food**; construction | Swarms; **Woodcutting**; raiding for loot | Mining, construction, armour | Wood, food, armour, bosses |
+| Weak at | Nothing in particular | Armour; mining, food, construction | Swarms, food | Swarms, mining |
 | In P0? | ✅ | ✅ | P1 | P1 |
 
 **Principle:** races are **data** (numbers, modifiers, trait IDs) on top of shared systems. Adding a race = one data file + art. 💡

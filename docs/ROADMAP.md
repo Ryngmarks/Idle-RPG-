@@ -81,7 +81,7 @@ flowchart TD
 | Forge | Equip now (ore × size) or recruit more first? | Gear gets more expensive the bigger the troop |
 | Boar stages | Is the army big enough, or does it need gear? | Armour model (see [Troop Model §5.3](TROOP_MODEL.md#53-combat-the-overkillarmour-model)) |
 | Boss | Pull every troop off the economy to make the DPS check? | Time limit |
-| **Orcs vs Humans** | Orcs: chickens are trivial but the boar is a wall and they gather slowly. Humans: steadier, no extremes. | Population model |
+| **Orcs vs Humans** | Orcs: chickens are trivial and wood is plentiful, but the boar is a wall and food/stone/building work are slow. Humans: steadier, strong food economy, no extremes. | Population model |
 
 ### 2.6 P0 success criteria
 

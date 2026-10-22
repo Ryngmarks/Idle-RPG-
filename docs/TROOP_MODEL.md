@@ -59,8 +59,8 @@ Each race defines a **soldier profile**. Every value is a per-soldier rate.
 | **Attack** | 1.0 | 0.4 | 2.5 | 2.6 |
 | **Armour penetration** | 0% | 0% | 0% | **50%** |
 | **Mining** skill | 1.0 | 0.3 | **3.0** | 1.0 |
-| **Woodcutting** skill | 1.0 | 0.4 | 1.0 | **3.5** |
-| **Food** skill | 1.0 | 0.3 | 0.8 | **3.5** |
+| **Woodcutting** skill | 1.0 | **0.7** | 1.0 | **3.5** |
+| **Food** skill | **1.5** | 0.3 | 0.8 | **3.5** |
 | **Construction** skill | **1.2** | 0.3 | **3.0** | 1.5 |
 | Food upkeep (relative, P1) | 1.0 | 1.0 | 1.5 | 0.5 |
 
@@ -150,10 +150,12 @@ Illustrative labour output **at max cap** (skill × size):
 | | Humans (500) | Orcs (1000) | Dwarves (200) | Elves (150) |
 |---|---|---|---|---|
 | Mining | 500 | 300 | **600** | 150 |
-| Woodcutting | 500 | 400 | 200 | **525** |
-| Food | 500 | 300 | 160 | **525** |
+| Woodcutting | 500 | **700** | 200 | 525 |
+| Food | **750** | 300 | 160 | 525 |
 | Construction | **600** | 300 | **600** | 225 |
-| *Identity* | *Good at everything* | *Bad workers → must fight/raid* | *Miners & builders* | *Foresters & foragers* |
+| *Identity* | *Good at everything, best farmers* | *Brute lumberjacks; poor at finer work → must fight/raid for food* | *Miners & builders* | *Foresters & foragers* |
+
+✅ *Owner decision (v0.2.1): Humans are better at **Food**, Orcs are better at **Woodcutting**.* Elf values (P1) are kept for now. With these numbers, Elves are no longer the best at wood or food in absolute terms, only per soldier. Their profile will be revisited when Elves are designed in P1.
 
 ### 5.2 Construction
 
@@ -209,9 +211,9 @@ What the table shows:
 | **Growth** | Steady | Very fast, cheap | Slow, expensive | Slow, expensive |
 | **Soldier quality** | Medium | Low | High | High + precision |
 | **Best against** | Everything, decently | Swarms | Armour, bosses | Armour, bosses |
-| **Economy** | All-round, good builders | Poor; relies on raiding | Mining & construction | Wood & food |
+| **Economy** | All-round; **best at Food**, good builders | **Strong woodcutters**; poor at mining, food and construction; raid for food | Mining & construction | Wood & food |
 | **Signature trait** (shared building blocks) | **Adaptable:** changing doctrine is free and instant (P1) | **Horde:** attack +0–50% depending on how full the troop is (size ÷ cap) · **Raiders:** combat kills drop extra food and ore | **Deep Delvers:** mining yields more ore relative to stone | **Precision:** 50% armour penetration |
-| **Typical player decision** | "Where am I weakest right now?" | "Fight to feed the horde, or spend precious troops on bad labour?" | "Every recruit is costly: mine for gear or for walls?" | "Few hands: forage, or hunt the armoured beasts?" |
+| **Typical player decision** | "Where am I weakest right now?" | "Fight to feed the horde, or fell forests for the war camp?" | "Every recruit is costly: mine for gear or for walls?" | "Few hands: forage, or hunt the armoured beasts?" |
 
 **Every row is data**: numbers, modifiers and trait IDs. The traits reuse shared mechanics (modifiers, loot tables, the resource split), so adding a race should mean adding a data file plus art. ✅ goal / 💡 method
 

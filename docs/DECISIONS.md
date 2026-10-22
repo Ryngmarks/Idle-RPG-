@@ -18,6 +18,8 @@
 | D-09 | Start area: one troop, free switching between the five activities | 2026-10-22 | Owner, v0.2 |
 | D-10 | Travel time between regions, specialisations and advanced army management come *later* | 2026-10-22 | Owner, v0.2 |
 | D-11 | Claude may create and update Markdown docs, commit and push documentation. **No large implementations or new dependencies without approval.** | 2026-10-22 | Owner, v0.2 |
+| D-12 | **P0 races: Humans and Orcs** | 2026-10-22 | Owner, v0.2.1 |
+| D-13 | **Humans are better at Food; Orcs are better at Woodcutting** | 2026-10-22 | Owner, v0.2.1 |
 
 ## Proposed 💡 (awaiting confirmation)
 
@@ -32,7 +34,7 @@
 | P-07 | Resources: Food, Wood, Stone, Ore. **No gold** for now. | [Concept v0.2 §4](FANTASY_IDLE_RPG_CONCEPT_V0.2.md) |
 | P-08 | Specialisation via **Doctrine** (chosen) first, in P1. Proficiency (learned) later, if at all. | [Troop Model §7](TROOP_MODEL.md#7-specialisation-p1-not-in-the-first-prototype) |
 | P-09 | Event-driven `advance(state, Δt)`, the same code online and offline | [Architecture §4](ARCHITECTURE.md#4-simulation-model) |
-| P-10 | Prototype P0 = Humans + Orcs, 1 zone, 4 buildings, max 2 troops | [Roadmap §2](ROADMAP.md#2-prototype-p0-the-farmstead-camp) |
+| P-10 | Prototype P0 = Humans + Orcs (races ✅ D-12), 1 zone, 4 buildings, max 2 troops | [Roadmap §2](ROADMAP.md#2-prototype-p0-the-farmstead-camp) |
 | P-11 | Build the headless core + simulator (M1–M2) before any UI | [Roadmap §3](ROADMAP.md#3-m1--m2-in-more-detail-recommended-next-step) |
 | P-12 | Offline: no boss fights, no auto-recruitment, 8 h cap in P0 | [Troop Model §10](TROOP_MODEL.md#10-idle-and-offline-implications) |
 | P-13 | Food upkeep in P1, **soft** only (efficiency loss, never deaths) | |

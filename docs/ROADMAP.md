@@ -26,7 +26,8 @@
 
 ### 2.1 The questions P0 must answer
 
-1. **Does growing a troop feel good?** Watching *10 → 50 → 225* soldiers, and buying the next batch.
+0. **Does the first session feel like going from a patrol to a settlement, with Troop 2 around minute 10?** ([First 15 Minutes](FIRST_15_MINUTES.md))
+1. **Does growing a troop feel good?** Watching *5 → 20 → 40 → 150* soldiers, and buying the next batch.
 2. **Do Humans and Orcs feel clearly different within 10 minutes?**
 3. **With one troop, does choosing between five activities create real decisions?**
 4. **Is unlocking Troop 2 a big, exciting moment?**
@@ -37,19 +38,21 @@
 | Area | Content |
 |---|---|
 | **Races** | **2: Humans and Orcs.** They are the clearest contrast in the population model (medium vs. huge). Data only, no race-specific UI. |
-| **Troops** | Start with 1. **Troop 2** is unlocked by building *Training Grounds*. Max 2. |
+| **Troops** | Start with 1 (Humans 5/20, Orcs 10/40). **Troop 2** is unlocked by building the *Training Camp*. Max 2. Troops level up from combat XP. The player names them. |
 | **Activities** | All 5: Combat, Mining, Woodcutting, Food, Construction. Free switching. |
 | **Resources** | 4: Food, Wood, Stone, Ore |
 | **Combat** | 1 zone, *The Farmsteads*: 5 stages + boss |
-| **Enemies** | 🐔 Chickens (swarm, stages 1–2) · 🦊 Foxes (fast and weak, stage 3) · 🐗 Wild Boar (armoured, stages 4–5) · 👑 **Boss: The Old Tusker** (high HP + armour, 60 s time limit) |
-| **Buildings** | 4: **Barracks** (troop cap levels 1–3) · **Training Grounds** (Troop 2) · **Forge** (unlocks gear tier 1, which costs ore per soldier) · **Farm** (+50% Food output) |
+| **Enemies** | 🐔 Wild Chickens (tutorial, HP 30, stages 1–2) · 🐀 Rat swarm (HP 1 each, favours big troops, stage 3) · 🐗 Wild Boar (armoured, stages 4–5) · 👑 **Boss: The Old Tusker** (high HP + armour, 60 s time limit) |
+| **Buildings** | 4, on fixed plots: **Training Camp** (cap 20→40 + Troop 2, the only building in the first 15 min) · **Barracks** (cap levels 2–3) · **Forge** (unlocks gear tier 1, which costs ore per soldier) · **Farm** (+50% Food output) |
+| **Upgrades** | ~6 cheap ones (e.g. Sharpened Axes, Drill Practice) |
+| **Objectives** | Goal chain that drives every unlock and doubles as the tutorial ([First 15 Minutes §4](FIRST_15_MINUTES.md#4-the-objectives-system-replaces-timers-and-a-tutorial-engine-)) |
 | **Recruitment** | Buttons +1 / +10 / +max, costing food (+ ore if the troop is equipped) |
 | **Gear** | Tier 0 → 1 (×1.4 attack), cost = ore × troop size |
 | **Idle/offline** | Continuous progress. Offline cap 8 h. "While you were away" report. |
 | **Save** | localStorage autosave + export/import string |
 | **UI** | One main screen of troop cards, a resource bar, Settlement and Battle tabs. Emoji/SVG icons, no artwork. |
 | **Dev tools** | Debug panel (time ×10/×100, add resources), balance simulator |
-| **Play length** | ~20–40 minutes to defeat the boss |
+| **Play length** | First 15 min as in [First 15 Minutes](FIRST_15_MINUTES.md), then ~30–60 min more to defeat the boss |
 
 ### 2.3 Scope: OUT ❌ (explicitly)
 
@@ -59,12 +62,12 @@ Dwarves & Elves (the data model supports them; they are added in P1) · Doctrine
 
 ```mermaid
 flowchart TD
-    S[Start: Troop 1 = 10 Humans] --> C1[Fight chickens<br/>loot: a little food]
-    C1 --> F[Switch to Food<br/>→ recruit to 50 = cap]
-    F --> WS[Woodcutting + Mining<br/>→ wood & stone]
-    WS --> B1[Construct Barracks 1<br/>cap 50 → 125]
-    B1 --> TG[Construct Training Grounds<br/>→ 🎉 Troop 2]
-    TG --> PAR[Two troops in parallel<br/>e.g. one fights, one gathers]
+    S[Start: Troop 1 = 5 Humans] --> W[Woodcutting<br/>first upgrade choice]
+    W --> C1[Fight chickens<br/>food + XP, recruit]
+    C1 --> WS[Mining + Food + Woodcutting<br/>→ Training Camp materials]
+    WS --> TG[Construct Training Camp<br/>→ 🎉 Troop 2 ≈ min 10]
+    TG --> PAR[Two troops in parallel<br/>one fights, one gathers]
+    PAR --> B1[Barracks 1–2<br/>cap 40 → 150]
     PAR --> FG[Mine ore → build Forge<br/>→ equip troops tier 1]
     FG --> BOAR[Boar stages: armour<br/>needs size + gear]
     BOAR --> BOSS[👑 The Old Tusker<br/>all troops to combat!]
@@ -76,7 +79,8 @@ flowchart TD
 | Moment | Decision | Why it isn't trivial |
 |---|---|---|
 | Minutes 1–5 | Fight (loot, progress) or produce food (recruitment)? | One troop; both matter |
-| Barracks vs Training Grounds | More soldiers per troop, or a second troop? | Same materials, different benefits |
+| First wood | Spend on Sharpened Axes now, or save for the Training Camp? | Faster later vs sooner Troop 2 |
+| Barracks vs Forge (after Troop 2) | More soldiers, or better soldiers? | Same materials, different benefits |
 | After Troop 2 | How to split two troops over five activities | Construction needs labour *and* materials |
 | Forge | Equip now (ore × size) or recruit more first? | Gear gets more expensive the bigger the troop |
 | Boar stages | Is the army big enough, or does it need gear? | Armour model (see [Troop Model §5.3](TROOP_MODEL.md#53-combat-the-overkillarmour-model)) |
@@ -93,6 +97,8 @@ flowchart TD
 | Testers come back after closing | ≥ 50% within 24 h |
 | Simulator: no single allocation is optimal throughout | The optimal allocation changes ≥ 3 times |
 | Simulator: time to boss, Orcs vs Humans | Within ±25% (tuning target) |
+| Simulator: Troop 2 reached (active play) | 10–13 min for both races |
+| Testers, after 15 min, can say in their own words that troops are their key resource | ≥ 3 of 5 |
 
 ---
 
@@ -103,7 +109,7 @@ flowchart TD
 | Task | Result |
 |---|---|
 | Project setup (TS, Vitest, tsx), *after approval* | `package.json`, `tsconfig`, test script |
-| Content: Humans, Orcs, 5 activities, 4 enemies, 1 zone, 4 buildings, gear tiers | `src/content/*` |
+| Content: Humans, Orcs, 5 activities, 4 enemies, 1 zone, 4 buildings, upgrades, gear tiers, **objectives** | `src/content/*` |
 | Formulas: production, combat (armour + overkill), recruitment, caps | `src/core/formulas/*` + tests |
 | Modifiers + traits (Horde, Raiders) | `src/core/modifiers.ts`, `traits/*` + tests |
 | Commands + validation | `src/core/commands.ts` + tests |

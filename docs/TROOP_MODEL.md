@@ -64,12 +64,15 @@ Each race defines a **soldier profile**. Every value is a per-soldier rate.
 | **Construction** skill | **1.2** | 0.3 | **3.0** | 1.5 |
 | Food upkeep (relative, P1) | 1.0 | 1.0 | 1.5 | 0.5 |
 
+**Base rates (tutorial scale, from [First 15 Minutes §2](FIRST_15_MINUTES.md#2-base-numbers-humans-tutorial-scale-)):** every soldier has **Work 1**. Gathering yields `Work × skill × 0.1` per second, and construction gives `Work × skill` work points per second. The troop card shows only **Strength (DPS)** and **Work**.
+
 ### 3.2 Quality multipliers (shared by all races)
 
 ```
 effective per-soldier stat =
     race base stat
   × gear tier multiplier        (e.g. ×1.0 / ×1.4 / ×1.9 …)        P0: tier 0–1
+  × troop level (veterancy)     (+10% per level, XP from combat)     P0 ✅
   × doctrine multiplier         (specialisation, see §7)             P1
   × racial trait multiplier     (e.g. Orc "Horde", see §6)           P0 for Orcs
   × global upgrades / buildings (e.g. Farm +50% Food)                P0
@@ -85,16 +88,19 @@ All multipliers are **modifiers** in one shared system (see [Architecture §5](A
 
 Each race defines a **maximum troop size**. Buildings (Barracks) unlock **cap levels** that are the *same fraction* for every race. This gives one progression system with race-specific scale.
 
-| Barracks level | Fraction of race max | Humans | Orcs | Dwarves | Elves |
+| Cap level (unlocked by) | Fraction of race max | Humans | Orcs | Dwarves | Elves |
 |---|---|---|---|---|---|
-| 0 (start) | 10% | 50 | 100 | 20 | 15 |
-| 1 | 25% | 125 | 250 | 50 | 38 |
-| 2 | 45% | 225 | 450 | 90 | 68 |
-| 3 | 70% | 350 | 700 | 140 | 105 |
-| 4 | 100% | **500** | **1000** | **200** | **150** |
+| 0 (start) | 4% | **20** ✅ | 40 | 8 | 6 |
+| 1 (Training Camp) | 8% | 40 | 80 | 16 | 12 |
+| 2 (Barracks 1) | 15% | 75 | 150 | 30 | 23 |
+| 3 (Barracks 2) | 30% | 150 | 300 | 60 | 45 |
+| 4 (Barracks 3, later regions) | 50% | 250 | 500 | 100 | 75 |
+| 5 | 75% | 375 | 750 | 150 | 113 |
+| 6 | 100% | **500** | **1000** | **200** | **150** |
 
-- **Start size** (the first troop's soldiers at the beginning): Humans 10, Orcs 30, Dwarves 4, Elves 3.
-- 💡 *About "Orcs: 1000 from the start":* I recommend **against** starting at the full 1000, because the growth loop is a core reward and it would disappear for Orcs. Instead Orcs **start biggest (30), recruit cheapest and grow fastest**, and they reach hundreds within the first session. The horde fantasy comes early without skipping progression. ❓ *Decision needed.*
+- **Start size** (Troop 1): **Humans 5** ✅ (the owner's example), Orcs 10, Dwarves 2, Elves 2. See [First 15 Minutes](FIRST_15_MINUTES.md).
+- The first session is deliberately *small* (≈ 12 Humans after 15 minutes). The road to 500 is the long-term game.
+- 💡 *About "Orcs: 1000 from the start":* I recommend **against** starting at the full 1000, because the growth loop is a core reward and it would disappear for Orcs. Instead Orcs **start biggest, recruit cheapest and grow fastest**: about 2–2.5× the Humans' soldier count throughout. ❓ *Decision needed.*
 
 ### 4.2 Recruitment 💡
 
@@ -106,10 +112,10 @@ recruit N soldiers into troop T:
 
 | Race | Food per soldier | Food to fill max cap (tier-0 gear) | Feel |
 |---|---|---|---|
-| Orcs | 1 | 1 000 | Cheap bodies, numbers flood in |
-| Humans | 4 | 2 000 | Steady |
-| Dwarves | 12 | 2 400 | Each recruit is an investment |
-| Elves | 15 | 2 250 | Few, precious |
+| Orcs | 1.25 | 1 250 | Cheap bodies, numbers flood in |
+| Humans | 5 | 2 500 | Steady |
+| Dwarves | 15 | 3 000 | Each recruit is an investment |
+| Elves | 19 | 2 850 | Few, precious |
 
 - **Gear cost is per soldier.** Recruiting into an equipped troop also costs ore for the new soldiers' gear. Upgrading a troop's gear tier costs `size × ore`. → *Equipping a horde is expensive; equipping an elite is cheap* (lever 4).
 - 💡 **Recruitment is a manual purchase** in P0 (buttons: +1 / +10 / +max). That is a clear decision point and easy to tune.
@@ -121,7 +127,7 @@ recruit N soldiers into troop T:
 | Slot | Unlock (P0 proposal) | Why |
 |---|---|---|
 | Troop 1 | Start | — |
-| Troop 2 | **Construct "Training Grounds"** (wood + stone + labour) | Forces use of *economic* activities |
+| Troop 2 | **Construct the "Training Camp"** (40 wood, 20 stone, 15 food + labour). It also raises the cap 20 → 40. The new troop forms with 3 soldiers (Orcs: 6). ✅ | The first big reward, around minute 10 of active play |
 | Troop 3 | **Defeat the start area boss** (P1) | Rewards *combat* progress |
 | Troop 4+ | Later regions / milestones | — |
 
@@ -190,13 +196,13 @@ kills/second  = size × attacksPerSecond / hitsPerKill
 
 | Enemy | Humans 500 | Orcs 1000 | Dwarves 200 | Elves 150 |
 |---|---|---|---|---|
-| 🐔 **Chickens** (HP 1, armour 0, *Swarm*): kills/s | 500 | **600** | 200 | 150 |
+| 🐀 **Rat swarm** (HP 1 each, armour 0, *Swarm*): kills/s | 500 | **600** | 200 | 150 |
 | 🐗 **Boar** (HP 20, armour 2, *Armoured*): kills/s | 8.3 | 6.9 | 13.9 | **14.1** |
 | 👑 **Boss** (HP 5000, armour 1): DPS | 250 | 225 | **357** | 327 |
 
 What the table shows:
-- **Orcs** dominate swarms (each weak soldier still kills one chicken per hit) and fall off against armour.
-- **Dwarves and Elves** waste damage on chickens (overkill) but excel against armour and bosses.
+- **Orcs** dominate swarms (each weak soldier still kills one rat per hit) and fall off against armour.
+- **Dwarves and Elves** waste damage on rats (overkill) but excel against armour and bosses.
 - **Humans** are never best and never worst: the *safe* army.
 - In actual play the gap is bigger, because Orcs reach their cap much sooner and Dwarves/Elves can equip their small troops much more cheaply.
 
@@ -264,7 +270,7 @@ flowchart LR
     WOODR --> BUILD[🔨 Construction]
     STONE --> BUILD
     BUILD -->|Barracks| CAP[Troop cap ↑]
-    BUILD -->|Training Grounds| SLOT[Troop 2]
+    BUILD -->|Training Camp| SLOT[Troop 2]
     BUILD -->|Forge| QUAL
     BUILD -->|Farm| FOODACT
     SIZE --> COMBAT

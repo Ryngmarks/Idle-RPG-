@@ -1,8 +1,8 @@
 # FANTASY IDLE RPG — Concept v0.2
 
 > **Status:** Planning. No code has been written.
-> **Date:** 2026-10-22 (v0.2.1: race profiles adjusted) · **Supersedes:** [v0.1](archive/FANTASY_IDLE_RPG_CONCEPT_V0.1.md)
-> **Detailed documents:** [Troop Model](TROOP_MODEL.md) · [Architecture](ARCHITECTURE.md) · [Roadmap & Prototype](ROADMAP.md) · [Decisions](DECISIONS.md)
+> **Date:** 2026-10-22 (v0.2.1: race profiles adjusted · v0.2.2: first 15 minutes, see [FIRST_15_MINUTES.md](FIRST_15_MINUTES.md)) · **Supersedes:** [v0.1](archive/FANTASY_IDLE_RPG_CONCEPT_V0.1.md)
+> **Detailed documents:** [First 15 Minutes](FIRST_15_MINUTES.md) · [Troop Model](TROOP_MODEL.md) · [Architecture](ARCHITECTURE.md) · [Roadmap & Prototype](ROADMAP.md) · [Decisions](DECISIONS.md)
 
 **Labels:** ✅ Confirmed · 💡 Proposed · ❓ Open
 
@@ -17,7 +17,7 @@ Version 0.2 builds on the owner's clarifications:
 1. **Troops and soldiers are different things.** ✅ The troop is the strategic unit. Soldiers are a count. Nothing is simulated per soldier.
 2. **Races differ through their population model.** ✅ Orcs field huge hordes of weak soldiers, Dwarves and Elves small elite bands, and Humans sit in between. 💡 To make that more than cosmetic, the combat and economy formulas deliberately reward *size* in some situations and *quality* in others ([Troop Model §2](TROOP_MODEL.md#2-the-central-design-problem-size--quality-must-not-cancel-out)).
 3. **The start area offers all five activities with free switching.** ✅ The scarcity is the *single troop*, not a switching cost.
-4. 💡 **The first prototype (P0)** is tiny: Humans + Orcs, one zone of chickens, foxes and boars, four buildings and at most two troops. It runs about 20–40 minutes and is built **headless first** (game core + balance simulator) before any UI.
+4. 💡 **The first prototype (P0)** is tiny: Humans + Orcs, one zone of chickens, rats and boars, four buildings and at most two troops. Its first 15 minutes follow the owner's vision in [First 15 Minutes](FIRST_15_MINUTES.md). It runs about 45–75 minutes in total and is built **headless first** (game core + balance simulator) before any UI.
 
 ---
 
@@ -31,7 +31,7 @@ Version 0.2 builds on the owner's clarifications:
 | Switching | March time between all activities | **Free in the start area**; travel time between regions later | ✅ |
 | Resources | Gold, Wood, Iron | **Food, Wood, Stone, Ore** (no gold for now) | 💡 |
 | Combat | DPS vs HP + trait counters | **Armour + overkill model**: size beats swarms, quality beats armour | 💡 |
-| First playable | 1 race, 3 zones, 3 slots, 60–90 min | **2 races, 1 zone, 2 troops, 20–40 min**, headless first | 💡 |
+| First playable | 1 race, 3 zones, 3 slots, 60–90 min | **2 races, 1 zone, 2 troops, ~45–75 min**, headless first | 💡 |
 | Upkeep | Open, leaning "no" | **Soft upkeep in P1** (Food now needs a purpose) | 💡 |
 | Docs | One file | Split into concept, troop model, architecture, roadmap and decision log | — |
 
@@ -74,17 +74,9 @@ flowchart LR
 
 The full resource-flow diagram is in [Troop Model §9](TROOP_MODEL.md#9-resource-flow-in-the-start-area-p0).
 
-### 3.1 The first 10 minutes (illustrative, Humans) 💡
+### 3.1 The first 15 minutes ✅
 
-| Min | What happens | Decision |
-|---|---|---|
-| 0–1 | Choose your race. Troop 1 "First Banner" has 10 soldiers. A short intro text. | Race |
-| 1–3 | Fight chickens. Kills tick up quickly and drop a little food. | — |
-| 3–5 | Recruiting costs food. Switch the troop to Food and recruit up to 50 (the cap). | Fight or grow? |
-| 5–8 | The Barracks and Training Grounds need wood + stone + labour. Woodcutting, Mining, then Construction. | Order of work |
-| 8–10 | Barracks done (cap 125), *or* Training Grounds done (🎉 Troop 2). | Bigger troop vs second troop |
-
-**Orcs, same 10 minutes:** they start with 30 and recruit very cheaply, so they hit their cap almost immediately and steamroll the chickens. They are excellent woodcutters, but poor at mining, food and construction labour. Wood piles up quickly, while stone, food and building work lag behind, so every activity switch hurts more. **The same start area, but a different first ten minutes.** ✅ goal
+The owner's vision, *from a small patrol to the beginning of a working settlement*, is specified minute by minute in **[First 15 Minutes](FIRST_15_MINUTES.md)**. In short: one troop of 5 soldiers → woodcutting → the first upgrade choice → chickens (food + XP) → recruit → mining/food → **Training Camp** → 🎉 **Troop 2 around minute 10** → two troops working in parallel. After 15 min the player has ~2 troops, ~12 soldiers and 1 building. Orcs play the same 15 minutes with about twice the soldiers, faster woodcutting and slower building.
 
 ---
 
@@ -148,13 +140,13 @@ See [Roadmap §2](ROADMAP.md#2-prototype-p0-the-farmstead-camp).
 | | P0 "The Farmstead Camp" |
 |---|---|
 | Races | Humans, Orcs |
-| Troops | 1 → 2 |
+| Troops | 1 (5 soldiers) → 2 around minute 10 |
 | Activities | All 5 |
 | Resources | Food, Wood, Stone, Ore |
-| Zone | The Farmsteads: Chickens → Foxes → Wild Boar → 👑 The Old Tusker |
-| Buildings | Barracks, Training Grounds, Forge, Farm |
+| Zone | The Farmsteads: Wild Chickens → Rat swarm → Wild Boar → 👑 The Old Tusker |
+| Buildings | Training Camp, Barracks, Forge, Farm (fixed plots) |
 | Gear | Tier 0 → 1 |
-| Length | ~20–40 min |
+| Length | ~45–75 min (first 15 min as specified, then towards the boss) |
 | Art | None (emoji/SVG icons) |
 | Build order | **Headless core + simulator first**, then UI |
 

@@ -70,7 +70,7 @@ interface RaceDef {
   id: string;                          // stable ID, never an array index
   population: {
     maxTroopSize: number;              // e.g. 500
-    startSize: number;                 // e.g. 10
+    startSize: number;                 // e.g. 5 (Humans)
     foodPerSoldier: number;            // recruitment cost
     upkeepPerSoldier: number;          // P1
   };
@@ -86,6 +86,22 @@ interface RaceDef {
 interface EnemyDef   { id: string; hp: number; armour: number; traits: string[]; loot: Partial<Record<ResourceId, number>>; }
 interface ZoneDef    { id: string; stages: { enemyId: string; killsToClear: number }[]; boss: { enemyId: string; timeLimitSec: number }; }
 interface BuildingDef{ id: string; levels: { materials: Partial<Record<ResourceId, number>>; work: number; effects: Modifier[] | Unlock[] }[]; }
+
+// Objectives drive tutorial, unlocks and "what next?" (see FIRST_15_MINUTES.md §4)
+type Unlock = { kind: 'activity' | 'tab' | 'building' | 'upgrade' | 'zone' | 'troopSlot'; id: string };
+interface ObjectiveDef {
+  id: string;
+  requires: string[];                  // other objective ids
+  condition:                           // evaluated by the core, never by the UI
+    | { kind: 'resourceAtLeast'; resource: ResourceId; amount: number }
+    | { kind: 'totalGathered'; resource: ResourceId; amount: number }
+    | { kind: 'kills'; amount: number }
+    | { kind: 'buildingBuilt'; buildingId: string }
+    | { kind: 'troopAssigned'; activity: ActivityKind }
+    | { kind: 'troopSizeAtLeast'; size: number }
+    | { kind: 'recruited'; amount: number };
+  rewards: { unlocks?: Unlock[]; resources?: Partial<Record<ResourceId, number>> };
+}
 ```
 
 ### 3.2 Save state (plain JSON)
@@ -102,13 +118,17 @@ interface GameState {
   buildings: Record<string, { level: number }>;
   construction: { buildingId: string; progress: number } | null;
   combat: { zoneId: string; stageIndex: number; kills: number; boss?: { hpLeft: number; timeLeft: number } };
-  stats: { totalKills: number; /* … */ };
+  objectives: { completed: string[] };  // active = requirements met & not completed (derived)
+  unlocks: string[];                   // e.g. 'activity:mining', 'tab:upgrades', 'troopSlot:2'
+  upgrades: Record<string, number>;    // upgradeId → level
+  stats: { totalKills: number; totalGathered: Partial<Record<ResourceId, number>>; /* … */ };
 }
 
 interface TroopState {
   id: string;
-  name: string;                        // "1st Banner"
+  name: string;                        // player-chosen, e.g. "Norra Väktarna"
   size: number;                        // integer soldiers
+  xp: number;                          // from combat → level (veterancy), derived
   gearTier: number;
   doctrineId?: string;                 // P1
   activity: ActivityKind | null;       // null = idle
@@ -146,6 +166,8 @@ until Δt is consumed
 | `stageCleared` | stageIndex++, new enemy → combat rates change |
 | `constructionCompleted` | building level++, effects applied, troops on construction go idle |
 | `bossDefeated` / `bossFailed` | Unlocks / boss state reset (only while online) |
+| `objectiveCompleted` | Rewards applied (unlocks, resources). Can complete offline, e.g. "gather 60 wood". |
+| `troopLevelUp` | Troop multiplier changes → rates change |
 
 ### 4.3 Determinism
 
@@ -185,6 +207,8 @@ All state changes go through `dispatch(state, command, content)`, which validate
 | `upgradeGear(troopId)` | ✅ (tier 0→1 only) |
 | `startConstruction(buildingId)` | ✅ |
 | `challengeBoss()` | ✅ |
+| `buyUpgrade(upgradeId)` | ✅ |
+| `renameTroop(troopId, name)` | ✅ |
 | `setDoctrine(troopId, doctrineId)` | P1 |
 
 Benefits: a single place for validation, easy debug logging, and a future server could replay or validate the same commands (if cloud features ever arrive).
@@ -209,7 +233,8 @@ Benefits: a single place for validation, easy debug logging, and a future server
 - **React bridge:** the app shell holds the state. Components subscribe through `useSyncExternalStore`. No Redux or Zustand unless a real need appears.
 - **Render rate:** the UI re-renders at most ~4–10×/s. Numbers can animate with CSS.
 - **Mobile-first layout:** bottom tab bar on phones, side panel on desktop.
-- **P0 screens:** `Troops` (main: troop cards + activity selector + recruit), `Settlement` (buildings), `Battle` (zone, stage, boss), `Report` (modal after an absence), `Debug` (dev only: time ×10/×100, add resources).
+- **P0 screens:** `Your forces` (main: troop cards with Strength/Work + activity selector + recruit, plus the current goals), `Settlement` (fixed building plots, see [First 15 Minutes §6](FIRST_15_MINUTES.md#6-settlement-presentation-recommendation--the-owners-open-question)), `Upgrades`, `Battle` (current enemy with HP bar, stage, boss), `Report` (modal after an absence), `Debug` (dev only: time ×10/×100, add resources).
+- **Progressive disclosure:** tabs and buttons appear only when `state.unlocks` contains them. The UI reads unlocks and never decides them.
 - **No art in P0:** emoji or simple SVG icons, plain CSS panels.
 
 ---

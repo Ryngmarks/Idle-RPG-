@@ -20,6 +20,14 @@
 | D-11 | Claude may create and update Markdown docs, commit and push documentation. **No large implementations or new dependencies without approval.** | 2026-10-22 | Owner, v0.2 |
 | D-12 | **P0 races: Humans and Orcs** | 2026-10-22 | Owner, v0.2.1 |
 | D-13 | **Humans are better at Food; Orcs are better at Woodcutting** | 2026-10-22 | Owner, v0.2.1 |
+| D-14 | First session arc: *a small patrol → the beginning of a working settlement*. After 15 min: ~2 troops, ~12 soldiers, 1 building. No flood of content. | 2026-10-22 | Owner, v0.3 |
+| D-15 | Core message: *"My troops are my most important resource; what I tell them to do shapes my realm."* | 2026-10-22 | Owner, v0.3 |
+| D-16 | Troop 1 starts small (example: 5 / 20 soldiers). The troop card shows damage (DPS), work and current activity. | 2026-10-22 | Owner, v0.3 |
+| D-17 | Progress is driven by **goals and dependencies, not timers** | 2026-10-22 | Owner, v0.3 |
+| D-18 | Guided at first, then freedom after a few minutes. No forced fixed order through all five activities. | 2026-10-22 | Owner, v0.3 |
+| D-19 | Combat feels different from gathering: enemies with HP, rewards (food + XP), progression | 2026-10-22 | Owner, v0.3 |
+| D-20 | The first building is the **Training Camp** (example: 40 wood, 20 stone, 15 food, ~30–60 s of construction). It raises the troop cap and unlocks **Troop 2**. | 2026-10-22 | Owner, v0.3 |
+| D-21 | Troop 2 arrives around **minute 10–15 of active play** and is the first big milestone. Later milestones (Troop 3, a new area) take considerably longer. | 2026-10-22 | Owner, v0.3 |
 
 ## Proposed 💡 (awaiting confirmation)
 
@@ -30,7 +38,7 @@
 | P-03 | Race max troop size scales the cap. Barracks levels unlock the same *fraction* for every race. | [Troop Model §4.1](TROOP_MODEL.md#41-caps-are-race-scaled-but-progress-is-shared) |
 | P-04 | Recruitment = manual purchase with food (+ ore per soldier when equipped) | [Troop Model §4.2](TROOP_MODEL.md#42-recruitment) |
 | P-05 | Troops do not shrink (no casualties) in P0/P1 | |
-| P-06 | Troop 2 is unlocked by building Training Grounds. Troop 3 by defeating the start-area boss. | [Troop Model §4.3](TROOP_MODEL.md#43-troop-slots) |
+| P-06 | Troop 3 is unlocked by defeating the start-area boss (Troop 2: see D-20) | [Troop Model §4.3](TROOP_MODEL.md#43-troop-slots) |
 | P-07 | Resources: Food, Wood, Stone, Ore. **No gold** for now. | [Concept v0.2 §4](FANTASY_IDLE_RPG_CONCEPT_V0.2.md) |
 | P-08 | Specialisation via **Doctrine** (chosen) first, in P1. Proficiency (learned) later, if at all. | [Troop Model §7](TROOP_MODEL.md#7-specialisation-p1-not-in-the-first-prototype) |
 | P-09 | Event-driven `advance(state, Δt)`, the same code online and offline | [Architecture §4](ARCHITECTURE.md#4-simulation-model) |
@@ -39,6 +47,12 @@
 | P-12 | Offline: no boss fights, no auto-recruitment, 8 h cap in P0 | [Troop Model §10](TROOP_MODEL.md#10-idle-and-offline-implications) |
 | P-13 | Food upkeep in P1, **soft** only (efficiency loss, never deaths) | |
 | P-14 | Code work happens on branches + PRs from M1 onward. Docs are pushed directly. | [Roadmap §4](ROADMAP.md#4-working-method-owner-on-mobile) |
+| P-15 | Tutorial-scale base numbers: 1 attack and 1 work per soldier; gathering = work × skill × 0.1/s; Humans recruit for 5 food | [First 15 Minutes §2](FIRST_15_MINUTES.md#2-base-numbers-humans-tutorial-scale-) |
+| P-16 | A data-driven **objectives system** is the tutorial, the unlock gate and the "what next?" list | [First 15 Minutes §4](FIRST_15_MINUTES.md#4-the-objectives-system-replaces-timers-and-a-tutorial-engine-) |
+| P-17 | Troops gain **XP from combat → levels** (+10% Strength & Work per level) | [First 15 Minutes §2](FIRST_15_MINUTES.md#2-base-numbers-humans-tutorial-scale-) |
+| P-18 | Cap levels start at 4% of the race max (Humans 20, Orcs 40). Training Camp → 8%. | [Troop Model §4.1](TROOP_MODEL.md#41-caps-are-race-scaled-but-progress-is-shared) |
+| P-19 | The player names troops | [First 15 Minutes §7](FIRST_15_MINUTES.md#7-differences-from-the-previous-plan-v02) |
+| P-20 | **Settlement as fixed plots** with named growth stages (one illustration per stage). Not a menu only, not a city builder. | [First 15 Minutes §6](FIRST_15_MINUTES.md#6-settlement-presentation-recommendation--the-owners-open-question) |
 
 ## Open ❓
 
@@ -52,6 +66,10 @@
 | Q-06 | Monetisation direction: premium or free-to-play? | Affects pacing |
 | Q-07 | Documentation language: English (current) or Swedish? | |
 | Q-08 | Final names for the world, races and regions | Before the art phase |
+| Q-09 | Settlement presentation: menu, fixed plots or a city builder? | Fixed plots (P-20) |
+| Q-10 | Race picker in P0: Dwarves & Elves shown as locked, or playable with rough numbers? | Locked in P0 |
+| Q-11 | Does Troop 2 form with free soldiers? | Yes: 3 (Humans) / 6 (Orcs) |
+| Q-12 | Should XP also be a spendable currency? | No, per-troop levels only |
 
 ## Superseded 🗄️
 
@@ -62,4 +80,7 @@
 | Resources Gold / Wood / Iron | Food / Wood / Stone / Ore | Food and Construction are now activities, and every resource has one clear use |
 | MVG with 1 race | P0 with 2 races (Humans + Orcs) | Race contrast is now a core hypothesis (D-08) |
 | Generic "troop group size + slots" | Explicit population model per race | D-04, D-08 |
+| Start: Humans 10 / cap 50; first choice Barracks *or* Training Grounds | Humans 5 / cap 20; **Training Camp** gives cap + Troop 2 | D-16, D-20 |
+| Tutorial = "a few hint texts" | Objectives system (P-16) | D-17, D-18 |
+| Start-area chickens as the swarm example (HP 1) | Chickens are HP-30 tutorial enemies; the swarm example is now a rat swarm | D-19 |
 | Upkeep: open, leaning "not in MVG" | Soft upkeep planned for P1 | Food is now an activity that needs a purpose beyond recruitment |

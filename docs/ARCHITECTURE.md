@@ -284,6 +284,8 @@ Benefits: a single place for validation, easy debug logging, and a future server
 
 Nothing else without a concrete need. Each step needs the owner's approval.
 
+**Installed (M3, approved by the owner):** `react@19.3.0`, `react-dom@19.3.0`; dev: `vite@8.3.3`, `@vitejs/plugin-react@6.1.2`, `@types/react@19.3.0`, `@types/react-dom@19.3.0`. No UI framework, router or state library. The UI uses plain CSS and `useSyncExternalStore`. Two tsconfigs keep DOM types out of the core: `tsconfig.json` (core, content, tools) and `tsconfig.app.json` (app + UI).
+
 **Installed (M1, approved D-25):** `typescript@7.0.2`, `vitest@4.1.12`, `tsx@4.23.15`, all dev-only and pinned exactly. `.npmrc` sets `legacy-peer-deps=true`, because npm 10.9 crashes (`Cannot read properties of null (reading 'edgesOut')`) while resolving vitest's optional peer graph. vitest 4 already depends on vite directly, so nothing is lost. The simulator declares the two Node globals it needs (`tools/sim/env.d.ts`) instead of adding `@types/node`.
 
 ---

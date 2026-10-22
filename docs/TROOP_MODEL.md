@@ -61,7 +61,7 @@ Each race defines a **soldier profile**. Every value is a per-soldier rate.
 | **Mining** skill | 1.0 | 0.3 | **3.0** | 1.0 |
 | **Woodcutting** skill | 1.0 | **0.7** | 1.0 | **3.5** |
 | **Food** skill | **1.5** | 0.3 | 0.8 | **3.5** |
-| **Construction** skill | **1.2** | 0.3 | **3.0** | 1.5 |
+| **Construction** skill | **1.2** | 0.4 🔧 | **3.0** | 1.5 |
 | Food upkeep (relative, P1) | 1.0 | 1.0 | 1.5 | 0.5 |
 
 **Base rates (tutorial scale, from [First 15 Minutes §2](FIRST_15_MINUTES.md#2-base-numbers-humans-tutorial-scale-)):** every soldier has **Work 1**. Gathering yields `Work × skill × 0.1` per second, and construction gives `Work × skill` work points per second. The troop card shows only **Strength (DPS)** and **Work**.
@@ -105,17 +105,19 @@ Each race defines a **maximum troop size**. Buildings (Barracks) unlock **cap le
 ### 4.2 Recruitment 💡
 
 ```
-recruit N soldiers into troop T:
-    cost = N × (race.foodPerSoldier + gearTier.orePerSoldier)
-    constraint: T.size + N ≤ cap(T)
+food cost of the next soldier = race.foodPerSoldier × (T.size / race.startSize) ^ 1.2
+ore cost of the next soldier  = gearTier.orePerSoldier
+constraint: T.size + N ≤ cap(T)
 ```
 
-| Race | Food per soldier | Food to fill max cap (tier-0 gear) | Feel |
+🔧 **Changed after simulation (v0.4):** a flat cost per soldier made armies snowball, because combat food income grows with troop size. With a flat 5 food per soldier, Humans had 45 soldiers after 10 minutes instead of ~12. The cost now **escalates with troop size** (see [Balance Log](BALANCE_LOG.md)).
+
+| Race | First recruit | Recruit at 8% of max (Training Camp cap) | Feel |
 |---|---|---|---|
-| Orcs | 1.25 | 1 250 | Cheap bodies, numbers flood in |
-| Humans | 5 | 2 500 | Steady |
-| Dwarves | 15 | 3 000 | Each recruit is an investment |
-| Elves | 19 | 2 850 | Few, precious |
+| Orcs | 1.25 food (at 10) | ~15 food (at 80) | Cheap bodies, numbers flood in |
+| Humans | 5 food (at 5) | ~61 food (at 40) | Steady |
+| Dwarves | 15 food (at 2) | ~182 food (at 16) | Each recruit is an investment |
+| Elves | 19 food (at 2) | ~163 food (at 12) | Few, precious |
 
 - **Gear cost is per soldier.** Recruiting into an equipped troop also costs ore for the new soldiers' gear. Upgrading a troop's gear tier costs `size × ore`. → *Equipping a horde is expensive; equipping an elite is cheap* (lever 4).
 - 💡 **Recruitment is a manual purchase** in P0 (buttons: +1 / +10 / +max). That is a clear decision point and easy to tune.
@@ -158,7 +160,7 @@ Illustrative labour output **at max cap** (skill × size):
 | Mining | 500 | 300 | **600** | 150 |
 | Woodcutting | 500 | **700** | 200 | 525 |
 | Food | **750** | 300 | 160 | 525 |
-| Construction | **600** | 300 | **600** | 225 |
+| Construction | **600** | 400 | **600** | 225 |
 | *Identity* | *Good at everything, best farmers* | *Brute lumberjacks; poor at finer work → must fight/raid for food* | *Miners & builders* | *Foresters & foragers* |
 
 ✅ *Owner decision (v0.2.1): Humans are better at **Food**, Orcs are better at **Woodcutting**.* Elf values (P1) are kept for now. With these numbers, Elves are no longer the best at wood or food in absolute terms, only per soldier. Their profile will be revisited when Elves are designed in P1.

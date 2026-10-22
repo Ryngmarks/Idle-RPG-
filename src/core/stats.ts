@@ -1,0 +1,238 @@
+// Derived values: global modifiers, troop stats and all rates.
+// Nothing here is stored in the save; it is always recomputed from state + content.
+
+import { damagePerHit, dpsAgainst, killsPerSecond, levelForXp, resolveStat, troopCap } from './formulas';
+import type {
+  Content,
+  EnemyDef,
+  GameState,
+  LabourActivity,
+  Modifier,
+  RaceDef,
+  Resources,
+  TroopState,
+  ZoneDef,
+} from './types';
+
+export function race(state: GameState, content: Content): RaceDef {
+  const r = content.races[state.raceId];
+  if (!r) throw new Error(`Unknown race ${state.raceId}`);
+  return r;
+}
+
+export function zone(state: GameState, content: Content): ZoneDef {
+  const z = content.zones[state.combat.zoneId];
+  if (!z) throw new Error(`Unknown zone ${state.combat.zoneId}`);
+  return z;
+}
+
+export function enemy(id: string, content: Content): EnemyDef {
+  const e = content.enemies[id];
+  if (!e) throw new Error(`Unknown enemy ${id}`);
+  return e;
+}
+
+/** The enemy the combat troops are currently farming. */
+export function currentEnemy(state: GameState, content: Content): EnemyDef {
+  const z = zone(state, content);
+  const i = Math.min(state.combat.stageIndex, z.stages.length - 1);
+  const stage = z.stages[i];
+  if (!stage) throw new Error(`Zone ${z.id} has no stages`);
+  return enemy(stage.enemyId, content);
+}
+
+/** Modifiers from race, completed buildings and bought upgrades. */
+export function globalModifiers(state: GameState, content: Content): Modifier[] {
+  const mods: Modifier[] = [...race(state, content).modifiers];
+  for (const [id, level] of Object.entries(state.buildings)) {
+    const def = content.buildings[id];
+    if (!def) continue;
+    for (let l = 0; l < level; l++) {
+      for (const e of def.levels[l]?.effects ?? []) if (e.kind === 'modifier') mods.push(e.modifier);
+    }
+  }
+  for (const [id, level] of Object.entries(state.upgrades)) {
+    if (level > 0) mods.push(...(content.upgrades[id]?.modifiers ?? []));
+  }
+  return mods;
+}
+
+export function capLevel(state: GameState, content: Content): number {
+  let level = 0;
+  for (const [id, built] of Object.entries(state.buildings)) {
+    const def = content.buildings[id];
+    for (let l = 0; l < built; l++) {
+      for (const e of def?.levels[l]?.effects ?? []) if (e.kind === 'capLevel') level = Math.max(level, e.level);
+    }
+  }
+  return level;
+}
+
+export function currentCap(state: GameState, content: Content): number {
+  return troopCap(race(state, content).population.maxTroopSize, capLevel(state, content), content.constants.capLevelFractions);
+}
+
+export function troopLevel(troop: TroopState, content: Content): number {
+  return levelForXp(troop.xp, content.constants.xpBase, content.constants.xpExponent);
+}
+
+export interface TroopStats {
+  level: number;
+  /** Effective per-soldier values. */
+  attack: number;
+  armourPen: number;
+  work: number;
+  skills: Record<LabourActivity, number>;
+  /** Headline numbers shown on the troop card. */
+  strength: number;
+  workTotal: number;
+}
+
+export function troopStats(state: GameState, troop: TroopState, content: Content, mods = globalModifiers(state, content)): TroopStats {
+  const r = race(state, content);
+  const c = content.constants;
+  const level = troopLevel(troop, content);
+  const levelMult = 1 + c.levelBonus * (level - 1);
+  const gear = content.gearTiers[troop.gearTier] ?? { attackMult: 1, orePerSoldier: 0 };
+
+  // Racial traits that depend on the troop itself.
+  const troopMods: Modifier[] = [];
+  if (r.traits.includes('horde')) {
+    const cap = currentCap(state, content);
+    const fullness = cap > 0 ? Math.min(1, troop.size / cap) : 0;
+    troopMods.push({ stat: 'attack', op: 'mult', value: 0.5 * fullness, source: 'trait:horde' });
+  }
+  const all = troopMods.length ? [...mods, ...troopMods] : mods;
+
+  const attack = resolveStat(r.soldier.attack, 'attack', all) * gear.attackMult * levelMult;
+  const work = resolveStat(r.soldier.work, 'work', all) * levelMult;
+  const skills = {
+    mining: resolveStat(r.soldier.skills.mining, 'skill.mining', all),
+    woodcutting: resolveStat(r.soldier.skills.woodcutting, 'skill.woodcutting', all),
+    food: resolveStat(r.soldier.skills.food, 'skill.food', all),
+    construction: resolveStat(r.soldier.skills.construction, 'skill.construction', all),
+  };
+  const armourPen = Math.min(1, resolveStat(r.soldier.armourPen, 'armourPen', all));
+  return {
+    level,
+    attack,
+    armourPen,
+    work,
+    skills,
+    strength: troop.size * attack * c.attacksPerSecond,
+    workTotal: troop.size * work,
+  };
+}
+
+export interface Rates {
+  /** Resources per second from labour activities and combat loot. */
+  resources: Resources;
+  /** Resources per second from labour only (for "gathered" stats/objectives). */
+  gathered: Resources;
+  killsPerSec: number;
+  constructionWorkPerSec: number;
+  bossDps: number;
+  /** XP per second per troop id. */
+  xpPerSec: Record<string, number>;
+  /** Per-troop output, useful for UI and the simulator. */
+  perTroop: Record<string, { killsPerSec: number; bossDps: number; output: Partial<Resources>; work: number }>;
+}
+
+export function emptyResources(): Resources {
+  return { food: 0, wood: 0, stone: 0, ore: 0 };
+}
+
+export function computeRates(state: GameState, content: Content): Rates {
+  const c = content.constants;
+  const r = race(state, content);
+  const mods = globalModifiers(state, content);
+  const rates: Rates = {
+    resources: emptyResources(),
+    gathered: emptyResources(),
+    killsPerSec: 0,
+    constructionWorkPerSec: 0,
+    bossDps: 0,
+    xpPerSec: {},
+    perTroop: {},
+  };
+  const foe = currentEnemy(state, content);
+  const boss = state.combat.boss ? enemy(zone(state, content).boss.enemyId, content) : null;
+  const oreShare = Math.min(0.9, c.miningOreShare + (r.traits.includes('deepDelvers') ? 0.15 : 0));
+
+  for (const t of state.troops) {
+    const s = troopStats(state, t, content, mods);
+    const entry = { killsPerSec: 0, bossDps: 0, output: {} as Partial<Resources>, work: 0 };
+    rates.perTroop[t.id] = entry;
+    const labour = (skill: number) => t.size * s.work * skill * c.gatherRate;
+    switch (t.activity) {
+      case 'combat':
+        if (boss) {
+          entry.bossDps = dpsAgainst(t.size, s.attack, s.armourPen, boss.armour, c.attacksPerSecond);
+          rates.bossDps += entry.bossDps;
+        } else {
+          entry.killsPerSec = killsPerSecond(t.size, s.attack, s.armourPen, foe, c.attacksPerSecond);
+          rates.killsPerSec += entry.killsPerSec;
+        }
+        break;
+      case 'mining': {
+        const total = labour(s.skills.mining);
+        entry.output = { stone: total * (1 - oreShare), ore: total * oreShare };
+        break;
+      }
+      case 'woodcutting':
+        entry.output = { wood: labour(s.skills.woodcutting) };
+        break;
+      case 'food':
+        entry.output = { food: labour(s.skills.food) };
+        break;
+      case 'construction':
+        entry.work = state.construction ? t.size * s.work * s.skills.construction : 0;
+        rates.constructionWorkPerSec += entry.work;
+        break;
+      case null:
+        break;
+    }
+    for (const [res, v] of Object.entries(entry.output) as [keyof Resources, number][]) {
+      rates.gathered[res] += v;
+      rates.resources[res] += v;
+    }
+  }
+
+  // Combat loot and XP (farming only; boss rewards are milestones, not loot).
+  if (rates.killsPerSec > 0) {
+    const lootFood = resolveStat(foe.loot.food ?? 0, 'loot.food', withRaiders(r, mods));
+    const lootOre = resolveStat(foe.loot.ore ?? 0, 'loot.ore', withRaiders(r, mods));
+    rates.resources.food += rates.killsPerSec * lootFood;
+    rates.resources.ore += rates.killsPerSec * lootOre;
+    rates.resources.wood += rates.killsPerSec * (foe.loot.wood ?? 0);
+    rates.resources.stone += rates.killsPerSec * (foe.loot.stone ?? 0);
+    for (const t of state.troops) {
+      const k = rates.perTroop[t.id]?.killsPerSec ?? 0;
+      if (k > 0) rates.xpPerSec[t.id] = k * foe.xp;
+    }
+  }
+  return rates;
+}
+
+function withRaiders(r: RaceDef, mods: Modifier[]): Modifier[] {
+  if (!r.traits.includes('raiders')) return mods;
+  return [
+    ...mods,
+    { stat: 'loot.food', op: 'mult', value: 0.5, source: 'trait:raiders' },
+    { stat: 'loot.ore', op: 'mult', value: 0.5, source: 'trait:raiders' },
+  ];
+}
+
+/** Convenience used by the UI/simulator: would the current combat troops beat the boss? */
+export function estimatedBossDamage(state: GameState, content: Content, troopIds?: string[]): { damage: number; hp: number } {
+  const z = zone(state, content);
+  const b = enemy(z.boss.enemyId, content);
+  const mods = globalModifiers(state, content);
+  let dps = 0;
+  for (const t of state.troops) {
+    if (troopIds ? !troopIds.includes(t.id) : t.activity !== 'combat') continue;
+    const s = troopStats(state, t, content, mods);
+    dps += t.size * content.constants.attacksPerSecond * damagePerHit(s.attack, b.armour, s.armourPen);
+  }
+  return { damage: dps * z.boss.timeLimitSec, hp: b.hp };
+}

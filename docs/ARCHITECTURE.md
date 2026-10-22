@@ -188,7 +188,8 @@ interface Modifier {
   scope?: { activity?: ActivityKind; troopId?: string };
   source: string;                      // 'race:orcs', 'building:farm#1' → used in tooltips & debugging
 }
-// resolution: final = (base + Σ add) × Π (1 + mult)
+// resolution: final = (base + Σ add) × (1 + Σ mult)   — mults stack additively within a stat;
+// gear tier and troop level are separate multiplicative factors (see src/core/stats.ts)
 ```
 
 **Traits** that cannot be expressed as a flat modifier (Orc *Horde*: bonus depends on fullness; Orc *Raiders*: extra loot) are **small named functions** in `core/traits/`, each with its own tests. There is no DSL and no scripting.
@@ -239,26 +240,28 @@ Benefits: a single place for validation, easy debug logging, and a future server
 
 ---
 
-## 9. Proposed folder structure (not yet created)
+## 9. Folder structure (as built in M1)
 
 ```
 /
-├─ docs/                    ← planning (this folder)
+├─ docs/                    ← planning
 ├─ src/
-│  ├─ core/                 ← pure TS game core
-│  │  ├─ state.ts
-│  │  ├─ commands.ts
-│  │  ├─ simulation.ts
-│  │  ├─ formulas/          ← combat.ts, production.ts, recruitment.ts
-│  │  ├─ modifiers.ts
-│  │  ├─ traits/            ← horde.ts, raiders.ts …
-│  │  └─ save/              ← schema.ts, migrations.ts
-│  ├─ content/              ← races.ts, activities.ts, enemies.ts, zones.ts, buildings.ts, gear.ts
-│  ├─ app/                  ← loop.ts, persistence.ts, store.ts
-│  └─ ui/                   ← React components & screens
-├─ tools/
-│  └─ sim/                  ← headless balance simulator (CLI)
-└─ tests/                   ← or co-located *.test.ts
+│  ├─ core/                 ← pure TS game core (flat and small on purpose; split when a file grows)
+│  │  ├─ types.ts           ← content + state + event types
+│  │  ├─ formulas.ts        ← combat (armour/overkill), caps, XP, recruit cost, modifier resolution
+│  │  ├─ stats.ts           ← derived values: troop stats, traits (Horde, Raiders), all rates
+│  │  ├─ simulation.ts      ← event-driven advance() and catchUp()
+│  │  ├─ commands.ts        ← dispatch(): validated player actions
+│  │  ├─ objectives.ts      ← goal chain / unlocks
+│  │  ├─ mutations.ts       ← small shared state helpers
+│  │  ├─ state.ts           ← newGame(), cloneState()
+│  │  ├─ save.ts            ← versioned serialize/deserialize + migrations
+│  │  └─ *.test.ts          ← co-located tests, incl. a purity check
+│  ├─ content/              ← races.ts, world.ts (enemies, zone, buildings, upgrades, gear, objectives)
+│  ├─ app/                  ← (M3) loop, persistence, store
+│  └─ ui/                   ← (M3) React components & screens
+└─ tools/
+   └─ sim/                  ← bot.ts, run.ts (CLI), balance.test.ts
 ```
 
 ---
@@ -271,7 +274,9 @@ Benefits: a single place for validation, easy debug logging, and a future server
 | **Step 2: playable UI** | + `vite`, `react`, `react-dom`, `@vitejs/plugin-react`, `@types/react*` | UI |
 | **Step 3: installable** | + `vite-plugin-pwa` | Offline/installable PWA |
 
-Nothing else without a concrete need. No dependencies have been installed. Each step needs the owner's approval.
+Nothing else without a concrete need. Each step needs the owner's approval.
+
+**Installed (M1, approved D-25):** `typescript@7.0.2`, `vitest@4.1.12`, `tsx@4.23.15`, all dev-only and pinned exactly. `.npmrc` sets `legacy-peer-deps=true`, because npm 10.9 crashes (`Cannot read properties of null (reading 'edgesOut')`) while resolving vitest's optional peer graph. vitest 4 already depends on vite directly, so nothing is lost. The simulator declares the two Node globals it needs (`tools/sim/env.d.ts`) instead of adding `@types/node`.
 
 ---
 

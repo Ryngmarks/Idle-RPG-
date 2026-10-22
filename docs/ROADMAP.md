@@ -10,8 +10,8 @@
 | # | Milestone | Output | Needs approval | Est. |
 |---|---|---|---|---|
 | **M0** | Planning v0.2 | These documents | — | ✅ done |
-| **M1** | Headless core | TS game core + P0 content (Humans + Orcs) + unit tests | ⚠️ `typescript`, `vitest`, `tsx` | 1–2 weeks |
-| **M2** | Balance simulator | CLI: bots play both races, print timelines | — (same deps) | 3–5 days |
+| **M1** | Headless core | TS game core + P0 content (Humans + Orcs) + unit tests | ✅ approved | ✅ done (branch `m1-core-simulator`) |
+| **M2** | Balance simulator | CLI: bots play both races, print timelines | — (same deps) | ✅ done, see [Balance Log](BALANCE_LOG.md) |
 | **M3** | Prototype P0 playable | Minimal React UI, save/load, offline report | ⚠️ `vite`, `react` … | 2–3 weeks |
 | **M4** | Playtest P0 | Owner + 3–5 testers, tuning | — | 1–2 weeks |
 | **M5** | P1: Depth | Doctrines, upkeep, troop 3, boss reward, Dwarves & Elves | — | 3–5 weeks |

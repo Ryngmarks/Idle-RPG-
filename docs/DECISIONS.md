@@ -28,6 +28,10 @@
 | D-19 | Combat feels different from gathering: enemies with HP, rewards (food + XP), progression | 2026-10-22 | Owner, v0.3 |
 | D-20 | The first building is the **Training Camp** (example: 40 wood, 20 stone, 15 food, ~30–60 s of construction). It raises the troop cap and unlocks **Troop 2**. | 2026-10-22 | Owner, v0.3 |
 | D-21 | Troop 2 arrives around **minute 10–15 of active play** and is the first big milestone. Later milestones (Troop 3, a new area) take considerably longer. | 2026-10-22 | Owner, v0.3 |
+| D-22 | **Settlement as fixed plots** with named growth stages (was P-20 / Q-09) | 2026-10-22 | Owner, v0.4 |
+| D-23 | **Dwarves & Elves are shown but locked** in the P0 race picker (was Q-10) | 2026-10-22 | Owner, v0.4 |
+| D-24 | **Troop 2 forms with free soldiers**: 3 Humans / 6 Orcs (was Q-11) | 2026-10-22 | Owner, v0.4 |
+| D-25 | Start M1–M2. Dev dependencies approved: `typescript`, `vitest`, `tsx` | 2026-10-22 | Owner, v0.4 |
 
 ## Proposed 💡 (awaiting confirmation)
 
@@ -52,7 +56,9 @@
 | P-17 | Troops gain **XP from combat → levels** (+10% Strength & Work per level) | [First 15 Minutes §2](FIRST_15_MINUTES.md#2-base-numbers-humans-tutorial-scale-) |
 | P-18 | Cap levels start at 4% of the race max (Humans 20, Orcs 40). Training Camp → 8%. | [Troop Model §4.1](TROOP_MODEL.md#41-caps-are-race-scaled-but-progress-is-shared) |
 | P-19 | The player names troops | [First 15 Minutes §7](FIRST_15_MINUTES.md#7-differences-from-the-previous-plan-v02) |
-| P-20 | **Settlement as fixed plots** with named growth stages (one illustration per stage). Not a menu only, not a city builder. | [First 15 Minutes §6](FIRST_15_MINUTES.md#6-settlement-presentation-recommendation--the-owners-open-question) |
+| P-21 | **Recruit cost escalates with troop size**: `foodPerSoldier × (size/startSize)^1.2` (found by the simulator; flat costs snowball) | [Balance Log](BALANCE_LOG.md) |
+| P-22 | Tuned numbers: combat food loot ÷3, Training Camp 50/30/25 + 500 work, Orc construction 0.4 | [Balance Log](BALANCE_LOG.md) |
+| P-23 | Pacing targets are enforced by an automated balance test (`tools/sim/balance.test.ts`) | [Balance Log](BALANCE_LOG.md) |
 
 ## Open ❓
 
@@ -66,12 +72,17 @@
 | Q-06 | Monetisation direction: premium or free-to-play? | Affects pacing |
 | Q-07 | Documentation language: English (current) or Swedish? | |
 | Q-08 | Final names for the world, races and regions | Before the art phase |
-| Q-09 | Settlement presentation: menu, fixed plots or a city builder? | Fixed plots (P-20) |
-| Q-10 | Race picker in P0: Dwarves & Elves shown as locked, or playable with rough numbers? | Locked in P0 |
-| Q-11 | Does Troop 2 form with free soldiers? | Yes: 3 (Humans) / 6 (Orcs) |
 | Q-12 | Should XP also be a spendable currency? | No, per-troop levels only |
 
 ## Superseded 🗄️
+
+| Was | Now | Why |
+|---|---|---|
+| Flat recruit cost (5 food per Human soldier) | Escalating cost (P-21) | Simulator: armies snowballed (45 soldiers at 10 min instead of ~12) |
+| Training Camp 40 wood / 20 stone / 15 food + 400 work (owner's example) | 50 / 30 / 25 + 500 work (P-22) | Simulator: Troop 2 came too early |
+
+
+**From v0.1 to v0.2:**
 
 | Was (v0.1) | Now (v0.2) | Why |
 |---|---|---|

@@ -1,6 +1,6 @@
 # The First 15 Minutes: Onboarding Design v0.3
 
-> **Status:** The owner's vision (✅) translated into a concrete, numbered design (💡). Numbers are tuning starting points; the balance simulator will verify them.
+> **Status:** The owner's vision (✅) translated into a concrete, numbered design (💡). 🔧 Numbers marked with 🔧 were changed after the first simulator runs; see [Balance Log](BALANCE_LOG.md).
 > **Related:** [Troop Model](TROOP_MODEL.md) · [Roadmap / Prototype P0](ROADMAP.md) · [Decisions](DECISIONS.md)
 
 **Labels:** ✅ Confirmed (owner) · 💡 Proposed · ❓ Open
@@ -35,7 +35,7 @@ Chosen to match the owner's example ("5 soldiers → 5 DPS, 5 work, 5 wood every
 | Work | 1 | **Work:** size × work → "5" |
 | Gathering yield | Work × race skill × **0.1/s** | Wood: 5 × 1.0 × 0.1 = **0.5/s = 5 per 10 s** ✓ |
 | Construction | Work × construction skill → work points/s | 8 Humans: 8 × 1.2 = 9.6/s |
-| Recruit cost | **5 food** per soldier (Humans) | "+1 soldier · 5 🌾" |
+| Recruit cost | **5 food** for the first recruit, rising with troop size 🔧 (size 10 → ~11, size 20 → ~26) | "+1 soldier · 5 🌾" |
 
 💡 **UI simplification adopted from the owner's mock-up:** the troop card shows only two headline stats, **Strength (DPS)** and **Work**. Activity output is derived from Work × the race's skill for that activity, and is shown when the troop is assigned (e.g. "0.5 wood/s").
 
@@ -44,11 +44,11 @@ Chosen to match the owner's example ("5 soldiers → 5 DPS, 5 work, 5 wood every
 | Thing | Values |
 |---|---|
 | Troop 1 | **5 / 20 soldiers** ✅ |
-| 🐔 Wild Chicken (Lv 1) | HP 30, armour 0 · reward **3 food + 2 XP** · 5 DPS → one kill per 6 s |
+| 🐔 Wild Chicken (Lv 1) | HP 30, armour 0 · reward **1 food 🔧 + 2 XP** · 5 DPS → one kill per 6 s |
 | Troop level (veterancy) | Lv 2 at 30 XP, Lv 3 at 90 XP … each level gives +10% Strength and Work |
 | Upgrade "Sharpened Axes" | 30 wood → +50% Woodcutting |
 | Upgrade "Drill Practice" | 20 food + 20 wood → +25% Strength |
-| 🏕️ **Training Camp** | **40 wood · 20 stone · 15 food** ✅ + **400 work** (≈ 40–50 s with 8 soldiers) |
+| 🏕️ **Training Camp** | **50 wood · 30 stone · 25 food** 🔧 (owner's example: 40 · 20 · 15) + **500 work** 🔧 (≈ 60 s with 7 soldiers) |
 | Training Camp effects | Troop cap **20 → 40** · **Troop 2 unlocked**, formed with **3 soldiers** for free ("volunteers from the camp") |
 
 ---
@@ -63,10 +63,10 @@ Assumes a player who acts reasonably promptly. Every step is triggered by a **go
 | **01:00–02:00** | Woodcutting: the progress bar fills and **+5 wood every 10 s** | 🎯 *"Gather 30 wood"* → unlocks the **Upgrades** tab | — |
 | **02:00–03:30** | **First real choice:** buy *Sharpened Axes* (30 wood) now, or save for something bigger? The game shows both but chooses for no one. | 🎯 *"Gather 60 wood in total"* (reached sooner with axes) | **Spend or save** |
 | **03:30–04:00** | Combat unlocks: *"Chickens have been spotted by the old farm."* | 🎯 *"Defeat 5 chickens"* | — |
-| **04:00–06:00** | Combat: HP bar, 6 s per kill, **+3 food +2 XP** per kill. Troop reaches **Lv 2** around minute 5. After 5 kills, **Recruit** unlocks. | 🎯 *"Recruit a soldier"* | **Recruit (5 food) vs Drill Practice** |
+| **04:00–06:00** | Combat: HP bar, 6 s per kill, **+1 food 🔧 +2 XP** per kill. Troop reaches **Lv 2** around minute 5. After 5 kills, **Recruit** unlocks. | 🎯 *"Recruit a soldier"* | **Recruit (5 food) vs Drill Practice** |
 | **06:00** | Troop is ~7–8 soldiers. **From here, guidance loosens.** Mining, Food and the **Training Camp** blueprint appear together. | 🎯🎯🎯 Three parallel goals: *"Gather 20 stone"*, *"Produce food in the fields"*, *"Build the Training Camp"* | **Order of work** |
 | **06:00–09:00** | One troop, three needs. The player moves the troop between Mining (≈25 s for 20 stone), Woodcutting (≈35 s for missing wood) and Food. *"It would be nice to have another troop…"* | — | **Allocation, with one troop** |
-| **09:00–10:00** | Construction: the troop builds the Training Camp, **400 work ≈ 40–50 s**. The other activities stop meanwhile. | 🎯 *"Build the Training Camp"* | — |
+| **09:00–10:00** | Construction: the troop builds the Training Camp, **500 work ≈ 60 s**. The other activities stop meanwhile. | 🎯 *"Build the Training Camp"* | — |
 | **≈10:00** | 🎉 **Milestone:** *"The Training Camp stands. A second banner can be raised."* Cap 20 → 40. **Troop 2 is formed (3 soldiers), and the player names it.** | 🎯 *"Give your new troop orders"* | **Name the troop** |
 | **10:00–15:00** | **Two things at once:** *Norra Väktarna* fights (~9 soldiers, 9 DPS), *Skogsarbetarna* cut wood (3 soldiers ≈ 18 wood/min). Hand-holding ends. | Open goals: *"Clear the farmstead (stage 2/5)"*, *"Grow a troop to 15"*, *"Prepare the next building"* | **Free play** |
 
@@ -138,7 +138,7 @@ The owner wrote "unlock the ability to leave the troop working while looking at 
 | 30 wood | ~60 s | **~43 s** (wood skill 0.7 × 10 soldiers) |
 | Recruit cost | 5 food | **1.25 food**, and *Raiders* gives +50% food per kill |
 | 20 stone | ~25 s (8 soldiers) | ~33 s (20 Orcs, mining skill 0.3) |
-| Training Camp (400 work) | ~45 s | **~70 s** (≈ 20 Orcs × 0.3) |
+| Training Camp (500 work) | ~60 s | **~75 s** (≈ 17 Orcs × 0.4 🔧) |
 | Troop 2 forms with | 3 soldiers | **6 soldiers** |
 | After 15 min | 2 troops · ~12 soldiers | 2 troops · **~25–30 soldiers** |
 | Feel | Steady, efficient | **Many, clumsy, hungry**: wood and bodies are easy, building and stone are slow |

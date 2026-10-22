@@ -2,7 +2,7 @@
 
 A fantasy idle army RPG for mobile and desktop. Your **troops** (groups of soldiers that grow from a handful to hundreds) fight, mine, cut wood, produce food and build your settlement. Your race decides how big your troops get and what they are good at.
 
-> **Status:** Planning phase. No code yet.
+> **Status:** M1–M2 done: a headless game core and a balance simulator. No UI yet.
 
 ## Documents
 
@@ -13,9 +13,24 @@ A fantasy idle army RPG for mobile and desktop. Your **troops** (groups of soldi
 | [Troop Model](docs/TROOP_MODEL.md) | Troop size, soldier quality, races, recruitment, activities, formulas |
 | [Architecture](docs/ARCHITECTURE.md) | Game core, simulation, data model, persistence, dependencies |
 | [Roadmap & Prototype](docs/ROADMAP.md) | Milestones and the first playable prototype (P0) |
+| [Balance Log](docs/BALANCE_LOG.md) | Simulator results and every tuning pass |
 | [Decisions](docs/DECISIONS.md) | Confirmed, proposed and open decisions |
 | [Concept v0.1 (archive)](docs/archive/FANTASY_IDLE_RPG_CONCEPT_V0.1.md) | Original discovery document |
 
-## Planned tech
+## Code
 
-React · TypeScript · Vite · PWA · a framework-independent game core (not yet set up).
+```
+src/core/      pure TypeScript game core (no UI, no DOM, no Date/Math.random)
+src/content/   game data: races, enemies, zone, buildings, upgrades, objectives
+tools/sim/     balance simulator: scripted bots play the game headlessly
+```
+
+```bash
+npm install
+npm test            # unit tests + core purity check + balance regression tests
+npm run typecheck
+npm run sim         # Humans vs Orcs, two strategies, milestone summary
+npm run sim -- --race orcs --strategy balanced --log   # full timeline for one run
+```
+
+Planned UI tech (M3): React · Vite · PWA.

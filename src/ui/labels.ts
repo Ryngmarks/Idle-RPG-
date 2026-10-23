@@ -3,6 +3,7 @@
 import { content } from '../content';
 import type { IconId } from './art/resources';
 import type { UiIconName } from './art/icons';
+import { masteryLevel } from '../core';
 import type { ActivityKind, Effect, GameEvent, GameState, Modifier, ObjectiveCondition, QualityId, ResourceId, TraitId } from '../core';
 
 /** Quality colours (grey → green → blue → purple → gold), readable on the dark theme. */
@@ -24,6 +25,7 @@ export const RESOURCE_LABEL: Record<ResourceId, { name: string }> = {
   wood: { name: 'Ved' },
   stone: { name: 'Sten' },
   ore: { name: 'Malm' },
+  iron: { name: 'Järn' },
 };
 
 export const ACTIVITY_LABEL: Record<ActivityKind, { name: string; icon: UiIconName | IconId; verb: string }> = {
@@ -42,6 +44,7 @@ export const BUILDING_ICON: Record<string, UiIconName> = {
   woodshed: 'woodshed',
   forge: 'anvil',
   barracks: 'barracks',
+  drillGround: 'trainingCamp',
 };
 
 export const TRAIT_LABEL: Record<TraitId, string> = {
@@ -117,9 +120,39 @@ export function objectiveProgress(state: GameState, c: ObjectiveCondition): { cu
       return { current: Math.min(c.count, state.troops.filter((t) => t.activity).length), target: c.count };
     case 'stageReached':
       return { current: Math.min(c.stage, state.combat.stageIndex + 1), target: c.stage };
+    case 'levelReached':
+      return { current: Math.min(c.level, state.combat.unlockedStage + 1), target: c.level };
+    case 'bossDefeated':
+      return { current: Math.min(c.index ?? 1, state.combat.bossesDefeated), target: c.index ?? 1 };
+    case 'tierCrafted':
+      return { current: Object.entries(state.crafting.crafted).some(([k, n]) => n > 0 && k.endsWith(`:t${c.tier}`)) ? 1 : 0, target: 1 };
+    case 'masteryReached': {
+      let best = 0;
+      for (const [k, n] of Object.entries(state.crafting.crafted)) if (k.endsWith(':t1')) best = Math.max(best, masteryLevel(n, content));
+      return { current: Math.min(c.level, best), target: c.level };
+    }
     default:
       return null;
   }
+}
+
+/** Failure messages of a boss fight, by reason. */
+export const BOSS_FAIL_TEXT = {
+  time: 'Bossen höll stånd. Trupperna drar sig tillbaka.',
+  wounds: 'Trupperna retirerade med sår. Ingen föll.',
+} as const;
+
+function bossName(zoneId: string, index: number): string {
+  const id = content.zones[zoneId]?.bosses[index]?.enemyId;
+  return (id && content.enemies[id]?.name) || `Boss ${index + 1}`;
+}
+
+/** Why a building level is locked by an unlock, in words (e.g. "Låses upp av boss 4"). */
+export function unlockReason(unlock: string): string {
+  const o = content.objectives.find((x) => x.rewards.unlocks?.includes(unlock));
+  if (o?.condition.kind === 'bossDefeated') return `Låses upp av boss ${o.condition.index ?? 1}`;
+  if (o) return `Låses upp av: ${o.text}`;
+  return 'Låst';
 }
 
 export function eventText(e: GameEvent, state: GameState): string | null {
@@ -137,9 +170,11 @@ export function eventText(e: GameEvent, state: GameState): string | null {
     case 'constructionCompleted':
       return `🏰 ${content.buildings[e.buildingId]?.name ?? e.buildingId} färdigbyggd (nivå ${e.level})`;
     case 'stageCleared':
-      return `⚔️ Steg ${e.stage} rensat`;
+      return `⚔️ Nivå ${e.stage} rensad`;
     case 'zoneCleared':
-      return `🏳️ ${content.zones[e.zoneId]?.name ?? ''}: alla steg rensade. Bossen väntar.`;
+      return `🏳️ ${content.zones[e.zoneId]?.name ?? ''}: alla nivåer rensade.`;
+    case 'bossReady':
+      return `👑 En boss väntar: ${bossName(e.zoneId, e.index)}`;
     case 'troopLevelUp':
       return `⭐ ${state.troops.find((t) => t.id === e.troopId)?.name ?? ''} nådde nivå ${e.level}`;
     case 'foodEmpty':
@@ -153,9 +188,9 @@ export function eventText(e: GameEvent, state: GameState): string | null {
         : `🎖️ ${name} når nivå 10: eliter. Alla i gruppen har +90 % kraft.`;
     }
     case 'bossDefeated':
-      return '👑 Gamle Betarn är besegrad!';
+      return `👑 ${bossName(e.zoneId, e.index)} är besegrad! (Boss ${e.index + 1})`;
     case 'bossFailed':
-      return '✖ Bossen överlevde. Bli starkare och försök igen.';
+      return e.reason === 'time' ? BOSS_FAIL_TEXT.time : BOSS_FAIL_TEXT.wounds;
     case 'bossAbandoned':
       return '↩ Bossstriden avbröts när du lämnade spelet.';
     case 'soldierLost':
@@ -165,7 +200,9 @@ export function eventText(e: GameEvent, state: GameState): string | null {
         ? `↩ ${state.troops.find((t) => t.id === e.troopId)?.name ?? ''} retirerade till lägret efter tunga förluster`
         : `↩ ${state.troops.find((t) => t.id === e.troopId)?.name ?? ''} drog sig tillbaka när du lämnade spelet (inget steg var säkert)`;
     case 'stageChanged':
-      return `↩ Trupperna drog sig tillbaka till steg ${e.stage}, det högsta säkra steget, medan du var borta`;
+      return e.reason === 'autoAdvance'
+        ? `➡️ Trupperna gick vidare till nivå ${e.stage}`
+        : `↩ Trupperna drog sig tillbaka till nivå ${e.stage}, den högsta säkra nivån, medan du var borta`;
     case 'weaponCrafted':
       return null; // too frequent for the chronicle; summarised in reports
     case 'craftOrderCompleted': {

@@ -3,11 +3,10 @@
 // See docs/ARCHITECTURE.md §4.
 
 import { autoEquipAll, itemKey, masteryKey, masteryLevel, pickQuality, qualityChances, trimEquipment } from './equipment';
-import { xpForLevel } from './formulas';
 import { addSoldiers, applyEffects } from './mutations';
 import { evaluateObjectives } from './objectives';
 import { cloneState } from './state';
-import { computeRates, FOOD_EPS, globalModifiers, stageSafety, troopLevel, troopStats, zone, type Rates } from './stats';
+import { BOSS_RETREAT_SHARE, BOSS_WOUND_CAP, computeRates, FOOD_EPS, globalModifiers, stageSafety, troopLevel, troopStats, troopXpForLevel, zone, type Rates } from './stats';
 import { RESOURCES, type Content, type GameEvent, type GameState } from './types';
 
 const MAX_STEPS = 100_000;
@@ -32,6 +31,16 @@ function pendingEvents(state: GameState, rates: Rates, content: Content): Pendin
   if (c.boss) {
     out.push({ t: c.boss.timeLeft, snap: (s) => s.combat.boss && (s.combat.boss.timeLeft = 0) });
     if (rates.bossDps > 0) out.push({ t: c.boss.hpLeft / rates.bossDps, snap: (s) => s.combat.boss && (s.combat.boss.hpLeft = 0) });
+    // The fight is lost when the fighters' wounds reach half their max HP (the sum has a constant rate between events).
+    const mods0 = globalModifiers(state, content);
+    let maxHp = 0, wounds = 0, rate = 0;
+    for (const t of state.troops) {
+      if (t.activity !== 'combat') continue;
+      maxHp += troopStats(state, t, content, mods0).maxHp;
+      wounds += t.wounds;
+      rate += rates.woundsPerSec[t.id] ?? 0;
+    }
+    if (rate > 0) out.push({ t: Math.max(0, (BOSS_RETREAT_SHARE * maxHp - wounds) / rate), snap: () => {} });
   } else if (onFrontier(state) && rates.killsPerSec > 0) {
     const need = z.stages[c.stageIndex]?.killsToClear ?? Infinity;
     out.push({ t: (need - c.kills) / rates.killsPerSec, snap: (s) => (s.combat.kills = need) });
@@ -42,7 +51,9 @@ function pendingEvents(state: GameState, rates: Rates, content: Content): Pendin
     const rate = rates.woundsPerSec[t.id] ?? 0;
     const id = t.id;
     if (rate > 0) {
-      const hp = troopStats(state, t, content, mods).hp;
+      // In a boss fight wounds pool over the whole troop and stop just short of its combined HP.
+      const ts = troopStats(state, t, content, mods);
+      const hp = c.boss ? ts.maxHp * BOSS_WOUND_CAP : ts.hp;
       out.push({ t: (hp - t.wounds) / rate, snap: (s) => { const x = s.troops.find((y) => y.id === id); if (x) x.wounds = hp; } });
     } else if (rate < 0 && t.wounds > 0) {
       out.push({ t: t.wounds / -rate, snap: (s) => { const x = s.troops.find((y) => y.id === id); if (x) x.wounds = 0; } });
@@ -92,7 +103,7 @@ function pendingEvents(state: GameState, rates: Rates, content: Content): Pendin
   for (const t of state.troops) {
     const xpRate = rates.xpPerSec[t.id] ?? 0;
     if (xpRate <= 0) continue;
-    const next = xpForLevel(troopLevel(t, content) + 1, content.constants.xpBase, content.constants.xpExponent);
+    const next = troopXpForLevel(troopLevel(t, content) + 1, content);
     const id = t.id;
     out.push({
       t: (next - t.xp) / xpRate,
@@ -139,32 +150,77 @@ function integrate(state: GameState, rates: Rates, dt: number, content: Content)
   state.clock += dt;
 }
 
+/** Ends a boss fight: the wounds pooled during it shrink to what one soldier can carry, so nobody is lost afterwards. */
+function endBossFight(state: GameState, content: Content): void {
+  state.combat.boss = null;
+  const mods = globalModifiers(state, content);
+  for (const t of state.troops) t.wounds = Math.min(t.wounds, troopStats(state, t, content, mods).hp * BOSS_WOUND_CAP);
+}
+
+/** After a clear: the troops standing on the level below the frontier move up when the new level is safe for them. */
+function autoAdvance(state: GameState, content: Content, events: GameEvent[]): void {
+  const c = state.combat;
+  if (!c.autoAdvance || c.cleared || c.stageIndex !== c.unlockedStage - 1) return;
+  if (stageSafety(state, content, { stageIndex: c.unlockedStage }).risk !== 'safe') return;
+  c.stageIndex = c.unlockedStage;
+  events.push({ type: 'stageChanged', at: state.clock, stage: c.stageIndex + 1, reason: 'autoAdvance' });
+}
+
 function processEvents(state: GameState, content: Content, levelsBefore: Map<string, number>, events: GameEvent[]): void {
   const c = state.combat;
   const z = zone(state, content);
   const EPS = 1e-9;
 
+  const bossFight = c.boss !== null;
   if (c.boss) {
-    if (c.boss.hpLeft <= EPS) {
-      c.boss = null;
-      c.bossDefeated = true;
-      state.stats.bossDefeatedAt = state.clock;
-      events.push({ type: 'bossDefeated', at: state.clock, zoneId: z.id });
-    } else if (c.boss.timeLeft <= EPS) {
-      c.boss = null;
-      events.push({ type: 'bossFailed', at: state.clock, zoneId: z.id });
+    const fight = c.boss;
+    const def = z.bosses[fight.index];
+    const mods0 = globalModifiers(state, content);
+    let maxHp = 0, wounds = 0, fighters = 0;
+    for (const t of state.troops) {
+      if (t.activity !== 'combat') continue;
+      fighters++;
+      maxHp += troopStats(state, t, content, mods0).maxHp;
+      wounds += t.wounds;
     }
+    const failed = (reason: 'time' | 'wounds') => {
+      // Nobody dies: the troops step back to the level before the boss and may try again at once.
+      endBossFight(state, content);
+      c.stageIndex = Math.max(0, (def?.level ?? 1) - 2);
+      events.push({ type: 'bossFailed', at: state.clock, zoneId: z.id, index: fight.index, reason });
+    };
+    if (fight.hpLeft <= EPS) {
+      endBossFight(state, content);
+      c.bossesDefeated = Math.max(c.bossesDefeated, fight.index + 1);
+      state.stats.bossTimes[fight.index] = state.clock;
+      events.push({ type: 'bossDefeated', at: state.clock, zoneId: z.id, index: fight.index });
+      c.kills = 0;
+      if (c.bossesDefeated < z.bosses.length) {
+        // The next levels open; the strip after the boss is the frontier.
+        c.cleared = false;
+        c.unlockedStage = Math.max(c.unlockedStage, Math.min(z.stages.length - 1, def?.level ?? c.unlockedStage));
+        autoAdvance(state, content, events);
+      } else {
+        c.cleared = true;
+        c.unlockedStage = z.stages.length - 1;
+      }
+    } else if (fight.timeLeft <= EPS) failed('time');
+    else if (fighters > 0 && wounds >= BOSS_RETREAT_SHARE * maxHp - 1e-7) failed('wounds');
   } else if (onFrontier(state)) {
     const need = z.stages[c.stageIndex]?.killsToClear ?? Infinity;
     if (c.kills >= need - EPS) {
       events.push({ type: 'stageCleared', at: state.clock, zoneId: z.id, stage: c.stageIndex + 1 });
       c.kills = 0;
-      if (c.unlockedStage >= z.stages.length - 1) {
+      const gate = (z.bosses[c.bossesDefeated]?.level ?? z.stages.length) - 1;
+      if (c.unlockedStage >= gate) {
+        // The boss level is cleared: the next boss can be challenged.
         c.cleared = true;
-        events.push({ type: 'zoneCleared', at: state.clock, zoneId: z.id });
+        if (c.bossesDefeated === 0) events.push({ type: 'zoneCleared', at: state.clock, zoneId: z.id });
+        events.push({ type: 'bossReady', at: state.clock, zoneId: z.id, index: c.bossesDefeated });
       } else {
-        // The next stage opens, but the troops stay where they are: the player decides when to advance.
+        // The next level opens; the troops move up if it is safe and auto-advance is on.
         c.unlockedStage++;
+        autoAdvance(state, content, events);
       }
     }
   }
@@ -173,6 +229,7 @@ function processEvents(state: GameState, content: Content, levelsBefore: Map<str
   // It never drops below one soldier, and it retreats to camp after losing half its engaged size.
   const mods = globalModifiers(state, content);
   for (const t of state.troops) {
+    if (bossFight) break; // boss fights are not lethal
     const hp = troopStats(state, t, content, mods).hp;
     if (t.wounds < hp - EPS) continue;
     if (t.size > 1) {
@@ -309,8 +366,8 @@ export function secureForOffline(input: GameState, content: Content): AdvanceRes
   const events: GameEvent[] = [];
   const c = state.combat;
   if (c.boss) {
-    c.boss = null;
-    events.push({ type: 'bossAbandoned', at: state.clock, zoneId: c.zoneId });
+    events.push({ type: 'bossAbandoned', at: state.clock, zoneId: c.zoneId, index: c.boss.index });
+    endBossFight(state, content);
   }
   const fighters = state.troops.filter((t) => t.activity === 'combat');
   if (fighters.length > 0 && stageSafety(state, content, { stageIndex: c.stageIndex }).risk !== 'safe') {

@@ -19,7 +19,7 @@ function army(size: number, activity: 'woodcutting' | 'food' | 'combat' | 'const
   t.engagedSize = size;
   t.activity = activity;
   t.siteId = activity === 'woodcutting' ? 'birchGrove' : activity === 'food' ? 'berryThickets' : null;
-  s.resources = { food, wood: 0, stone: 0, ore: 0 };
+  s.resources = { food, wood: 0, stone: 0, ore: 0, iron: 0 };
   return s;
 }
 
@@ -146,7 +146,7 @@ describe('food upkeep (docs/PROGRESSION_V2.md §17)', () => {
     expect(computeRates(c1, content).constructionWorkPerSec / computeRates(c2, content).constructionWorkPerSec).toBeCloseTo(0.6);
     // Attack: a boss fight has no loot, so coverage is 0 and the damage is attack x0.75 (damage drops at least that much because armour is subtracted).
     const f1 = army(5, 'combat');
-    f1.combat.boss = { hpLeft: 100, timeLeft: 90 };
+    f1.combat.boss = { index: 0, hpLeft: 100, timeLeft: 90 };
     const f2 = { ...f1, resources: { ...f1.resources, food: 1000 } };
     expect(computeRates(f1, content).attackMult).toBeCloseTo(0.75);
     expect(computeRates(f1, content).bossDps).toBeLessThan(computeRates(f2, content).bossDps);

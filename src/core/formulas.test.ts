@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { content } from '../content';
 import { damagePerHit, dpsAgainst, killsPerSecond, levelForXp, resolveStat, xpForLevel } from './formulas';
 
 describe('combat formulas (docs/TROOP_MODEL.md §5.3 worked example)', () => {
@@ -55,5 +56,28 @@ describe('caps and levels', () => {
     expect(levelForXp(29.9, 30, 1.8)).toBe(1);
     expect(levelForXp(30, 30, 1.8)).toBe(2);
     expect(levelForXp(xpForLevel(5, 30, 1.8), 30, 1.8)).toBe(5);
+  });
+});
+
+describe('troop XP knee', () => {
+  const { xpBase: b, xpExponent: e, xpKneeLevel: k, xpExponentLate: late } = content.constants;
+
+  it('is byte-identical to the plain power curve up to the knee, and continuous there', () => {
+    for (let l = 1; l <= k; l++) expect(xpForLevel(l, b, e, k, late)).toBe(xpForLevel(l, b, e));
+    expect(xpForLevel(k + 1, b, e, k, late)).toBeGreaterThan(xpForLevel(k, b, e, k, late));
+    // No jump in the total, only a steeper slope: the first step is about late/early exponent times the plain step.
+    const step = xpForLevel(k + 1, b, e, k, late) - xpForLevel(k, b, e, k, late);
+    const plain = xpForLevel(k + 1, b, e) - xpForLevel(k, b, e);
+    expect(step / plain).toBeLessThan((late / e) * 1.2);
+  });
+
+  it('grows faster than the plain curve above the knee, and levelForXp inverts it exactly', () => {
+    for (let l = k + 1; l <= 200; l++) {
+      expect(xpForLevel(l, b, e, k, late)).toBeGreaterThan(xpForLevel(l, b, e));
+      const need = xpForLevel(l, b, e, k, late);
+      expect(levelForXp(need, b, e, k, late), `level ${l}`).toBe(l);
+      expect(levelForXp(need - 1, b, e, k, late), `level ${l} - 1`).toBe(l - 1);
+    }
+    expect(levelForXp(1e15, b, e, k, late)).toBeGreaterThan(100);
   });
 });

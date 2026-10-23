@@ -40,7 +40,7 @@ function withForge(size = 20, raceId = 'humans'): GameState {
   s.troops[0]!.activity = 'smithing';
   // Most tests look at the armoury itself; auto-equip has its own tests.
   s.troops[0]!.autoEquip = false;
-  s.resources = { food: 100_000, wood: 10_000, stone: 0, ore: 10_000 };
+  s.resources = { food: 100_000, wood: 10_000, stone: 0, ore: 10_000, iron: 10_000 };
   return s;
 }
 
@@ -63,8 +63,8 @@ describe('weapon model (T1–T8 × 5 qualities)', () => {
     expect(weaponPower(1, 'normal', content)).toBeGreaterThan(content.equipment.unarmedMult);
   });
 
-  it('only T1 recipes exist to craft; T2+ are data only', () => {
-    expect(Object.values(content.equipment.recipes).every((r) => r.tier === 1)).toBe(true);
+  it('only T1 and T2 recipes exist to craft; T2 is locked until boss 4 and gated by mastery (M13)', () => {
+    expect(Object.values(content.equipment.recipes).every((r) => r.tier <= 2)).toBe(true);
     const s = withForge();
     expect(s.unlocks).not.toContain('tier:2');
   });

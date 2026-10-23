@@ -370,3 +370,48 @@ Raising Human upkeep to 0.8–1.0 did not lift their food share above ~5 % and s
 - The Humans boss is only 31 s above the 40-minute floor.
 - The Orc feast gain is close to its 3 % floor.
 - Results are chaotic, so re-run the sim after any bot or content change.
+
+## Pass 13: 2026-10-23, M13 zone 1 to level 40 (checkin bot, D-59, D-60)
+
+**Bot**
+- New `checkin` strategy: plays like `balanced` for 2 h, then acts every 45 min, with one 8 h night per 24 h.
+- Groups too weak for the level the strong groups hold go back to work instead of fighting.
+
+**First result:** level 40 at about 11 h, troop levels 300–1300. Troop XP was far too generous.
+
+**Changes**
+- Enemies, levels 6–40:
+  - HP ×2.4, growth 1.055 per level up to level 20 and 1.115 after;
+  - XP growth 1.04 per level from the level-5 boar (18), never falling.
+- Kills per level, levels 11–40 (normal level / boss level):
+
+  | Levels | Kills |
+  |---|---|
+  | 11–15 | 16 / 11 |
+  | 16–20 | 18 / 13 |
+  | 21–25 | 40 / 25 |
+  | 26–30 | 56 / 35 |
+  | 31–35 | 80 / 50 |
+  | 36–40 | 100 / 64 |
+
+- Boss HP: boss 6 16,000, boss 7 25,200, boss 8 37,000.
+- T2 costs 96 iron (bow 64). Järngruvan gives 1 iron per cycle.
+- Recruit tail after soldier 8: food ×1.17, time ×1.08 per soldier.
+- **Troop XP curve (D-60):** unchanged up to troop level 12, steeper after (exponent 3.4).
+
+**Result, checkin bot**
+
+| Boss | 5 | 10 | 15 | 20 | 25 | 30 | 35 | 40 |
+|---|---|---|---|---|---|---|---|---|
+| Humans | 0:40 | 1:29 | 2:45 | 4:15 | 6:30 | 12:32 | 23:47 | 32:47 |
+| Orcs | 0:47 | 1:26 | 2:45 | 3:30 | 7:15 | 12:32 | 24:32 | 29:47 |
+
+- At boss 40: Humans 32 soldiers, Orcs 35. Troop level 49 for both, and the whole army on T2.
+- Median level time, levels 6–20: Humans 9.9 min, Orcs 8.9 min.
+- Longest wait between bosses: about 11–12 h.
+- The 90-minute guards are unchanged and pass.
+- 8 h offline at level 35 completes in under 2 s.
+
+**Open points**
+- Boss times jump with the 45-minute check-in grid and the night, so the run is fragile. Re-run the sim after any economy change.
+- T2 spreads faster than the spec targets: about 30–40 % at boss 25, against 20 %.

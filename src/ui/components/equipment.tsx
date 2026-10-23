@@ -7,9 +7,11 @@ import { fmtInt, fmtRate } from '../format';
 import { QUALITY_COLOR, UNARMED_COLOR, qualityName } from '../labels';
 
 const BLADE = '#d9dce2';
+/** Steel blue used for T2+ items (badges, borders). */
+export const TIER_COLOR = '#8fb4d8';
 
 /** A small weapon glyph in a ring of its quality colour. */
-export function WeaponIcon({ weaponTypeId, quality, size = 28 }: { weaponTypeId: string; quality: QualityId | null; size?: number }) {
+export function WeaponIcon({ weaponTypeId, quality, size = 28, tier = 1 }: { weaponTypeId: string; quality: QualityId | null; size?: number; tier?: number }) {
   const ring = quality ? QUALITY_COLOR[quality] : UNARMED_COLOR;
   return (
     <svg className="weapon-icon" width={size} height={size} viewBox="0 0 32 32" role="img" aria-label={`${content.equipment.weaponTypes[weaponTypeId]?.name ?? ''} ${quality ? qualityName(quality) : 'obeväpnad'}`}>
@@ -34,14 +36,20 @@ export function WeaponIcon({ weaponTypeId, quality, size = 28 }: { weaponTypeId:
           <path d="M16 22 V26" stroke="#8a6a44" strokeWidth="2.4" strokeLinecap="round" />
         </g>
       )}
+      {tier >= 2 && (
+        <g>
+          <rect x="15" y="1" width="16" height="11" rx="3.5" fill={TIER_COLOR} stroke="#0e0a10" strokeWidth="1.2" />
+          <text x="23" y="9.6" textAnchor="middle" fontSize="8.5" fontWeight="800" fill="#10131a" fontFamily="system-ui, sans-serif">T{tier}</text>
+        </g>
+      )}
     </svg>
   );
 }
 
-export function QualityChip({ quality, count, weaponTypeId }: { quality: QualityId | null; count: number; weaponTypeId: string }) {
+export function QualityChip({ quality, count, weaponTypeId, tier = 1 }: { quality: QualityId | null; count: number; weaponTypeId: string; tier?: number }) {
   return (
     <span className={`qchip ${quality && RARE.has(quality) ? 'qchip--rare' : ''}`} style={{ borderColor: quality ? QUALITY_COLOR[quality] : UNARMED_COLOR, ['--q' as string]: quality ? QUALITY_COLOR[quality] : UNARMED_COLOR }}>
-      <WeaponIcon weaponTypeId={weaponTypeId} quality={quality} size={20} />
+      <WeaponIcon weaponTypeId={weaponTypeId} quality={quality} size={20} tier={tier} />
       <span className="qchip__name">{quality ? qualityName(quality) : 'Obeväpnade'}</span>
       <strong className="qchip__count">{fmtInt(count)}</strong>
     </span>

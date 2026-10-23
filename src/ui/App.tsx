@@ -54,7 +54,9 @@ function ResourceTile({ r, state, rates }: { r: ResourceId; state: GameState; ra
 
 function ResourceBar({ state, rates }: { state: GameState; rates: Rates }) {
   const shown = RESOURCES.filter(
-    (r) => r === 'wood' || state.resources[r] > 0 || state.stats.gathered[r] > 0 || rates.income[r] > 0,
+    (r) =>
+      r === 'wood' || state.resources[r] > 0 || state.stats.gathered[r] > 0 || rates.income[r] > 0 ||
+      Object.values(content.sites).some((s) => (s.yield[r] ?? 0) > 0 && s.unlock !== undefined && state.unlocks.includes(s.unlock)),
   );
   return (
     <div className="resources" aria-label="Resurser">
@@ -63,7 +65,7 @@ function ResourceBar({ state, rates }: { state: GameState; rates: Rates }) {
   );
 }
 
-const TOAST_TYPES = new Set<GameEvent['type']>(['objectiveCompleted', 'troopFormed', 'constructionCompleted', 'stageCleared', 'zoneCleared', 'bossDefeated', 'bossFailed', 'troopRetreated', 'craftOrderCompleted', 'masteryLevelUp', 'levelStep', 'soldiersJoined', 'recruitTrained']);
+const TOAST_TYPES = new Set<GameEvent['type']>(['objectiveCompleted', 'troopFormed', 'constructionCompleted', 'stageCleared', 'zoneCleared', 'bossDefeated', 'bossFailed', 'bossReady', 'troopRetreated', 'craftOrderCompleted', 'masteryLevelUp', 'levelStep', 'soldiersJoined', 'recruitTrained']);
 
 interface Toast { text: string; color?: string }
 
@@ -132,7 +134,7 @@ export function App() {
         <main className="layout__main">
           <div key={active} className="pane">
             {active === 'forces' && <Forces state={state} rates={rates} onGo={open} />}
-            {active === 'battle' && <Battle state={state} rates={rates} />}
+            {active === 'battle' && <Battle state={state} rates={rates} log={snap.log} />}
             {active === 'settlement' && <Settlement state={state} rates={rates} />}
             {active === 'forge' && <Forge state={state} rates={rates} log={snap.log} />}
             {active === 'upgrades' && <Upgrades state={state} />}

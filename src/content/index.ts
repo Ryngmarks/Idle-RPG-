@@ -14,6 +14,9 @@ export const content: Content = {
   constants: {
     trainFoodGrowth: 1.5,
     trainTimeGrowth: 1.35,
+    lateFrom: 8,
+    trainFoodGrowthLate: 1.17,
+    trainTimeGrowthLate: 1.08,
     crews: { construction: 3, smithing: 1 },
     workXp: 2,
     workMoment: 30,
@@ -21,6 +24,8 @@ export const content: Content = {
     smithRate: 1,
     xpBase: 25,
     xpExponent: 1.7,
+    xpKneeLevel: 12,
+    xpExponentLate: 3.4,
     levelBonus: 0.1,
     startZoneId: 'farmsteads',
     startUnlocks: ['activity:woodcutting'],

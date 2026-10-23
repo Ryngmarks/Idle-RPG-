@@ -3,7 +3,7 @@ import { content } from '../content';
 import { dispatch } from './commands';
 import { deserialize, serialize } from './save';
 import { advance } from './simulation';
-import { newGame } from './state';
+import { newGame, SAVE_VERSION } from './state';
 import { computeRates, troopStats } from './stats';
 import type { GameState } from './types';
 
@@ -16,7 +16,7 @@ function army(size: number, activity: 'woodcutting' | 'food' | 'combat' | 'const
   t.engagedSize = size;
   t.activity = activity;
   t.siteId = activity === 'woodcutting' ? 'birchGrove' : activity === 'food' ? 'berryThickets' : null;
-  s.resources = { food: 500, wood: 500, stone: 0, ore: 0 };
+  s.resources = { food: 500, wood: 500, stone: 0, ore: 0, iron: 0 };
   s.buildings = { trainingCamp: 1 };
   return s;
 }
@@ -65,16 +65,16 @@ describe('raid objectives (§18.2)', () => {
   it('raid1 needs stage3 and 80 kills and pays wood and stone; raid2 follows with food and ore', () => {
     const s = army(3, null);
     s.objectivesCompleted = s.objectivesCompleted.filter((o) => o !== 'raid1' && o !== 'raid2');
-    s.resources = { food: 0, wood: 0, stone: 0, ore: 0 };
+    s.resources = { food: 0, wood: 0, stone: 0, ore: 0, iron: 0 };
     s.stats.totalKills = 81;
     let r = advance(s, 0, content);
     expect(r.state.objectivesCompleted).toContain('raid1');
     expect(r.state.objectivesCompleted).not.toContain('raid2');
-    expect(r.state.resources).toEqual({ food: 0, wood: 45, stone: 25, ore: 0 });
+    expect(r.state.resources).toEqual({ food: 0, wood: 45, stone: 25, ore: 0, iron: 0 });
     r.state.stats.totalKills = 130;
     r = advance(r.state, 0, content);
     expect(r.state.objectivesCompleted).toContain('raid2');
-    expect(r.state.resources).toEqual({ food: 40, wood: 45, stone: 25, ore: 6 });
+    expect(r.state.resources).toEqual({ food: 40, wood: 45, stone: 25, ore: 6, iron: 0 });
   });
 });
 
@@ -175,9 +175,9 @@ describe('save v8 -> v9', () => {
 
   it('adds an unused feast and keeps resources', () => {
     const s = v8(['stage3'], 0);
-    expect(s.version).toBe(9);
+    expect(s.version).toBe(SAVE_VERSION);
     expect(s.feast).toEqual({ until: 0, readyAt: 0 });
-    expect(s.resources).toEqual({ food: 11, wood: 22, stone: 33, ore: 4 });
+    expect(s.resources).toEqual({ food: 11, wood: 22, stone: 33, ore: 4, iron: 0 });
   });
 
   it('marks raids already passed as done silently, with no rewards', () => {

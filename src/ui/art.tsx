@@ -3,6 +3,7 @@
 // in state/content. Gradients and filters live once in <ArtDefs/> at the app root.
 
 import type { ReactElement } from 'react';
+import { content } from '../content';
 import type { ActivityKind } from '../core';
 import { GroundShadow, INK, Ln, PAL, Rim, Sh, ellipse, rect } from './art/kit';
 
@@ -142,12 +143,56 @@ export const ENEMY_ART: Record<string, () => ReactElement> = {
   oldTusker: () => <Boar body="#3a2c28" bodyD="#2a201d" mane="#7a1f16" scale={1.12} scars boss />,
 };
 
+/** A hooded humanoid (brigands, knights, guards) for generated enemies. */
+function Humanoid({ cloth, clothD, metal, boss }: { cloth: string; clothD: string; metal: string; boss: boolean }) {
+  return (
+    <Rim>
+      <GroundShadow cx={60} cy={103} rx={26} ry={4.5} op={0.6} />
+      <Sh d={rect(44, 80, 11, 22, 3.5)} fill={clothD} />
+      <Sh d={rect(65, 80, 11, 22, 3.5)} fill={clothD} />
+      <Sh d="M38 84 C36 60 46 46 60 46 C74 46 84 60 82 84Z" fill={cloth} hi />
+      <Sh d="M42 62 H78 V69 H42Z" fill={PAL.leather} sw={1.4} sh={false} />
+      <Sh d={ellipse(60, 38, 11, 12)} fill={clothD} hi />
+      <Sh d="M52 38 H68 V43 Q60 47 52 43Z" fill="#14101a" sw={1.2} sh={false} />
+      <circle cx="56" cy="40" r="1.7" fill={boss ? '#ff4a2a' : '#ffd070'} />
+      <circle cx="64" cy="40" r="1.7" fill={boss ? '#ff4a2a' : '#ffd070'} />
+      <Ln d="M86 90 L92 28" color={PAL.wood} w={2.6} />
+      <Sh d="M92 18 l-5 12 h10Z" fill={metal} sw={1.6} />
+      <Sh d="M26 56 H44 V76 Q35 84 26 76Z" fill={metal} hi />
+      <path d="M35 58 V78 M28 67 H42" stroke={INK} strokeWidth="1.3" opacity=".6" />
+      {boss && <Sh d="M50 26 l4 -9 l6 6 l6 -6 l4 9Z" fill={GOLD} sw={1.6} hi />}
+    </Rim>
+  );
+}
+
+function hashId(id: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 16777619);
+  return h >>> 0;
+}
+
+/** Generated enemies get a picture by id: an archetype and colours picked from a hash of the id. */
+function GenericEnemy({ enemyId, boss }: { enemyId: string; boss: boolean }) {
+  const h = hashId(enemyId);
+  const hue = h % 360;
+  const body = `hsl(${hue} 28% 38%)`;
+  const bodyD = `hsl(${hue} 30% 24%)`;
+  const accent = `hsl(${(hue + 180) % 360} 55% 38%)`;
+  const name = (content.enemies[enemyId]?.name ?? '').toLowerCase();
+  const has = (...w: string[]) => w.some((x) => name.includes(x));
+  if (has('kråka', 'örn', 'kråkfot')) return <Bird body={body} bodyD={bodyD} tail={accent} tailD={bodyD} comb={accent} big={boss} />;
+  if (has('mus', 'groda', 'räv', 'katt', 'orm')) return <Fox />;
+  if (has('galt', 'björn', 'varg', 'hund', 'get', 'pälsen', 'päls')) return <Boar body={body} bodyD={bodyD} mane={accent} scars={boss} boss={boss} scale={boss ? 1.1 : 1} />;
+  return <Humanoid cloth={body} clothD={bodyD} metal="#aab2c2" boss={boss} />;
+}
+
 export function EnemyPortrait({ enemyId, size = 96 }: { enemyId: string; size?: number }) {
   const Art = ENEMY_ART[enemyId];
+  const isBoss = Object.values(content.zones).some((z) => z.bosses.some((b) => b.enemyId === enemyId));
   return (
     <svg className="portrait" width={size} height={size} viewBox="0 0 120 120" role="img" aria-hidden>
-      <Floor boss={enemyId === 'oldTusker'} />
-      {Art ? <Art /> : <circle cx="60" cy="70" r="24" fill="#555" />}
+      <Floor boss={isBoss} />
+      {Art ? <Art /> : <GenericEnemy enemyId={enemyId} boss={isBoss} />}
     </svg>
   );
 }

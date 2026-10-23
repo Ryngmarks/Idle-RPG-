@@ -1,4 +1,5 @@
-import { QUALITY_IDS, type GameEvent, type GameState } from '../../core';
+import { content } from '../../content';
+import { QUALITY_IDS, zone, type GameEvent, type GameState } from '../../core';
 import { Icon, type UiIconName } from '../art/icons';
 import { Panel } from '../components/common';
 import { RARE } from '../components/equipment';
@@ -6,11 +7,12 @@ import { fmtClock, fmtInt } from '../format';
 import { QUALITY_COLOR, eventText, qualityName } from '../labels';
 
 function Stats({ state }: { state: GameState }) {
+  const bossTotal = zone(state, content).bosses.length;
   const s = state.stats;
   const soldiers = state.troops.reduce((n, t) => n + t.size, 0);
   const tiles = [
     { icon: 'clock' as UiIconName, label: 'Speltid', value: fmtClock(state.clock) },
-    { icon: 'crown' as UiIconName, label: 'Bossen', value: s.bossDefeatedAt === null ? '–' : fmtClock(s.bossDefeatedAt) },
+    { icon: 'crown' as UiIconName, label: 'Bossar', value: `${s.bossTimes.filter((t) => t !== null).length} / ${bossTotal}` },
     { icon: 'swords' as UiIconName, label: 'Besegrade', value: fmtInt(s.totalKills) },
     { icon: 'shield' as UiIconName, label: 'Soldater', value: fmtInt(soldiers) },
     { icon: 'horn' as UiIconName, label: 'Rekryterade', value: fmtInt(s.recruited) },

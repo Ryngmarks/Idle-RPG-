@@ -65,6 +65,8 @@
 | D-56 | Food floor in the balance guard is per race: Humans 4 %, Orcs 8 % (Humans farm efficiently, D-13; higher Human upkeep only slowed them) | 2026-10-23 | Lead, delegated by owner |
 | D-57 | **M12 gameplay polish** per PROGRESSION_V2 §18 with the recommendations: Orc horde +12.5 % attack per extra soldier, full +50 % at 5; Humans adaptable +25 % food and construction skill for troops of 3 or fewer; Orc raid objectives raid1/raid2; feast (after the Training Camp, 50 food + 15 wood, +15 % work / +10 % attack for 10 min, 20 min cooldown, never required); save v9. Also: install as app (PWA) without new dependencies | 2026-10-23 | Owner ("kör fullt ut"), M12 |
 | D-58 | M12 tuning (balance pass 12): raid1 80 kills, raid2 130 kills; feast +25 % work / +25 % attack (the guessed +15 %/+10 % saved under 1.5 % against the spec target of 3–10 %). Can be reverted to +15 %/+10 % if the owner prefers a milder feast | 2026-10-23 | Lead, within the approved spec target; flagged to owner |
+| D-59 | **M13 zone 1 to level 40** per PROGRESSION_V2 §19: a boss every 5 levels (Gamle Betarn at 5, final boss at 40), faster tempo early (levels 6–20 about 10–15 min), about 32 h of game time with check-ins; gentler recruit curve after soldier 8; 8 h offline cap kept with a notice; non-lethal boss fights; iron from Järngruvan at boss 15 and T2 weapons at boss 20; T3 and refining move to zone 2 | 2026-10-23 | Owner |
+| D-60 | Troop XP curve gets a knee: XP to level L is unchanged up to level 12, then grows with exponent 3.4 (keeps troop levels near 50 at level 40). Enemy XP keeps rising per level. Saves keep their troop levels (XP raised to the new threshold on load) | 2026-10-23 | Lead, within the approved spec target |
 
 ## Proposed 💡 (awaiting confirmation)
 

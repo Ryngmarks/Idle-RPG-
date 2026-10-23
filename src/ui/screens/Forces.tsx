@@ -6,6 +6,8 @@ import {
   availableSites,
   beds,
   capacity,
+  limiters,
+  secondsToNextCycle,
   soldierCount,
   trainBlocker,
   trainCost,
@@ -13,39 +15,100 @@ import {
   xpForLevel,
   type ActivityKind,
   type GameState,
+  type Limiter,
+  type ObjectiveDef,
   type Rates,
   type ResourceId,
   type TroopState,
 } from '../../core';
 import { TroopScene } from '../army';
-import { Bar, CostList, Panel } from '../components/common';
+import { Bar, Chip, CostList, Panel, Slots } from '../components/common';
 import { EquipmentBar, Switch } from '../components/equipment';
 import { fmtDuration, fmtInt, fmtRate } from '../format';
 import { useStore } from '../game';
-import { ACTIVITY_LABEL, RESOURCE_LABEL, objectiveProgress } from '../labels';
+import { ACTIVITY_LABEL, RESOURCE_LABEL, effectText, objectiveProgress } from '../labels';
+
+function rewardText(o: ObjectiveDef): string {
+  const r = o.rewards;
+  const parts: string[] = [];
+  for (const [res, v] of Object.entries(r.resources ?? {})) if ((v ?? 0) > 0) parts.push(`${RESOURCE_LABEL[res as ResourceId].icon} ${v}`);
+  if (r.soldiers) parts.push(`👤 +${r.soldiers}`);
+  if (r.troopSlots) parts.push(`🛡️ +${r.troopSlots} grupp`);
+  for (const u of r.unlocks ?? []) {
+    const t = effectText({ type: 'unlock', unlock: u } as never);
+    if (t) parts.push(t.toLowerCase());
+  }
+  return parts.join(' · ');
+}
 
 export function Objectives({ state }: { state: GameState }) {
   const goals = activeObjectives(state, content);
   if (goals.length === 0) return null;
   return (
-    <Panel title="Mål" className="objectives">
-      <ul className="objective-list">
+    <section className="screen-section" aria-label="Mål">
+      <span className="tag">Mål</span>
+      <div className="limits">
         {goals.map((o) => {
           const p = objectiveProgress(state, o.condition);
+          const reward = rewardText(o);
           return (
-            <li key={o.id} className="objective">
-              <span className="objective__text">🎯 {o.text}</span>
-              {p && (
-                <span className="objective__progress">
-                  <Bar value={p.current} max={p.target} tone="gold" label={o.text} />
-                  <span className="objective__count">{Math.floor(p.current)} / {p.target}</span>
-                </span>
-              )}
-            </li>
+            <div key={o.id} className="goal">
+              <div className="goal__row">
+                <span className="goal__icon" aria-hidden>🎯</span>
+                <div className="goal__body">
+                  <b>{o.text}</b>
+                  {p && <Bar value={p.current} max={p.target} tone="gold" label={o.text} />}
+                </div>
+                {p && <b className="small">{Math.floor(p.current)}/{p.target}</b>}
+              </div>
+              {reward && <div className="small muted goal__reward">Belöning: {reward}</div>}
+            </div>
           );
         })}
-      </ul>
-    </Panel>
+      </div>
+    </section>
+  );
+}
+
+type GoTab = Limiter['tab'];
+
+function limiterView(l: Limiter, state: GameState): { icon: string; title: string; hint: string; action: string } {
+  const troop = state.troops.find((t) => t.id === l.troopId);
+  const site = l.siteId ? content.sites[l.siteId] : undefined;
+  switch (l.kind) {
+    case 'idleTroop': return { icon: '💤', title: `${troop?.name ?? 'Trupp'} saknar order`, hint: 'Ge en aktivitet', action: 'Ge order' };
+    case 'noBuilder': return { icon: '🔨', title: 'Ingen bygger', hint: 'Bygget står still', action: 'Bygg' };
+    case 'noSmith': return { icon: '⚒️', title: 'Ingen smed', hint: 'Kön står still', action: 'Smedjan' };
+    case 'beds': return { icon: '🛏', title: `Sängar ${l.current ?? 0}/${l.max ?? 0}`, hint: 'Ingen ny soldat utan fler sängar', action: 'Bygg säng' };
+    case 'trainingFood': return { icon: '🌾', title: 'Mat saknas', hint: `${Math.floor(l.current ?? 0)} av ${Math.ceil(l.max ?? 0)} till utbildning`, action: 'Samla mat' };
+    case 'siteFull': return { icon: '🌲', title: `${site?.name ?? 'Platsen'} full`, hint: `${l.current ?? 0} av ${l.max ?? 0} får plats`, action: 'Byt plats' };
+    case 'crewFull': return { icon: l.target === 'smithing' ? '⚒️' : '🔨', title: l.target === 'smithing' ? 'Smedjan full' : 'Bygget fullt', hint: `${l.current ?? 0} av ${l.max ?? 0} får arbeta`, action: l.target === 'smithing' ? 'Till Smedjan' : 'Till Bosättning' };
+    case 'training': return { icon: '⏳', title: 'Rekryt utbildas', hint: l.secondsLeft !== undefined ? `klar om ${fmtDuration(l.secondsLeft)}` : '', action: '' };
+  }
+}
+
+/** "What limits you now": at most three rows, each with one action pill that jumps to the fix. */
+export function Limits({ state, onGo }: { state: GameState; onGo: (t: GoTab) => void }) {
+  const list = limiters(state, content).slice(0, 3);
+  if (list.length === 0) return null;
+  return (
+    <section className="screen-section" aria-label="Det som begränsar dig nu">
+      <span className="tag">Det som begränsar dig nu</span>
+      <div className="limits">
+        {list.map((l, i) => {
+          const v = limiterView(l, state);
+          return (
+            <div key={`${l.kind}-${l.troopId ?? l.siteId ?? i}`} className={`limit limit--${l.severity}`}>
+              <span className="limit__icon" aria-hidden>{v.icon}</span>
+              <div className="limit__text"><b>{v.title}</b><span className="small muted">{v.hint}</span></div>
+              {v.action && (
+                <button className={`chip limit__go ${l.severity === 'block' ? 'chip--warn' : ''}`} onClick={() => onGo(l.tab)}>{v.action}</button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 
@@ -70,17 +133,32 @@ function outputText(troop: TroopState, rates: Rates, state: GameState): string {
   }
 }
 
-/** The current work cycle at a site: a felled tree, a broken block… */
-function CycleBar({ troop, state, rates }: { troop: TroopState; state: GameState; rates: Rates }) {
+/** The hero of a working troop: site, slots, big cycle bar and the next reward. */
+function CycleHero({ troop, state, rates }: { troop: TroopState; state: GameState; rates: Rates }) {
   const site = troop.siteId ? content.sites[troop.siteId] : undefined;
   const cycles = site ? (rates.siteCycles[site.id] ?? 0) : 0;
-  if (!site || cycles <= 0) return null;
+  if (!site || cycles <= 0) return <p className="troop__output">{outputText(troop, rates, state)}</p>;
   const reward = Object.entries(site.yield).map(([r, v]) => `${RESOURCE_LABEL[r as ResourceId].icon} ${v}`).join(' ');
-  const left = (1 - (state.siteProgress[site.id] ?? 0)) / cycles;
+  const left = secondsToNextCycle(state, content, site.id) ?? (1 - (state.siteProgress[site.id] ?? 0)) / cycles;
+  const cap = capacity(state, content, site.id);
+  const working = rates.perTroop[troop.id]?.working ?? 0;
+  const perMin = Object.entries(rates.perTroop[troop.id]?.output ?? {})
+    .filter(([, v]) => (v ?? 0) > 0)
+    .map(([r, v]) => `+${fmtRate((v ?? 0) * 60)} ${RESOURCE_LABEL[r as ResourceId].name.toLowerCase()}/min`)
+    .join(' · ');
   return (
-    <div className="cycle">
-      <span className="small">{site.name} · nästa {reward} om {fmtDuration(left)}</span>
-      <Bar value={state.siteProgress[site.id] ?? 0} max={1} tone="gold" label={`${site.name}: arbetscykel`} />
+    <div className="hero-cycle">
+      <div className="hero-cycle__site">
+        <b>{site.name}</b>
+        <span className="sp" style={{ flex: 1 }} />
+        <span className="small muted">{working} av {cap} {cap === 1 ? 'plats' : 'platser'}</span>
+        <Slots used={Math.min(working, cap)} total={cap} label={`${working} av ${cap} platser`} />
+      </div>
+      <Bar value={state.siteProgress[site.id] ?? 0} max={1} tone="gold" label={`${site.name}: arbetscykel`} inside={fmtDuration(left)} />
+      <div className="hero-cycle__next">
+        <strong>nästa {reward} om {fmtDuration(left)}</strong>
+        <span className="small muted">{perMin}</span>
+      </div>
     </div>
   );
 }
@@ -96,7 +174,14 @@ function LifeStatus({ troop, rates, hpPerSoldier }: { troop: TroopState; rates: 
   return null;
 }
 
-function TroopCard({ troop, state, rates }: { troop: TroopState; state: GameState; rates: Rates }) {
+function LifeChip({ troop, rates, hpPerSoldier }: { troop: TroopState; rates: Rates; hpPerSoldier: number }) {
+  const net = rates.woundsPerSec[troop.id] ?? 0;
+  if (net > 0) return <Chip tone="warn">⚠️ Skadas</Chip>;
+  if (net < 0) return <Chip tone="ok">✚ Läker</Chip>;
+  return <Chip tone="ok">✚ Frisk</Chip>;
+}
+
+function TroopCard({ troop, state, rates, hero }: { troop: TroopState; state: GameState; rates: Rates; hero: boolean }) {
   const store = useStore();
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
@@ -123,7 +208,7 @@ function TroopCard({ troop, state, rates }: { troop: TroopState; state: GameStat
   const move = (to: string | null) => run(() => store.command({ type: 'transferSoldiers', fromTroopId: troop.id, toTroopId: to, count: 1 }));
 
   return (
-    <article className="troop">
+    <article className={`troop ${hero ? 'troop--hero' : ''}`}>
       <TroopScene race={state.raceId} size={troop.size} activity={troop.activity} equipment={troop.equipment} />
       <header className="troop__head">
         {editing ? (
@@ -144,30 +229,17 @@ function TroopCard({ troop, state, rates }: { troop: TroopState; state: GameStat
           </button>
         )}
         <span className="badge" title={`${Math.floor(troop.xp)} / ${lvlTo} XP`}>Nv {stats.level}</span>
+        <LifeChip troop={troop} rates={rates} hpPerSoldier={stats.hp} />
       </header>
-
-      <div className="troop__size">
-        <span className="troop__count">
-          <strong>{troop.size}</strong> {troop.size === 1 ? 'soldat' : 'soldater'}
-        </span>
+      <div className="troop__mini">
+        <span><strong>{troop.size}</strong> {troop.size === 1 ? 'soldat' : 'soldater'} · {fmtRate(stats.strength)} DPS · arbete {fmtRate(stats.workTotal)}</span>
+        <span>❤️ {fmtRate(stats.maxHp - troop.wounds)}/{fmtRate(stats.maxHp)}</span>
       </div>
+      <Bar value={stats.maxHp - troop.wounds} max={stats.maxHp} tone="life" label="Liv" />
       <Bar value={troop.xp - lvlFrom} max={lvlTo - lvlFrom} tone="xp" label="Erfarenhet" />
-      <div className="troop__life">
-        <span className="small">❤️ Liv {fmtRate(stats.maxHp - troop.wounds)} / {fmtRate(stats.maxHp)}</span>
-        <Bar value={stats.maxHp - troop.wounds} max={stats.maxHp} tone="life" label="Liv" />
-        <LifeStatus troop={troop} rates={rates} hpPerSoldier={stats.hp} />
-      </div>
+      <LifeStatus troop={troop} rates={rates} hpPerSoldier={stats.hp} />
 
-      <dl className="troop__stats">
-        <div><dt>Styrka</dt><dd>{fmtRate(stats.strength)} DPS</dd></div>
-        <div><dt>Arbete</dt><dd>{fmtRate(stats.workTotal)}</dd></div>
-        <div className="troop__activity">
-          <dt>Aktivitet</dt>
-          <dd>{troop.activity ? `${ACTIVITY_LABEL[troop.activity].icon} ${ACTIVITY_LABEL[troop.activity].name}` : 'Ingen'}</dd>
-        </div>
-      </dl>
-      <p className="troop__output">{outputText(troop, rates, state)}</p>
-      <CycleBar troop={troop} state={state} rates={rates} />
+      <CycleHero troop={troop} state={state} rates={rates} />
 
       <div className="activity-picker" role="group" aria-label="Välj aktivitet">
         {unlocked.map((a) => (
@@ -192,29 +264,28 @@ function TroopCard({ troop, state, rates }: { troop: TroopState; state: GameStat
               aria-pressed={troop.siteId === site.id}
               onClick={() => run(() => store.command({ type: 'assignTroop', troopId: troop.id, activity: troop.activity, siteId: site.id }))}
             >
-              {site.name} · {Object.entries(site.yield).map(([r, v]) => `${RESOURCE_LABEL[r as ResourceId].icon}${v}`).join(' ')} · {capacity(state, content, site.id)} {capacity(state, content, site.id) === 1 ? 'plats' : 'platser'}
+              {site.name} · {Object.entries(site.yield).map(([r, v]) => `${RESOURCE_LABEL[r as ResourceId].icon}${v}`).join(' ')} · {capacity(state, content, site.id)} pl.
             </button>
           ))}
         </div>
       )}
 
       {canRecruit && (
-        <div className="recruit">
-          <span className="recruit__label">Rekryter</span>
-          {trainingHere ? (
-            <>
-              <span className="small">⏳ En rekryt utbildas för {troop.name}: klar om {fmtDuration(trainingHere.secLeft)}</span>
-              <Bar value={trainingHere.totalSec - trainingHere.secLeft} max={trainingHere.totalSec} tone="xp" label="Utbildning" />
-            </>
-          ) : (
-            <div className="recruit__buttons">
+        <div className="train">
+          <div className="train__main">
+            <span className="tag">Träning</span>
+            {trainingHere ? (
+              <>
+                <span className="small">Ny soldat · klar om {fmtDuration(trainingHere.secLeft)}</span>
+                <Bar value={trainingHere.totalSec - trainingHere.secLeft} max={trainingHere.totalSec} tone="xp" label="Utbildning" />
+              </>
+            ) : (
               <button className="btn btn--small" disabled={blocker !== null} onClick={() => run(() => store.command({ type: 'trainRecruit', troopId: troop.id }))}>
-                Utbilda rekryt <CostList cost={{ food: cost.food }} state={state} /> · {fmtDuration(cost.sec)}
+                Utbilda soldat <CostList cost={{ food: cost.food }} state={state} /> · {fmtDuration(cost.sec)}
               </button>
-              {blocker === 'noBed' && <span className="muted small">Ingen ledig säng. Bygg tält.</span>}
-              {blocker === 'busy' && <span className="muted small">Lägret utbildar redan en rekryt.</span>}
-            </div>
-          )}
+            )}
+          </div>
+          <Chip tone={blocker === 'noBed' ? 'warn' : 'ok'} title="Soldater / sängar i lägret">🛏 {soldierCount(state)}/{beds(state, content)}{blocker === 'noBed' ? ' – bygg säng' : ''}</Chip>
         </div>
       )}
 
@@ -263,18 +334,17 @@ function TroopCard({ troop, state, rates }: { troop: TroopState; state: GameStat
   );
 }
 
-export function Forces({ state, rates }: { state: GameState; rates: Rates }) {
+export function Forces({ state, rates, onGo }: { state: GameState; rates: Rates; onGo: (t: Limiter['tab']) => void }) {
   return (
     <div className="screen">
+      <Limits state={state} onGo={onGo} />
       <Objectives state={state} />
-      <Panel
-        title={state.troops.length > 1 ? 'Dina styrkor' : 'Din trupp'}
-        aside={<span className="badge" title="Soldater / sängar i lägret">🛏 {soldierCount(state)} / {beds(state, content)}</span>}
-      >
+      <section className="screen-section" aria-label={state.troops.length > 1 ? 'Dina styrkor' : 'Din trupp'}>
+        <span className="tag">{state.troops.length > 1 ? 'Dina styrkor' : 'Din trupp'}</span>
         <div className="troop-list">
-          {state.troops.map((t) => <TroopCard key={t.id} troop={t} state={state} rates={rates} />)}
+          {state.troops.map((t, i) => <TroopCard key={t.id} troop={t} state={state} rates={rates} hero={i === 0} />)}
         </div>
-      </Panel>
+      </section>
     </div>
   );
 }

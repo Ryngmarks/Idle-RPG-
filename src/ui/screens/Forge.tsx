@@ -18,7 +18,7 @@ import {
   type GameState,
   type Rates,
 } from '../../core';
-import { Bar, CostList, Panel } from '../components/common';
+import { Bar, Chip, CostList, Panel } from '../components/common';
 import { QualityChip, RARE, WeaponIcon } from '../components/equipment';
 import { fmtDuration, fmtInt, fmtRate } from '../format';
 import { useStore } from '../game';
@@ -56,7 +56,7 @@ export function Forge({ state, rates, log }: { state: GameState; rates: Rates; l
 
   return (
     <div className="screen">
-      <Panel title="Smedjan" aside={<span className="muted small">{speed > 0 ? `${fmtRate(60 / secPerItem)} vapen/min` : ''}</span>}>
+      <Panel hero title="Smedjan" aside={<span className="battle-head">{smiths.length > 0 && <Chip tone="gold">⚒️ {smiths.length}</Chip>}<Chip>Kö {queue.length}</Chip>{speed > 0 && <span className="muted small">{fmtRate(60 / secPerItem)}/min</span>}</span>}>
         <div className="recipe">
           <WeaponIcon weaponTypeId={weaponTypeId} quality="normal" size={44} />
           <div className="recipe__info">
@@ -87,48 +87,61 @@ export function Forge({ state, rates, log }: { state: GameState; rates: Rates; l
         )}
         {queue.length > 0 && (
           <div className="queue">
-            <span className="recruit__label">Beställningar · {fmtInt(queued)} vapen kvar · {rates.craftWorkPerSec > 0 ? `klart om ${fmtDuration(((queued - 1) * recipe.workPerItem + (recipe.workPerItem - state.crafting.progress)) / rates.craftWorkPerSec)}` : 'står still utan smeder'}</span>
-            {queue.map((o, i) => (
-              <div key={i} className="queue__row">
-                <span className="small">T1 {weapon.name} × {fmtInt(o.remaining)}</span>
-                {i === 0 && <Bar value={state.crafting.progress} max={recipe.workPerItem} tone="gold" label="Smider" />}
-                <button className="btn btn--small" aria-label="Avbryt beställning" onClick={() => setError(store.command({ type: 'cancelCraft', index: i }))}>✕</button>
+            <div className="forge-now">
+              <span className="hex"><WeaponIcon weaponTypeId={weaponTypeId} quality="normal" size={30} /></span>
+              <div>
+                <b>T1 {weapon.name} × {fmtInt(queue[0]!.remaining)}</b>
+                <Bar value={state.crafting.progress} max={recipe.workPerItem} tone="gold" label="Smider" inside={rates.craftWorkPerSec > 0 ? `Smider · ${fmtDuration((recipe.workPerItem - state.crafting.progress) / rates.craftWorkPerSec)}` : 'Väntar på smed'} />
+              </div>
+              <button className="btn btn--small" aria-label="Avbryt beställning" onClick={() => setError(store.command({ type: 'cancelCraft', index: 0 }))}>✕</button>
+            </div>
+            {queue.slice(1).map((o, i) => (
+              <div key={i} className="forge-next">
+                <span className="hex"><WeaponIcon weaponTypeId={weaponTypeId} quality={null} size={22} /></span>
+                <span style={{ flex: 1 }}>Näst: T1 {weapon.name} × {fmtInt(o.remaining)}</span>
+                <button className="btn btn--small btn--ghost" aria-label="Avbryt beställning" onClick={() => setError(store.command({ type: 'cancelCraft', index: i + 1 }))}>✕</button>
               </div>
             ))}
-          </div>
-        )}
-        {recent.length > 0 && (
-          <div className="anvil-row" aria-label="Senast smidda vapen">
-            {recent.map((e) => (
-              <span key={`${e.at}-${e.quality}`} className={`anvil-row__item ${RARE.has(e.quality) ? 'anvil-row__item--rare' : ''}`} style={{ ['--q' as string]: QUALITY_COLOR[e.quality] }} title={qualityName(e.quality)}>
-                <WeaponIcon weaponTypeId={content.equipment.recipes[e.recipeId]?.weaponTypeId ?? weaponTypeId} quality={e.quality} size={24} />
-              </span>
-            ))}
+            <span className="small muted">{fmtInt(queued)} vapen kvar · {rates.craftWorkPerSec > 0 ? `klart om ${fmtDuration(((queued - 1) * recipe.workPerItem + (recipe.workPerItem - state.crafting.progress)) / rates.craftWorkPerSec)}` : 'står still utan smeder'}</span>
           </div>
         )}
         {error && <p className="error" role="alert">{error}</p>}
       </Panel>
 
-      <Panel title="Smideskunskap" aside={<span className="badge">Nivå {level}/{max}</span>}>
-        <p className="small muted">{fmtInt(crafted)} smidda. Mer smide ger bättre kvalitet.</p>
+      <Panel title="Kvalitetschans" aside={<span className="badge">Nivå {level}/{max}</span>}>
+        <div className="chance-bar" role="img" aria-label="Kvalitetschanser">
+          {QUALITY_IDS.map((q, i) => (chances[i]! > 0 ? <span key={q} className={RARE.has(q) ? 'seg--rare' : ''} style={{ flexGrow: chances[i], background: QUALITY_COLOR[q], ['--q' as string]: QUALITY_COLOR[q] }} /> : null))}
+        </div>
+        <div className="equip__legend">
+          {QUALITY_IDS.map((q, i) => (
+            <span key={q} className="legend-dot" style={{ ['--c' as string]: QUALITY_COLOR[q] }}><i style={{ background: QUALITY_COLOR[q] }} />{qualityName(q)} {Math.round(chances[i]! * 100)} %</span>
+          ))}
+        </div>
         {level < max ? (
           <>
-            <span className="small">Till nivå {level + 1}: {fmtInt(crafted - from)} / {fmtInt(to - from)}</span>
+            <span className="small muted">{fmtInt(crafted)} smidda · till nivå {level + 1}: {fmtInt(crafted - from)} / {fmtInt(to - from)}</span>
             <Bar value={crafted - from} max={to - from} tone="xp" label="Smideskunskap" />
           </>
         ) : (
           <p className="small">Högsta skicklighet i T1.</p>
         )}
-        <span className="recruit__label">Chans per vapen</span>
-        <div className="chance-bar" role="img" aria-label="Kvalitetschanser">
-          {QUALITY_IDS.map((q, i) => (chances[i]! > 0 ? <span key={q} style={{ flexGrow: chances[i], background: QUALITY_COLOR[q] }} /> : null))}
-        </div>
-        <div className="equip__legend">
-          {QUALITY_IDS.map((q, i) => (
-            <span key={q} className="legend-dot"><i style={{ background: QUALITY_COLOR[q] }} />{qualityName(q)} {Math.round(chances[i]! * 100)} %</span>
-          ))}
-        </div>
       </Panel>
+
+      {recent.length > 0 && (
+        <section className="screen-section" aria-label="Senast smidda vapen">
+          <span className="tag">Nyss smitt</span>
+          <div className="recent">
+            {[...recent].reverse().slice(0, 8).map((e) => (
+              <div key={`${e.at}-${e.quality}`} className={`recent__item ${RARE.has(e.quality) ? 'recent__item--rare' : ''} ${e.quality === 'masterpiece' || e.quality === 'excellent' ? 'recent__item--epic' : ''}`} style={{ ['--q' as string]: QUALITY_COLOR[e.quality] }}>
+                <span className="hex" style={{ ['--q' as string]: QUALITY_COLOR[e.quality] }}>
+                  <WeaponIcon weaponTypeId={content.equipment.recipes[e.recipeId]?.weaponTypeId ?? weaponTypeId} quality={e.quality} size={30} />
+                </span>
+                <span className="recent__name">{qualityName(e.quality)}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <Panel title="Förrådet">
         {armoury.every((a) => a.n === 0) ? (

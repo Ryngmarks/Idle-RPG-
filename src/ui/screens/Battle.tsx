@@ -1,14 +1,19 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { content } from '../../content';
-import { currentEnemy, enemy, estimatedBossDamage, normalizeBuckets, stageSafety, troopStats, zone, type GameState, type Rates, type StageSafety } from '../../core';
+import { currentEnemy, enemy, estimatedBossDamage, normalizeBuckets, secondsPerKill, stageSafety, troopStats, zone, type GameState, type Rates, type StageSafety } from '../../core';
 import { EnemyPortrait } from '../art';
 import { Battlefield } from '../army';
-import { Bar, Panel } from '../components/common';
+import { Bar, Chip, Panel } from '../components/common';
 import { fmtDuration, fmtInt, fmtRate } from '../format';
 import { useStore } from '../game';
 import { RESOURCE_LABEL } from '../labels';
 
 const RISK_ICON = { safe: '🟢', risky: '🟡', deadly: '🔴' } as const;
+const RISK_BADGE = { safe: { text: 'Låg risk', tone: 'ok' }, risky: { text: 'Risk', tone: 'slow' }, deadly: { text: 'Hög risk', tone: 'warn' } } as const;
+
+function RiskBadge({ risk }: { risk: StageSafety['risk'] }) {
+  return <Chip tone={RISK_BADGE[risk].tone}>{RISK_BADGE[risk].text}</Chip>;
+}
 
 function riskText(s: StageSafety): string {
   if (s.risk === 'safe') return 'Säkert: dina trupper läker snabbare än de skadas.';
@@ -54,18 +59,18 @@ export function Battle({ state, rates }: { state: GameState; rates: Rates }) {
     prevUnlocked.current = c.unlockedStage;
   }, [c.unlockedStage]);
 
+  const spk = secondsPerKill(state, content);
+  const fighterStats = fighters.map((t) => ({ t, st: troopStats(state, t, content) }));
+  const groupMax = fighterStats.reduce((n, x) => n + x.st.maxHp, 0);
+  const groupNow = fighterStats.reduce((n, x) => n + x.st.maxHp - x.t.wounds, 0);
+  const incoming = fighters.reduce((n, t) => n + Math.max(0, rates.woundsPerSec[t.id] ?? 0), 0);
+  const healing = fighters.some((t) => (rates.woundsPerSec[t.id] ?? 0) < 0);
+  const foeHp = foe.hp * (1 - frac);
+  const soldiers = fighters.reduce((n, t) => n + t.size, 0);
+
   return (
     <div className="screen">
-      <Panel title={z.name} aside={<span className="muted small">Steg {c.stageIndex + 1} av {z.stages.length}</span>}>
-        <Battlefield
-          race={state.raceId}
-          size={fighters.reduce((n, t) => n + t.size, 0)}
-          enemyId={c.boss ? boss.id : foe.id}
-          hitKey={Math.floor(state.stats.totalKills)}
-          fighting={fighters.length > 0}
-          boss={!!c.boss}
-          equipment={normalizeBuckets(fighters.flatMap((t) => t.equipment), content)}
-        />
+      <Panel hero title={z.name} aside={<span className="battle-head"><span className="muted small">Steg {c.stageIndex + 1} av {z.stages.length}</span><RiskBadge risk={here.risk} /></span>}>
         <ol className="path" aria-label="Välj steg">
           {z.stages.map((s, i) => {
             const open = i <= c.unlockedStage;
@@ -118,37 +123,44 @@ export function Battle({ state, rates }: { state: GameState; rates: Rates }) {
         )}
       </Panel>
 
-      <Panel title="Fiende" className="enemy">
-        <div className="enemy__row">
-          <div className="enemy__info">
-            <h3 className="enemy__name">{foe.name}</h3>
-            <p className="muted small">
-              HP {foe.hp} · Rustning {foe.armour} · Skada mot dig {fmtRate(foe.attack)}/s
-            </p>
-            <p className="muted small">
-              Belöning: {Object.entries(foe.loot).map(([r, v]) => `${RESOURCE_LABEL[r as keyof typeof RESOURCE_LABEL].icon} ${fmtRate(v ?? 0)}`).join(' ')} · ⭐ {fmtRate(foe.xp)} XP
-            </p>
-          </div>
+      {fighters.length === 0 && (
+        <div className="cta" role="status">⚠️ <span>Ingen trupp strider. Ge en trupp ordern <b>Strid</b> under Styrkor.</span></div>
+      )}
+
+      <Panel className="enemy enemy-card" title={c.boss ? boss.name : foe.name} aside={<span className="small muted">🛡 Rustning {foe.armour}</span>}>
+        <Battlefield
+          race={state.raceId}
+          size={soldiers}
+          enemyId={c.boss ? boss.id : foe.id}
+          hitKey={Math.floor(state.stats.totalKills)}
+          fighting={fighters.length > 0}
+          boss={!!c.boss}
+          equipment={normalizeBuckets(fighters.flatMap((t) => t.equipment), content)}
+        />
+        {!c.boss && (showHp ? (
+          <Bar value={foeHp} max={foe.hp} tone="blood" label="Fiendens HP" inside={`HP ${fmtInt(foeHp)} / ${foe.hp}`} />
+        ) : (
+          <Bar value={foe.hp} max={foe.hp} tone="blood" label="Fiendens HP" inside={rates.killsPerSec >= 2 ? `${fmtRate(rates.killsPerSec)} fiender/s` : `HP ${foe.hp}`} />
+        ))}
+        <div className="kv">
+          <span>Ger {Object.entries(foe.loot).map(([r, v]) => `${RESOURCE_LABEL[r as keyof typeof RESOURCE_LABEL].icon} ${fmtRate(v ?? 0)}`).join(' ')} · ⭐ {fmtRate(foe.xp)} XP</span>
+          <span className="sp" style={{ flex: 1 }} />
+          {spk !== null && <b>{spk < 1 ? 'Faller på under 1 s' : `Faller om ~${fmtRate(spk)} s`}</b>}
         </div>
-        {showHp ? (
-          <div className="enemy__hp">
-            <span className="small">HP {fmtInt(foe.hp * (1 - frac))} / {foe.hp}</span>
-            <Bar value={foe.hp * (1 - frac)} max={foe.hp} tone="blood" label="Fiendens HP" />
-          </div>
-        ) : rates.killsPerSec >= 2 ? (
-          <p className="small">Dina trupper fäller {fmtRate(rates.killsPerSec)} fiender per sekund.</p>
-        ) : null}
-        <p className={`risk risk--${here.risk}`}>{RISK_ICON[here.risk]} {riskText(here)}</p>
-        <p className="small">
-          {fighters.length === 0
-            ? '⚠️ Ingen trupp strider. Ge en trupp ordern Strid.'
-            : `${fighters.map((t) => t.name).join(', ')} · ${fmtRate(totalDps)} DPS (vapen ×${fmtRate(fighters.reduce((p, t) => p + troopStats(state, t, content).weaponMult * t.size, 0) / Math.max(1, fighters.reduce((n, t) => n + t.size, 0)))}) · ${fmtRate(rates.killsPerSec)} besegrade/s`}
-        </p>
+        {fighters.length > 0 && <p className="small muted">{fighters.map((t) => t.name).join(', ')} · {fmtRate(totalDps)} DPS</p>}
       </Panel>
 
-      <Panel title={`Boss: ${boss.name}`} className="boss">
+      {fighters.length > 0 && <Panel title={`Gruppens liv${soldiers > 0 ? ` · ${soldiers} ${soldiers === 1 ? 'soldat' : 'soldater'}` : ''}`}>
+        <Bar value={groupNow} max={groupMax} tone="life" label="Gruppens liv" inside={`${fmtInt(groupNow)} / ${fmtInt(groupMax)}`} />
+        <p className="small muted">
+          {incoming > 0 ? `Skada mot er ${fmtRate(incoming)}/s` : healing ? 'Läker mellan strider' : 'Ingen skada just nu'}
+          {here.risk !== 'safe' && fighters.length > 0 ? ` · ${riskText(here)}` : ''}
+        </p>
+      </Panel>}
+
+      <Panel title={`Boss: ${boss.name}`} className="boss" aside={bossUnlocked && !c.bossDefeated ? <RiskBadge risk={bossSafety.risk} /> : undefined}>
         <div className="boss__art">
-          <EnemyPortrait enemyId={boss.id} size={132} />
+          <EnemyPortrait enemyId={boss.id} size={72} />
         </div>
         {c.bossDefeated ? (
           <p>👑 Gamle Betarn är besegrad. Gårdarna är säkra. <span className="muted">Nästa region kommer i en senare version.</span></p>
@@ -169,7 +181,7 @@ export function Battle({ state, rates }: { state: GameState; rates: Rates }) {
                   Dina stridande trupper beräknas göra <strong>{fmtInt(est.damage)}</strong> skada på {z.boss.timeLimitSec} s
                   {est.damage >= est.hp ? ' – det borde räcka.' : ' – det räcker inte än.'}
                 </p>
-                <p className={`risk risk--${bossSafety.risk}`}>{RISK_ICON[bossSafety.risk]} {riskText(bossSafety)}</p>
+                <p className="small muted">{riskText(bossSafety)}</p>
                 <button className="btn btn--primary" onClick={() => setError(store.command({ type: 'challengeBoss' }))}>
                   Utmana bossen
                 </button>

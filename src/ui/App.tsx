@@ -111,7 +111,7 @@ export function App() {
 
       <div className="layout">
         <main className="layout__main">
-          {active === 'forces' && <Forces state={state} rates={rates} />}
+          {active === 'forces' && <Forces state={state} rates={rates} onGo={open} />}
           {active === 'battle' && <Battle state={state} rates={rates} />}
           {active === 'settlement' && <Settlement state={state} rates={rates} />}
           {active === 'forge' && <Forge state={state} rates={rates} log={snap.log} />}

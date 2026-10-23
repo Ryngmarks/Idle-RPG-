@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { content } from '../content';
 import { computeRates, RESOURCES, type GameEvent, type GameState, type Rates } from '../core';
+import { RaceEmblem } from './art';
 import { fmtAmount, fmtRate } from './format';
 import { useSnapshot, useStore } from './game';
 import { RESOURCE_LABEL, eventText } from './labels';
@@ -86,9 +87,12 @@ export function App() {
   return (
     <div className="app">
       <header className="topbar">
-        <div className="topbar__title">
-          <span className="eyebrow">{race?.name}</span>
-          <h1 className="title title--small">Utposten</h1>
+        <div className="topbar__brand">
+          <RaceEmblem raceId={state.raceId} size={34} />
+          <div className="topbar__title">
+            <span className="eyebrow">{race?.name}</span>
+            <h1 className="title title--small">Utposten</h1>
+          </div>
         </div>
         <button className="btn btn--small" onClick={() => setMenuOpen(true)} aria-label="Meny">☰ Meny</button>
       </header>

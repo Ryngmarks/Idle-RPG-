@@ -16,6 +16,7 @@ import {
   type ResourceId,
   type TroopState,
 } from '../../core';
+import { ActivityScene } from '../art';
 import { Bar, CostList, Panel } from '../components/common';
 import { fmtRate } from '../format';
 import { useStore } from '../game';
@@ -86,6 +87,7 @@ function TroopCard({ troop, state, rates }: { troop: TroopState; state: GameStat
 
   return (
     <article className="troop">
+      <ActivityScene activity={troop.activity} />
       <header className="troop__head">
         {editing ? (
           <form

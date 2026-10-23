@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { content } from '../../content';
 import { canAfford, race, troopCap, type BuildingDef, type GameState, type Rates } from '../../core';
+import { SettlementScene } from '../art';
 import { Bar, CostList, Panel } from '../components/common';
 import { fmtDuration, fmtInt } from '../format';
 import { useStore } from '../game';
@@ -75,6 +76,7 @@ export function Settlement({ state, rates }: { state: GameState; rates: Rates })
   return (
     <div className="screen">
       <Panel title={stage.name} className="settlement-head">
+        <SettlementScene buildings={state.buildings} />
         <p className="muted">{stage.text}</p>
       </Panel>
       <div className="plots">

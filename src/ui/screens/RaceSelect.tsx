@@ -1,5 +1,6 @@
 import { content } from '../../content';
 import { troopCap, type LabourActivity, type RaceDef } from '../../core';
+import { RaceEmblem } from '../art';
 import { useStore } from '../game';
 import { ACTIVITY_LABEL, TRAIT_LABEL } from '../labels';
 
@@ -29,7 +30,10 @@ export function RaceSelect() {
       <div className="race-grid">
         {Object.values(content.races).map((r) => (
           <article key={r.id} className={`race-card ${r.playable ? '' : 'race-card--locked'}`}>
-            <h2 className="race-card__name">{r.name}</h2>
+            <header className="race-card__head">
+              <RaceEmblem raceId={r.id} size={48} />
+              <h2 className="race-card__name">{r.name}</h2>
+            </header>
             <p className="race-card__flavour">{FLAVOUR[r.id]}</p>
             <dl className="race-card__stats">
               <div><dt>Första truppen</dt><dd>{r.population.startSize} soldater</dd></div>

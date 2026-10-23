@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { content } from '../../content';
 import { currentEnemy, enemy, estimatedBossDamage, troopStats, zone, type GameState, type Rates } from '../../core';
+import { EnemyPortrait } from '../art';
 import { Bar, Panel } from '../components/common';
 import { fmtDuration, fmtInt, fmtRate } from '../format';
 import { useStore } from '../game';
@@ -49,7 +50,10 @@ export function Battle({ state, rates }: { state: GameState; rates: Rates }) {
 
       <Panel title="Fiende" className="enemy">
         <div className="enemy__row">
-          <div>
+          <div key={showHp ? Math.floor(c.cleared ? state.stats.totalKills : c.kills) : 'steady'} className={showHp ? 'portrait-wrap portrait-wrap--hit' : 'portrait-wrap'}>
+            <EnemyPortrait enemyId={foe.id} />
+          </div>
+          <div className="enemy__info">
             <h3 className="enemy__name">{foe.name}</h3>
             <p className="muted small">
               HP {foe.hp} · Rustning {foe.armour} · Belöning:{' '}
@@ -73,6 +77,9 @@ export function Battle({ state, rates }: { state: GameState; rates: Rates }) {
       </Panel>
 
       <Panel title={`Boss: ${boss.name}`} className="boss">
+        <div className="boss__art">
+          <EnemyPortrait enemyId={boss.id} size={132} />
+        </div>
         {c.bossDefeated ? (
           <p>👑 Gamle Betarn är besegrad. Gårdarna är säkra. <span className="muted">Nästa region kommer i en senare version.</span></p>
         ) : c.boss ? (

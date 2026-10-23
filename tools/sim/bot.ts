@@ -155,15 +155,19 @@ function decide(
     wish = currentWish(state, content);
   }
 
-  // 3b. Forge: keep a small order going until every soldier is armed, then keep smithing for quality
-  // with spare ore; re-arm troops whenever the armoury has something better.
+  // 3b. Forge: keep a small order going while soldiers are unarmed (a player racing to the boss
+  // arms the army, it does not grind quality); re-arm troops whenever the armoury has something better.
   const recipeId = `${content.races[state.raceId]!.weaponTypeId}_t1`;
+  const unarmed = () =>
+    state.troops.reduce((n, t) => n + t.size - equippedCount(t), 0) -
+    Object.values(state.armoury).reduce((a, b) => a + b, 0) -
+    state.crafting.queue.reduce((n, o) => n + o.remaining, 0);
   if (recipeAvailable(state, recipeId, content)) {
     const queued = state.crafting.queue.reduce((n, o) => n + o.remaining, 0);
-    if (queued < 5) {
+    if (queued < 5 && unarmed() > 0) {
       const wishOre = wish ? wishCost(wish, state, content).ore ?? 0 : 0;
       const spare = { ...state, resources: { ...state.resources, ore: Math.max(0, state.resources.ore - wishOre) } };
-      const n = Math.min(10, maxCraftable(spare, recipeId, content));
+      const n = Math.min(10, unarmed(), maxCraftable(spare, recipeId, content));
       if (n > 0) exec({ type: 'queueCraft', recipeId, count: n });
     }
     refresh();

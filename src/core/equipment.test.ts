@@ -82,7 +82,7 @@ describe('crafting', () => {
     expect(dispatch(newGame('humans', content), { type: 'queueCraft', recipeId: 'sword_t1', count: 1 }, content).ok).toBe(false);
     let s = run(withForge(), { type: 'queueCraft', recipeId: 'sword_t1', count: 3 });
     expect(s.resources.ore).toBe(10_000 - 3 * recipe.materials.ore!);
-    expect(s.resources.wood).toBe(10_000 - 3 * recipe.materials.wood!);
+    expect(s.resources.wood).toBe(10_000 - 3 * (recipe.materials.wood ?? 0));
     const perItem = secPerItem(s);
     s = advance(s, perItem * 2 + 0.5, content).state;
     expect(s.stats.weaponsCrafted).toBe(2);

@@ -1,13 +1,13 @@
 // Core types: static content definitions and the serialisable game state.
 // The core never imports UI, DOM or time APIs; see docs/ARCHITECTURE.md.
 
-export type ActivityKind = 'combat' | 'mining' | 'woodcutting' | 'food' | 'construction';
+export type ActivityKind = 'combat' | 'mining' | 'woodcutting' | 'food' | 'construction' | 'smithing';
 export type LabourActivity = Exclude<ActivityKind, 'combat'>;
 export type ResourceId = 'food' | 'wood' | 'stone' | 'ore';
 export type Resources = Record<ResourceId, number>;
 export type Cost = Partial<Resources>;
 
-export const ACTIVITIES: readonly ActivityKind[] = ['combat', 'mining', 'woodcutting', 'food', 'construction'];
+export const ACTIVITIES: readonly ActivityKind[] = ['combat', 'mining', 'woodcutting', 'food', 'construction', 'smithing'];
 export const RESOURCES: readonly ResourceId[] = ['food', 'wood', 'stone', 'ore'];
 
 /** Weapon quality, worst to best. See docs/EQUIPMENT_AND_CRAFTING.md. */
@@ -24,6 +24,7 @@ export type Stat =
   | 'skill.woodcutting'
   | 'skill.food'
   | 'skill.construction'
+  | 'skill.smithing'
   | 'foodPerSoldier'
   | 'loot.food'
   | 'loot.ore'
@@ -98,9 +99,7 @@ export type Effect =
   | { kind: 'capLevel'; level: number }
   | { kind: 'modifier'; modifier: Modifier }
   | { kind: 'unlock'; unlock: Unlock }
-  | { kind: 'troopSlot' }
-  /** Crafting work per second produced by this building (the forge). */
-  | { kind: 'craftSpeed'; workPerSec: number };
+  | { kind: 'troopSlot' };
 
 export interface BuildingLevelDef {
   cost: Cost;
@@ -207,6 +206,8 @@ export interface Content {
     gatherRate: number;
     /** Attacks per second per soldier. */
     attacksPerSecond: number;
+    /** Forge work per second per (work × smithing skill) of the troops assigned to smithing. */
+    smithRate: number;
     /** Share of mining output that becomes ore (rest is stone). */
     miningOreShare: number;
     /** XP needed to reach level L is xpBase × (L−1)^xpExponent. */

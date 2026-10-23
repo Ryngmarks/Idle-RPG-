@@ -83,12 +83,12 @@ for (const { race, strategy, res } of results) {
 }
 
 console.log('\nShare of troop-time per activity\n');
-console.log('race     strategy    combat  mining    wood    food   build    idle   soldiers@end');
+console.log('race     strategy    combat  mining    wood    food   build   smith    idle   soldiers@end');
 for (const { race, strategy, res } of results) {
   const total = Object.values(res.activityTime).reduce((a, b) => a + b, 0) || 1;
   const pct = (k: keyof RunResult['activityTime']) => `${Math.round((100 * res.activityTime[k]) / total)}%`.padStart(8);
   const soldiers = res.finalState.troops.map((t) => t.size).join('+');
   console.log(
-    `${race.padEnd(8)} ${strategy.padEnd(9)} ${pct('combat')}${pct('mining')}${pct('woodcutting')}${pct('food')}${pct('construction')}${pct('idle')}   ${soldiers}`,
+    `${race.padEnd(8)} ${strategy.padEnd(9)} ${pct('combat')}${pct('mining')}${pct('woodcutting')}${pct('food')}${pct('construction')}${pct('smithing')}${pct('idle')}   ${soldiers}`,
   );
 }

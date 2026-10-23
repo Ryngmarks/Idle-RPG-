@@ -55,12 +55,23 @@ describe('P0 pacing (balanced bot)', () => {
     expect(size(orcs)).toBeGreaterThan(2 * size(humans));
   });
 
-  it('every activity is used for at least 5% of troop-time', () => {
+  // The forge job only exists once the forge is built, so the five start activities are
+  // compared on their own time; smithing has its own guard below.
+  it('every start activity is used for at least 5% of its troop-time', () => {
+    const start = ['combat', 'mining', 'woodcutting', 'food', 'construction'] as const;
     for (const r of [humans, orcs]) {
-      const total = Object.values(r.activityTime).reduce((a, b) => a + b, 0);
-      for (const a of ['combat', 'mining', 'woodcutting', 'food', 'construction'] as const) {
+      const total = start.reduce((n, a) => n + r.activityTime[a], 0);
+      for (const a of start) {
         expect(r.activityTime[a] / total, `${a}`).toBeGreaterThan(0.05);
       }
+    }
+  });
+
+  it('troops actually smith: the forge job is used and weapons get made', () => {
+    for (const r of [humans, orcs]) {
+      const total = Object.values(r.activityTime).reduce((a, b) => a + b, 0);
+      expect(r.activityTime.smithing / total).toBeGreaterThan(0.01);
+      expect(r.finalState.stats.weaponsCrafted).toBeGreaterThan(10);
     }
   });
 });

@@ -232,6 +232,25 @@ export const SCENES: Record<ActivityKind | 'idle', { sky: [string, string]; art:
       </>
     ),
   },
+  smithing: {
+    sky: ['#1f1412', '#3a1c10'],
+    art: (
+      <>
+        <rect x="40" y="30" width="44" height="30" fill="#3a3330" />
+        <path d="M40 30 L62 18 L84 30 Z" fill="#2a2420" />
+        <ellipse className="flicker" cx="62" cy="46" rx="10" ry="8" fill="#e8742a" style={{ transformOrigin: '62px 54px' }} />
+        <ellipse className="flicker" cx="62" cy="48" rx="5" ry="5" fill="#f7c64a" style={{ transformOrigin: '62px 53px', animationDelay: '0.3s' }} />
+        <path d="M140 42 h44 l-6 6 h-32 Z" fill="#5a5a62" />
+        <rect x="152" y="48" width="20" height="12" fill="#45454c" />
+        <path d="M150 40 h24" stroke="#e8742a" strokeWidth="3" strokeLinecap="round" />
+        <path className="chop" d="M186 22 l-10 16" stroke="#8a6a44" strokeWidth="3" strokeLinecap="round" style={{ transformOrigin: '176px 38px' }} />
+        <circle cx="186" cy="38" r="2" fill="#f7c64a" opacity="0.8" />
+        <circle cx="194" cy="34" r="1.4" fill="#f7c64a" opacity="0.6" />
+        <rect x="230" y="44" width="12" height="16" fill="#6a4a2a" />
+        <path d="M232 44 V30 M236 44 V28 M240 44 V31" stroke="#c9ccd4" strokeWidth="2" />
+      </>
+    ),
+  },
   combat: {
     sky: ['#2a1214', '#3a1a12'],
     art: (

@@ -312,7 +312,20 @@ Today each troop has a single `gearTier: 0 | 1` (P0's Forge gives ×1.4 attack).
 | Quality must not max out in minutes | Mastery per weapon type and tier: level = ⌊√(crafted / 8)⌋, max 10 at 800 weapons (≈ 3.3 h of forge time + 1,600 ore). Chances go from 85/13/2/0/0 % to 30/33/22/11/4 %. |
 
 **Decisions taken while building (open to change):**
-- **Q-13 (who crafts):** for now the **forge crafts by itself** (no sixth activity). The owner asked for no further large systems; a smith activity can be added later.
+- **Q-13 (who crafts):** in M5 the forge crafted by itself. **Superseded in M6, see §11.**
 - **Q-15 changed:** recruits arrive **unarmed** (improvised ×1.0). Arming every soldier is now part of the T1 climb, which is what "every soldier can be equipped" implies.
 - **Deterministic quality:** each weapon adds the chances to a carry. The best quality whose carry has reached one whole weapon is made, otherwise the largest carry. Rare qualities are therefore made only once they are "earned", the result matches the chances over time, and there is no randomness, so offline crafting equals online crafting.
 - **Casualties:** the unarmed fall first, then the worst weapons are lost.
+
+## 11. M6: troops do the smithing (2026-10-23)
+
+| Rule | Implementation |
+|---|---|
+| A sixth activity | `smithing`, unlocked together with the forge (`activity:smithing`); a new objective asks the player to set a troop to smithing |
+| The forge does nothing on its own | `craftWorkPerSec` is the sum over troops with activity `smithing`; without an order the smiths produce no work |
+| Speed | soldiers × work × race skill `smithing` × `smithRate` 0.1 (`smithingWork()` in the core). A 20-soldier Human troop: 2 work/s, about 8 s per T1 weapon. |
+| Race identity | Humans smithing 1, Orcs 0.4 (big hordes still smith quickly), Dwarves 3, Elves 1 (locked) |
+| Removed | The forge's own `craftSpeed` effect (1 work/s) |
+| Save v3 → v4 | Saves that already have a forge get `activity:smithing` |
+| Offline | Smithing is a normal piecewise-constant rate, so offline crafting equals online crafting |
+

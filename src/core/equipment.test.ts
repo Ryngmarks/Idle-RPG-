@@ -15,7 +15,7 @@ import {
 } from './equipment';
 import { advance, catchUp } from './simulation';
 import { newGame } from './state';
-import { computeRates, forgeSpeed, troopStats } from './stats';
+import { computeRates, troopStats } from './stats';
 import { QUALITY_IDS, type GameState, type TroopState } from './types';
 
 const recipe = content.equipment.recipes.sword_t1!;
@@ -29,16 +29,22 @@ function run(state: GameState, ...cmds: Command[]): GameState {
   return state;
 }
 
-/** Humans with a built forge, one troop of `size` soldiers and plenty of materials. */
-function withForge(size = 20): GameState {
-  const s = newGame('humans', content);
-  s.unlocks.push('activity:combat', 'recruit', 'crafting', 'tier:1');
+/** Humans with a built forge, one troop of `size` soldiers smithing, and plenty of materials. */
+function withForge(size = 20, raceId = 'humans'): GameState {
+  const s = newGame(raceId, content);
+  s.unlocks.push('activity:combat', 'activity:smithing', 'recruit', 'crafting', 'tier:1');
   s.objectivesCompleted = content.objectives.map((o) => o.id);
   s.buildings.forge = 1;
   s.troops[0]!.size = size;
   s.troops[0]!.engagedSize = size;
+  s.troops[0]!.activity = 'smithing';
   s.resources = { food: 0, wood: 10_000, stone: 0, ore: 10_000 };
   return s;
+}
+
+/** Seconds per weapon with the current smiths. */
+function secPerItem(s: GameState): number {
+  return recipe.workPerItem / computeRates(s, content).craftWorkPerSec;
 }
 
 function troop(state: GameState): TroopState {
@@ -75,13 +81,38 @@ describe('crafting', () => {
     let s = run(withForge(), { type: 'queueCraft', recipeId: 'sword_t1', count: 3 });
     expect(s.resources.ore).toBe(10_000 - 3 * recipe.materials.ore!);
     expect(s.resources.wood).toBe(10_000 - 3 * recipe.materials.wood!);
-    const perItem = recipe.workPerItem / forgeSpeed(s, content);
+    const perItem = secPerItem(s);
     s = advance(s, perItem * 2 + 0.5, content).state;
     expect(s.stats.weaponsCrafted).toBe(2);
     expect(s.armoury[itemKey('sword', 1, 'normal')]).toBe(2);
     s = advance(s, perItem, content).state;
     expect(s.stats.weaponsCrafted).toBe(3);
     expect(s.crafting.queue).toHaveLength(0);
+  });
+
+  it('the forge only works while a troop is smithing', () => {
+    let s = run(withForge(), { type: 'queueCraft', recipeId: 'sword_t1', count: 5 });
+    s.troops[0]!.activity = 'combat';
+    expect(computeRates(s, content).craftWorkPerSec).toBe(0);
+    s = advance(s, 600, content).state;
+    expect(s.stats.weaponsCrafted).toBe(0);
+    s = run(s, { type: 'assignTroop', troopId: 'troop1', activity: 'smithing' });
+    s = advance(s, 600, content).state;
+    expect(s.stats.weaponsCrafted).toBe(5);
+  });
+
+  it('smithing speed grows with troop size and follows the race skill', () => {
+    const rate = (size: number, raceId: string) => {
+      const s = run(withForge(size, raceId), { type: 'queueCraft', recipeId: raceId === 'orcs' ? 'cleaver_t1' : 'sword_t1', count: 1 });
+      return computeRates(s, content).craftWorkPerSec;
+    };
+    expect(rate(20, 'humans')).toBeCloseTo(2 * rate(10, 'humans'));
+    expect(rate(10, 'humans')).toBeCloseTo(10 * 1 * content.races.humans!.soldier.skills.smithing * content.constants.smithRate);
+    expect(rate(10, 'orcs')).toBeLessThan(rate(10, 'humans')); // Orcs are cruder smiths per soldier
+  });
+
+  it('smiths without an order produce no work', () => {
+    expect(computeRates(withForge(), content).craftWorkPerSec).toBe(0);
   });
 
   it('cancelling refunds the materials of the remaining weapons', () => {
@@ -101,7 +132,7 @@ describe('crafting', () => {
 
   it('quality follows mastery deterministically: a novice makes mostly Normal, never Masterpiece', () => {
     let s = run(withForge(), { type: 'queueCraft', recipeId: 'sword_t1', count: 40 });
-    s = advance(s, 40 * recipe.workPerItem + 1, content).state;
+    s = advance(s, 40 * secPerItem(s) + 1, content).state;
     const count = (q: string) => s.armoury[itemKey('sword', 1, q as never)] ?? 0;
     expect(count('normal')).toBeGreaterThan(25);
     expect(count('masterpiece')).toBe(0);
@@ -125,8 +156,9 @@ describe('crafting', () => {
     expect(masteryLevel(craftedForMastery(1, content), content)).toBe(1);
     const toMax = craftedForMastery(content.equipment.maxMastery, content);
     expect(toMax).toBeGreaterThanOrEqual(500);
-    const hours = (toMax * recipe.workPerItem) / 3600;
-    expect(hours).toBeGreaterThan(2); // with one forge, at least a couple of hours of smithing
+    const tenSmiths = 10 * content.races.humans!.soldier.skills.smithing * content.constants.smithRate;
+    const hours = (toMax * recipe.workPerItem) / tenSmiths / 3600;
+    expect(hours).toBeGreaterThan(2); // ten Human smiths need hours of smithing to max T1
     expect(qualityChances(content.equipment.maxMastery, content)[4]).toBeGreaterThan(0);
     expect(qualityChances(0, content)[4]).toBe(0);
   });

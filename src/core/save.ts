@@ -33,6 +33,12 @@ const migrations: Record<number, (s: Record<string, unknown>) => Record<string, 
       stats: { ...stats, weaponsCrafted: 0 },
     };
   },
+  // v3 → v4: troops do the smithing (M6). A built forge now unlocks the smithing activity.
+  3: (s) => {
+    const unlocks = [...(s.unlocks as string[])];
+    if ((s.buildings as Record<string, number>).forge && !unlocks.includes('activity:smithing')) unlocks.push('activity:smithing');
+    return { ...s, unlocks };
+  },
 };
 
 export function serialize(state: GameState): string {

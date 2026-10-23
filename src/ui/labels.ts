@@ -30,6 +30,7 @@ export const ACTIVITY_LABEL: Record<ActivityKind, { name: string; icon: string; 
   woodcutting: { name: 'Ved', icon: '🪓', verb: 'Hugger ved' },
   food: { name: 'Mat', icon: '🌾', verb: 'Odlar och samlar mat' },
   construction: { name: 'Bygge', icon: '🔨', verb: 'Bygger' },
+  smithing: { name: 'Smide', icon: '⚒️', verb: 'Smider vapen' },
 };
 
 export const TRAIT_LABEL: Record<TraitId, string> = {
@@ -47,6 +48,7 @@ const STAT_LABEL: Record<Modifier['stat'], string> = {
   'skill.woodcutting': 'Vedhuggning',
   'skill.food': 'Matproduktion',
   'skill.construction': 'Byggande',
+  'skill.smithing': 'Smide',
   foodPerSoldier: 'Rekryteringskostnad',
   'loot.food': 'Mat från strid',
   'loot.ore': 'Malm från strid',
@@ -72,9 +74,8 @@ export function effectText(e: Effect, capForLevel: (level: number) => number): s
       if (e.unlock === 'crafting') return 'Låser upp vapensmide';
       if (e.unlock.startsWith('tier:')) return `Låser upp T${e.unlock.slice(5)}-vapen`;
       if (e.unlock.startsWith('tab:')) return '';
+      if (e.unlock.startsWith('activity:')) return `Ny aktivitet: ${ACTIVITY_LABEL[e.unlock.slice(9) as ActivityKind]?.name ?? e.unlock.slice(9)}`;
       return `Låser upp ${e.unlock}`;
-    case 'craftSpeed':
-      return `Smider ${e.workPerSec} arbete per sekund`;
   }
 }
 

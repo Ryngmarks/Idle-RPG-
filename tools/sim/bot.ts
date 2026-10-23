@@ -24,6 +24,7 @@ import {
   type GameEvent,
   type GameState,
   type ResourceId,
+  type TroopState,
 } from '../../src/core';
 
 export type Strategy = 'balanced' | 'economy';
@@ -81,7 +82,7 @@ export function runBot(start: GameState, content: Content, opts: RunOptions): Ru
   const log: LogEntry[] = [];
   const snapshots: Snapshot[] = [];
   const milestones: Record<string, number> = {};
-  const activityTime = { combat: 0, mining: 0, woodcutting: 0, food: 0, construction: 0, idle: 0 };
+  const activityTime = { combat: 0, mining: 0, woodcutting: 0, food: 0, construction: 0, smithing: 0, idle: 0 };
   let nextSnapshot = 0;
 
   const note = (events: GameEvent[]) => {
@@ -231,6 +232,15 @@ function decide(
   if (strategy === 'balanced' && free.length >= 2 && fightNeeded) {
     const fighter = [...free].sort((a, b) => troopStats(state, b, content).strength - troopStats(state, a, content).strength)[0]!;
     assign(fighter.id, 'combat');
+  }
+
+  // Smithing: with orders waiting, a troop works the forge, unless it is the last free troop
+  // and something is being saved for (that wish comes first).
+  const ordersWaiting = state.crafting.queue.length > 0;
+  if (can('smithing') && ordersWaiting && free.length > 0 && (free.length >= 2 || !wish)) {
+    const smithPower = (t: TroopState) => troopStats(state, t, content).workTotal * troopStats(state, t, content).skills.smithing;
+    const smith = [...free].sort((a, b) => smithPower(b) - smithPower(a))[0]!;
+    assign(smith.id, 'smithing');
   }
 
   for (const t of [...free]) {

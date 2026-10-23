@@ -15,6 +15,7 @@ const TOOL_FOR: Record<ActivityKind, Tool> = {
   mining: 'pick',
   food: 'sickle',
   construction: 'hammer',
+  smithing: 'hammer',
 };
 
 const WOOD = '#8a6a44';

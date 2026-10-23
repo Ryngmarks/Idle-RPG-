@@ -47,6 +47,7 @@
 | D-38 | One weapon type per troop; every soldier can carry one weapon; mixed qualities within a troop; equip from a shared armoury | 2026-10-23 | Owner, M5 |
 | D-39 | **Only T1** with five qualities for now; T2–T8 exist in the data model and plan but are not unlockable | 2026-10-23 | Owner, M5 |
 | D-40 | Combat uses each troop's actual equipment; the ×1.4 placeholder is removed; T1 quality must take a long time to max out | 2026-10-23 | Owner, M5 |
+| D-41 | **Troops do the smithing:** a sixth activity *Smithing* (unlocked by the forge). The forge only works while a troop smiths and an order is queued; speed = soldiers × work × race smithing skill × 0.1. Humans skill 1, Orcs 0.4 (Dwarves 3 later). | 2026-10-23 | Owner, M6 |
 
 ## Proposed 💡 (awaiting confirmation)
 
@@ -94,7 +95,7 @@
 | Q-07 | Documentation language: English (current) or Swedish? | |
 | Q-08 | Final names for the world, races and regions | Before the art phase |
 | Q-12 | Should XP also be a spendable currency? | No, per-troop levels only |
-| Q-13 | Who does crafting labour: a 6th activity "Crafting", the Construction activity, or the buildings themselves? | **Forge crafts by itself for now (M5)**; a smith activity remains an option |
+| Q-13 | Who does crafting labour: a 6th activity "Crafting", the Construction activity, or the buildings themselves? | ✅ **A 6th activity, Smithing (D-41, M6).** The forge no longer works by itself. |
 | Q-14 | T1 crafting in P0, or only the equipment foundation now and crafting in P1? | **Resolved: T1 crafting built in M5** |
 | Q-15 | Do recruits come with a free T1 Normal weapon? | **No (M5): recruits arrive unarmed; arm them from the armoury** |
 | Q-16 | Tier pacing targets (T2 ≈ day 1 … T8 ≈ many months) | Tie to Q-04 / Q-05 |

@@ -56,6 +56,8 @@ function outputText(troop: TroopState, rates: Rates, state: GameState): string {
       return `${fmtRate(t.killsPerSec)} besegrade/s`;
     case 'construction':
       return state.construction ? `+${fmtRate(t.work)} arbete/s` : 'Inget bygge pågår';
+    case 'smithing':
+      return state.crafting.queue.length > 0 ? `+${fmtRate(t.work)} smidesarbete/s` : 'Ingen beställning i smedjan';
     default:
       return Object.entries(t.output)
         .filter(([, v]) => (v ?? 0) > 0)

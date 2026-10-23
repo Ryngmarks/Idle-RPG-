@@ -3,7 +3,7 @@
 import { evaluateObjectives } from './objectives';
 import type { Content, GameEvent, GameState } from './types';
 
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 
 /** State is plain JSON, so a JSON round-trip is a correct deep copy. */
 export function cloneState(state: GameState): GameState {

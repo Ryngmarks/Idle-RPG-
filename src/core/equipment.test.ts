@@ -38,6 +38,8 @@ function withForge(size = 20, raceId = 'humans'): GameState {
   s.troops[0]!.size = size;
   s.troops[0]!.engagedSize = size;
   s.troops[0]!.activity = 'smithing';
+  // Most tests look at the armoury itself; auto-equip has its own tests.
+  s.troops[0]!.autoEquip = false;
   s.resources = { food: 0, wood: 10_000, stone: 0, ore: 10_000 };
   return s;
 }
@@ -222,6 +224,74 @@ describe('equipping from the armoury', () => {
     expect(troop(r).equipment.length).toBeLessThanOrEqual(5);
     expect(equippedCount(troop(r))).toBe(5000);
     expect(troop(r).equipment[0]!.quality).toBe('masterpiece');
+  });
+});
+
+describe('auto-equip', () => {
+  const auto = (s: GameState) => {
+    for (const t of s.troops) t.autoEquip = true;
+    return s;
+  };
+
+  it('finished weapons go straight into the hands of a troop that arms itself', () => {
+    const s = auto(withForge(20));
+    const r = advance(run(s, { type: 'queueCraft', recipeId: recipe.id, count: 5 }), 5 * secPerItem(s) + 1, content).state;
+    expect(equippedCount(troop(r))).toBe(5);
+    expect(Object.values(r.armoury).reduce((a, b) => a + b, 0)).toBe(0);
+  });
+
+  it('swaps worse weapons for better ones and keeps the rest in the armoury', () => {
+    const s = auto(withForge(3));
+    troop(s).equipment = [{ tier: 1, quality: 'normal', count: 3 }];
+    s.armoury = { [itemKey('sword', 1, 'excellent')]: 1 };
+    const r = run(s, { type: 'renameTroop', troopId: 'troop1', name: 'Test' });
+    expect(troop(r).equipment[0]).toEqual({ tier: 1, quality: 'excellent', count: 1 });
+    expect(r.armoury).toEqual({ [itemKey('sword', 1, 'normal')]: 1 });
+  });
+
+  it('new recruits are armed from the armoury at once', () => {
+    const s = auto(withForge(5));
+    s.unlocks.push('recruit');
+    s.resources.food = 1000;
+    s.armoury = { [itemKey('sword', 1, 'normal')]: 10 };
+    const r = run(s, { type: 'recruit', troopId: 'troop1', count: 3 });
+    expect(equippedCount(troop(r))).toBe(8);
+  });
+
+  it('the fighting troop chooses first', () => {
+    const s = auto(withForge(4));
+    s.troops.push({ ...troop(s), id: 'troop2', name: 'B', activity: 'combat', equipment: [] });
+    s.armoury = { [itemKey('sword', 1, 'good')]: 4 };
+    const r = run(s, { type: 'setAutoEquip', troopId: 'troop1', on: true });
+    expect(equippedCount(r.troops[1]!)).toBe(4);
+    expect(equippedCount(r.troops[0]!)).toBe(0);
+  });
+
+  it('switching activity hands the best weapons to whoever fights', () => {
+    const s = auto(withForge(4));
+    s.unlocks.push('activity:food');
+    troop(s).equipment = [{ tier: 1, quality: 'excellent', count: 4 }];
+    s.troops.push({ ...troop(s), id: 'troop2', name: 'B', activity: 'food', equipment: [{ tier: 1, quality: 'normal', count: 4 }] });
+    const r = run(s, { type: 'assignTroop', troopId: 'troop2', activity: 'combat' });
+    expect(r.troops[1]!.equipment).toEqual([{ tier: 1, quality: 'excellent', count: 4 }]);
+    expect(r.troops[0]!.equipment).toEqual([{ tier: 1, quality: 'normal', count: 4 }]);
+  });
+
+  it('emptying a troop by hand turns auto-equip off, so the weapons stay in the armoury', () => {
+    const s = auto(withForge(5));
+    troop(s).equipment = [{ tier: 1, quality: 'good', count: 5 }];
+    const r = run(s, { type: 'unequipTroop', troopId: 'troop1' });
+    expect(troop(r).autoEquip).toBe(false);
+    expect(equippedCount(troop(r))).toBe(0);
+    const back = run(r, { type: 'setAutoEquip', troopId: 'troop1', on: true });
+    expect(equippedCount(troop(back))).toBe(5);
+  });
+
+  it('offline crafting arms the troop exactly like online play', () => {
+    const s = run(auto(withForge(30)), { type: 'queueCraft', recipeId: recipe.id, count: 20 });
+    const online = Array.from({ length: 60 }).reduce<GameState>((st) => advance(st, 5, content).state, s);
+    const offline = advance(s, 300, content).state;
+    expect(troop(offline).equipment).toEqual(troop(online).equipment);
   });
 });
 

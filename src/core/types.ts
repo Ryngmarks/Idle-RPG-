@@ -241,6 +241,8 @@ export interface TroopState {
   wounds: number;
   /** Size when the troop last went into combat; it retreats after losing half of it. */
   engagedSize: number;
+  /** Takes better weapons from the armoury by itself whenever they are there. */
+  autoEquip: boolean;
 }
 
 export interface BossFight {

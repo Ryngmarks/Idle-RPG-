@@ -1,7 +1,7 @@
 // Player actions. Every state change made by the player goes through dispatch().
 // See docs/ARCHITECTURE.md §6.
 
-import { equipBest, unequipAll } from './equipment';
+import { autoEquipAll, equipBest, unequipAll } from './equipment';
 import { canAfford, gain, hasUnlock, pay } from './mutations';
 import { evaluateObjectives } from './objectives';
 import { cloneState } from './state';
@@ -16,6 +16,7 @@ export type Command =
   | { type: 'cancelCraft'; index: number }
   | { type: 'equipTroop'; troopId: string }
   | { type: 'unequipTroop'; troopId: string }
+  | { type: 'setAutoEquip'; troopId: string; on: boolean }
   | { type: 'startConstruction'; buildingId: string }
   | { type: 'buyUpgrade'; upgradeId: string }
   | { type: 'challengeBoss' }
@@ -138,7 +139,15 @@ export function dispatch(input: GameState, cmd: Command, content: Content): Comm
     case 'unequipTroop': {
       const troop = state.troops.find((t) => t.id === cmd.troopId);
       if (!troop) return fail('Unknown troop');
+      // Emptying a troop by hand means the player wants it unarmed, so it stops arming itself.
+      troop.autoEquip = false;
       unequipAll(troop, state.armoury);
+      break;
+    }
+    case 'setAutoEquip': {
+      const troop = state.troops.find((t) => t.id === cmd.troopId);
+      if (!troop) return fail('Unknown troop');
+      troop.autoEquip = cmd.on;
       break;
     }
     case 'startConstruction': {
@@ -191,6 +200,7 @@ export function dispatch(input: GameState, cmd: Command, content: Content): Comm
     }
   }
 
+  autoEquipAll(state, content);
   evaluateObjectives(state, content, events);
   return { ok: true, state, events };
 }

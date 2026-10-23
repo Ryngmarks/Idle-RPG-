@@ -17,8 +17,8 @@ import {
 } from '../../core';
 import { TroopScene } from '../army';
 import { Bar, CostList, Panel } from '../components/common';
-import { EquipmentBar } from '../components/equipment';
-import { fmtDuration, fmtRate } from '../format';
+import { EquipmentBar, Switch } from '../components/equipment';
+import { fmtDuration, fmtInt, fmtRate } from '../format';
 import { useStore } from '../game';
 import { ACTIVITY_LABEL, RESOURCE_LABEL, objectiveProgress } from '../labels';
 
@@ -186,16 +186,30 @@ function TroopCard({ troop, state, rates }: { troop: TroopState; state: GameStat
 
       {showEquipment && (
         <div className="recruit">
-          <span className="recruit__label">Utrustning</span>
-          <EquipmentBar troop={troop} />
-          <div className="recruit__buttons">
-            <button className="btn btn--small" disabled={inArmoury === 0} onClick={() => run(() => store.command({ type: 'equipTroop', troopId: troop.id }))}>
-              Utrusta bästa från förrådet ({inArmoury})
-            </button>
-            <button className="btn btn--small" disabled={troop.equipment.length === 0} onClick={() => run(() => store.command({ type: 'unequipTroop', troopId: troop.id }))}>
-              Lägg i förrådet
-            </button>
+          <div className="section-head">
+            <span className="recruit__label">Utrustning</span>
+            <Switch
+              on={troop.autoEquip}
+              label="Auto"
+              title="Truppen tar själv de bästa vapnen från förrådet"
+              onChange={(on) => run(() => store.command({ type: 'setAutoEquip', troopId: troop.id, on }))}
+            />
           </div>
+          <EquipmentBar troop={troop} />
+          {(!troop.autoEquip && inArmoury > 0) || troop.equipment.length > 0 ? (
+            <div className="recruit__buttons">
+              {!troop.autoEquip && inArmoury > 0 && (
+                <button className="btn btn--small" onClick={() => run(() => store.command({ type: 'equipTroop', troopId: troop.id }))}>
+                  Utrusta ({fmtInt(inArmoury)})
+                </button>
+              )}
+              {troop.equipment.length > 0 && (
+                <button className="btn btn--small btn--ghost" title="Lägger vapnen i förrådet och stänger av Auto" onClick={() => run(() => store.command({ type: 'unequipTroop', troopId: troop.id }))}>
+                  Töm
+                </button>
+              )}
+            </div>
+          ) : null}
         </div>
       )}
       {error && <p className="error" role="alert">{error}</p>}

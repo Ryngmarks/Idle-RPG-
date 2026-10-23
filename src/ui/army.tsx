@@ -21,6 +21,9 @@ const TOOL_FOR: Record<ActivityKind, Tool> = {
 const WOOD = '#8a6a44';
 const STEEL = '#c9ccd4';
 
+/** Rare qualities glow on the soldiers, so a well-armed army is visible at a glance. */
+const GLOWING = new Set([QUALITY_COLOR.outstanding, QUALITY_COLOR.excellent, QUALITY_COLOR.masterpiece]);
+
 /** `edge` is the weapon's quality colour, or null for an unarmed soldier (a wooden club). */
 function ToolArt({ tool, race, edge }: { tool: Tool; race: string; edge: string | null }): ReactElement {
   switch (tool) {
@@ -57,12 +60,12 @@ function ToolArt({ tool, race, edge }: { tool: Tool; race: string; edge: string 
         return <path d="M5 -10 L9 -27" stroke="#6a4a2a" strokeWidth="3" strokeLinecap="round" />;
       }
       return race === 'orcs' ? (
-        <g>
+        <g className={GLOWING.has(edge) ? 'blade--rare' : undefined} style={{ ['--q' as string]: edge }}>
           <path d="M5 -8 L8 -26" stroke={WOOD} strokeWidth="1.8" strokeLinecap="round" />
           <path d="M7 -27 q8 0 8 7 q-5 1 -8 -1 Z" fill="#a8a29a" stroke={edge} strokeWidth="1.2" />
         </g>
       ) : (
-        <g>
+        <g className={GLOWING.has(edge) ? 'blade--rare' : undefined} style={{ ['--q' as string]: edge }}>
           <path d="M6 -14 L6 -36" stroke={STEEL} strokeWidth="2" strokeLinecap="round" />
           <path d="M6 -36 L6 -38" stroke={edge} strokeWidth="2" strokeLinecap="round" />
           <path d="M3 -14 H9" stroke={edge} strokeWidth="1.6" strokeLinecap="round" />

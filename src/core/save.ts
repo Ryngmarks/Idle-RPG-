@@ -39,6 +39,8 @@ const migrations: Record<number, (s: Record<string, unknown>) => Record<string, 
     if ((s.buildings as Record<string, number>).forge && !unlocks.includes('activity:smithing')) unlocks.push('activity:smithing');
     return { ...s, unlocks };
   },
+  // v4 → v5: troops can arm themselves from the armoury (M7); on for every troop.
+  4: (s) => ({ ...s, troops: (s.troops as Record<string, unknown>[]).map((t) => ({ ...t, autoEquip: true })) }),
 };
 
 export function serialize(state: GameState): string {

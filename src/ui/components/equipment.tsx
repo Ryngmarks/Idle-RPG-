@@ -39,7 +39,7 @@ export function WeaponIcon({ weaponTypeId, quality, size = 28 }: { weaponTypeId:
 
 export function QualityChip({ quality, count, weaponTypeId }: { quality: QualityId | null; count: number; weaponTypeId: string }) {
   return (
-    <span className="qchip" style={{ borderColor: quality ? QUALITY_COLOR[quality] : UNARMED_COLOR }}>
+    <span className={`qchip ${quality && RARE.has(quality) ? 'qchip--rare' : ''}`} style={{ borderColor: quality ? QUALITY_COLOR[quality] : UNARMED_COLOR, ['--q' as string]: quality ? QUALITY_COLOR[quality] : UNARMED_COLOR }}>
       <WeaponIcon weaponTypeId={weaponTypeId} quality={quality} size={20} />
       <span className="qchip__name">{quality ? qualityName(quality) : 'Obeväpnade'}</span>
       <strong className="qchip__count">{fmtInt(count)}</strong>
@@ -47,33 +47,50 @@ export function QualityChip({ quality, count, weaponTypeId }: { quality: Quality
   );
 }
 
+/** Qualities rare enough to glow in the UI and on the soldiers. */
+export const RARE: ReadonlySet<QualityId> = new Set<QualityId>(['outstanding', 'excellent', 'masterpiece']);
+
 /** Stacked bar: how many soldiers carry each quality, plus the unarmed remainder. */
 export function EquipmentBar({ troop }: { troop: TroopState }) {
   const armed = equippedCount(troop);
   const unarmed = Math.max(0, troop.size - armed);
-  const byQuality = QUALITY_IDS.map((q) => ({ q, n: troop.equipment.filter((b) => b.quality === q).reduce((s, b) => s + b.count, 0) }));
+  const byQuality = QUALITY_IDS.map((q) => ({ q, n: troop.equipment.filter((b) => b.quality === q).reduce((s, b) => s + b.count, 0) }))
+    .filter((x) => x.n > 0)
+    .reverse();
   const power = averageWeaponPower(troop, content);
   const weapon = content.equipment.weaponTypes[troop.weaponTypeId];
   return (
     <div className="equip">
       <div className="equip__head">
-        <span className="small">
-          <WeaponIcon weaponTypeId={troop.weaponTypeId} quality={byQuality.slice().reverse().find((x) => x.n > 0)?.q ?? null} size={18} /> {weapon?.name ?? ''} T1 · {fmtInt(armed)}/{fmtInt(troop.size)} beväpnade
+        <WeaponIcon weaponTypeId={troop.weaponTypeId} quality={byQuality[0]?.q ?? null} size={22} />
+        <span className="equip__count" aria-label={`${armed} av ${troop.size} beväpnade med ${weapon?.name ?? ''} T1`}>
+          <strong>{fmtInt(armed)}</strong>/{fmtInt(troop.size)}
         </span>
-        <span className="small equip__power" title="Genomsnittlig vapenkraft">⚔ ×{fmtRate(power)}</span>
+        <span className="equip__pills">
+          {byQuality.map(({ q, n }) => (
+            <span key={q} className={`qpill ${RARE.has(q) ? 'qpill--rare' : ''}`} style={{ ['--q' as string]: QUALITY_COLOR[q] }} title={qualityName(q)}>
+              {fmtInt(n)}
+            </span>
+          ))}
+        </span>
+        <span className="equip__power" title="Genomsnittlig vapenkraft">⚔ ×{fmtRate(power)}</span>
       </div>
-      <div className="equip__bar" role="img" aria-label={`${armed} av ${troop.size} beväpnade`}>
-        {byQuality.slice().reverse().map(({ q, n }) =>
-          n > 0 ? <span key={q} style={{ flexGrow: n, background: QUALITY_COLOR[q] }} title={`${qualityName(q)}: ${n}`} /> : null,
-        )}
-        {unarmed > 0 && <span style={{ flexGrow: unarmed, background: UNARMED_COLOR }} title={`Obeväpnade: ${unarmed}`} />}
-      </div>
-      <div className="equip__legend">
-        {byQuality.filter((x) => x.n > 0).reverse().map(({ q, n }) => (
-          <span key={q} className="legend-dot"><i style={{ background: QUALITY_COLOR[q] }} />{qualityName(q)} {fmtInt(n)}</span>
+      <div className="equip__bar" role="img" aria-label={byQuality.map(({ q, n }) => `${qualityName(q)} ${n}`).join(', ') + (unarmed > 0 ? `, obeväpnade ${unarmed}` : '')}>
+        {byQuality.map(({ q, n }) => (
+          <span key={q} className={RARE.has(q) ? 'seg--rare' : ''} style={{ flexGrow: n, background: QUALITY_COLOR[q], ['--q' as string]: QUALITY_COLOR[q] }} />
         ))}
-        {unarmed > 0 && <span className="legend-dot"><i style={{ background: UNARMED_COLOR }} />Obeväpnade {fmtInt(unarmed)}</span>}
+        {unarmed > 0 && <span style={{ flexGrow: unarmed, background: UNARMED_COLOR }} />}
       </div>
     </div>
+  );
+}
+
+/** A compact on/off switch. */
+export function Switch({ on, label, onChange, title }: { on: boolean; label: string; onChange: (on: boolean) => void; title?: string }) {
+  return (
+    <button type="button" role="switch" aria-checked={on} className={`switch ${on ? 'switch--on' : ''}`} onClick={() => onChange(!on)} title={title}>
+      <span className="switch__track"><span className="switch__thumb" /></span>
+      {label}
+    </button>
   );
 }

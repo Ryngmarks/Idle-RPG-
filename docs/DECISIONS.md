@@ -54,6 +54,8 @@
 
 ## Proposed 💡 (awaiting confirmation)
 
+> **Progression v2 (2026-10-23):** a full proposal for work cycles, site capacity, beds and training, troop groups and a 3–5 soldier first half hour is in [PROGRESSION_V2.md](PROGRESSION_V2.md). If approved it supersedes D-14, D-16 and D-24; open questions are in its §13.
+
 | ID | Proposal | Details |
 |---|---|---|
 | P-01 | Race identity comes from six levers: overkill, armour, recruitment cost/cap, per-soldier gear cost, upkeep, activity skill profile + 1–2 traits | [Troop Model §2](TROOP_MODEL.md#2-the-central-design-problem-size--quality-must-not-cancel-out) |

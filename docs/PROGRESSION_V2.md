@@ -389,3 +389,97 @@ Simulated (bot, balanced), see [Balance Log pass 9](BALANCE_LOG.md):
 
 Still open for **M10b** (tuning): the lull before the boss (stage 5 → boss ~10 min), only 5 of 7 soldiers armed by the boss, Orcs' slower late game, and real playtests. **M10c** (UI): site cards with capacity, nicer training and bed display, smaller-army art.
 
+
+---
+
+## 16. M10b spec (✅ approved by the owner 2026-10-23, D-53)
+
+Status: **approved** with the lead's recommendations on §16.6: (1) 6 Human soldiers at 40 min is accepted; (2) the forge unlocks after two groups; (3) old saves get no rescue soldier and no retroactive level notices. Scope chosen by the owner: R-01, R-02 (rescue at stage 4), R-03, R-04, R-08-lite (see [IDLE_RESEARCH.md](IDLE_RESEARCH.md) §3.1). Out of scope: race traits, work orders, stage variety, region 2. Baseline = Balance Log pass 9 (Humans balanced: forge 34:46, stage 3 at 32:38, stage 4 at 36:52, stage 5 at 42:35, boss 43:55; Orcs boss 53:49). **Every number marked (guess) is a starting point for QA to tune with `npm run sim`.**
+
+Findings from the baseline that shape the spec:
+- Events in the Humans timeline have two holes after minute 15: 14:10 to 19:40 (5.5 min) and 23:12 to 29:02 (5.8 min), plus the pre-boss lull 36:52 to 42:35 and the forge only at 34:46.
+- Boars **already drop ore** (wild boar 1, old boar 2). Boars are stages 4 and 5, so that ore comes after the forge is built. The real fix is a forge that opens earlier plus ore from the fox (stage 3).
+- Mastery level is `floor(sqrt(crafted / 20))`: step 1 at 20 weapons, step 2 at 80, step 3 at 180 (D-40/D-43). Step 1 only moves the quality chances 1/10 of the way, so it is a small power gain (normal 85 % to about 79 %); its value is the visible payoff.
+- The bot crafts only 5 to 7 weapons and ends with 5/7 (Humans) armed, mostly because the forge is late, has one anvil and ore is thin.
+
+### 16.1 Changes
+
+| id | What | Exact numbers | Why | Balance effect |
+|---|---|---|---|---|
+| M1 | New objective `tent2` (guiding) | requires `twoTroops`; tents level 2; reward wood 30 and unlock `building:woodshed` | Soldier 4 needs the bed anyway; turns a silent build (23:03) into an event | None on soldiers (bed was needed already); +30 wood (guess) |
+| M2 | New objective `woodshed` (guiding) | requires `tent2`; woodshed level 1; reward unlock `upgrade:sharpenedAxes2` | Fills the 23 to 29 min hole; leads to R-04 | See R-04 rows |
+| M3 | New objective `ore10` (optional) | requires `twoTroops`; total ore gathered 10; reward food 20 and unlock `upgrade:stonePicks2` | An optional goal that also feeds the forge | +20 food (guess) |
+| M4 | New objective `farm2` (optional) | requires `farm`; farm level 2; reward wood 40 | Visible payoff in the 30 to 35 min window | +1 field slot (see B3) |
+| M5 | Forge opens earlier | Objective `forge` requires `twoTroops` (not `farm`); `twoTroops` also unlocks `building:forge`; `farm` keeps its own reward without the forge unlock | The forge is the most important mid-game payoff and is now reached at ~34 min; expected ~24 to 28 min (guess) | Large: more weapons, armed ratio up; forge cost (50 wood, 50 stone, 6 ore) stays |
+| M6 | Rescue at stage 4 (R-02, owner decided) | New objective `rescue2`: requires `stage3`, condition `stageReached 5`, reward `soldiers: 1`, text in 16.2. Needs a free bed? **No**: like the stage-1 rescue and the boss, it must not depend on beds (Systems to verify) | Pre-boss goal; fills the lull | **+1 soldier**: Humans 6 at 40 min (limit 6), 8 after the boss; Orcs 7 at 40 min (1.17x) |
+| M7 | Shorter stage 5 | `oldBoar` stage `killsToClear` 12 to 8; objective `zoneCleared` text unchanged | Stage 5 took 5.7 min | Boss about 2 min earlier (guess) |
+| M8 | First mastery step at 10 weapons (R-03) | New content field `equipment.firstMasteryStep: 10`. Rule: `masteryLevel(c) = c < first ? 0 : min(max, max(1, floor(sqrt(c / itemsPerMasteryStep))))`; `craftedForLevel(1) = first`, `craftedForLevel(L>=2) = L^2 * itemsPerMasteryStep` (unchanged: 80, 180, 320 ...). Level 2 and up and D-40's "~2,000 weapons to max" are unchanged | The first step arrives with the first useful batch | Tiny power (about 5 % of the quality spread); mostly a notice. Fallback if bot still stays under 10: 8 (guess) |
+| M9 | Ore loot (R-03) | `fox` loot adds `ore: 0.5`; `wildBoar` ore 1 to 1.5; `oldBoar` ore 2 to 2.5 (all guess; fractions are already used for food loot) | Boar ore already exists; fox ore gives stock before the forge | About +6 to 8 ore by the boss |
+| M10 | Forge level 2 (R-04) | New level 2: cost wood 150, stone 100, ore 10; work 480; effect `capacity` target `smithing` amount 1. Appears in the Settlement list once level 1 is built; objective `forge2` (guiding, requires `gear1`, text 16.2) | Two anvils; also a goal in the 35 to 40 min lull | Weapons about 2x faster; the armed guard |
+| M11 | Farm level 2 (R-04) | New level 2: cost wood 120, stone 60; work 300; effect `capacity` target `fields` amount 1 (3 to 4) | Wider food (fields yield 9 per 60 s) | +1/3 field food, small. Watch food use (target 7 %+) |
+| M12 | New building Vedskjul `woodshed` | One level: cost wood 50, stone 20; work 120; effect `capacity` target `birchGrove` amount 1 (3 to 4). Unlocked by `tent2` reward | Capacity growth for wood | Wood +33 % at a full grove (the grove is rarely full at 2 to 5 soldiers, so low impact; keep, because capacity must be visible) |
+| M13 | Upgrade Vassa yxor II `sharpenedAxes2` | cost wood 60, stone 20; `skill.woodcutting` mult +0.3 (guess; Vassa yxor I is +0.5); unlocked by `woodshed` reward; Swedish name "Vassa yxor II" | Second level of the upgrade | Wood +~15 % (guess) |
+| M14 | Upgrade Stenhackor II `stonePicks2` | cost wood 60, stone 40, ore 4; `skill.mining` mult +0.25 (guess; I is +0.33); unlocked by `ore10` reward | Helps the one-slot ore vein | Ore +~12 % |
+| M15 | R-08-lite level steps | Core emits one event `levelStep` when a troop's level crosses **5** or **10** (never replayed on load). Player text 16.2. Power is only the existing +10 %/level, stated in the text ("+40 %" at 5, "+90 %" at 10); no new bonus | Visible payoff for XP | None; counts as an event for the gap guard (about 20 and about 40 min) |
+
+Not changed: soldier training costs and timing, beds, group slots, the boss HP/timer, D-50 targets.
+
+### 16.2 New and changed objectives, chain order (Swedish player text)
+
+| # | id | Type | requires | Condition | Reward | Text |
+|---|---|---|---|---|---|---|
+| 1 | `forge` (changed) | guiding | `twoTroops` | forge level 1 | none | "Bygg en smedja." |
+| 2 | `tent2` | guiding | `twoTroops` | tents level 2 | wood 30, unlock `building:woodshed` | "Res ett andra tält: fler sängar, fler soldater." |
+| 3 | `ore10` | optional | `twoTroops` | total ore 10 | food 20, unlock `upgrade:stonePicks2` | "Valfritt: gräv fram 10 malm ur Malmådern." |
+| 4 | `woodshed` | guiding | `tent2` | woodshed level 1 | unlock `upgrade:sharpenedAxes2` | "Bygg ett vedskjul: plats för en yxa till i Björkdungen." |
+| 5 | `farm2` | optional | `farm` | farm level 2 | wood 40 | "Valfritt: bygg ut gården, åkrarna får en plats till." |
+| 6 | `rescue2` | guiding | `stage3` | `stageReached 5` | `soldiers: 1` | "Någon ropar från grisfållan. Rensa steg 4 och befria honom." |
+| 7 | `forge2` | guiding | `gear1` | forge level 2 | food 30 | "Bygg ut smedjan: ett städ till, fler vapen." |
+
+Existing `farm` objective keeps `requires: twoTroops` but its reward changes from `unlock building:forge` to none (the forge unlock moves to `twoTroops`). `zoneCleared` still requires `stage3`. Guiding goals: 1, 2, 4, 6, 7 (each is the natural next step). Optional challenges: 3, 5 (gifts, never block the chain).
+
+Level-step notices (R-08-lite, not objectives, shown in the chronicle):
+- Level 5: "{Trupp} når nivå 5: veteraner. Alla i gruppen har +40 % kraft."
+- Level 10: "{Trupp} når nivå 10: eliter. Alla i gruppen har +90 % kraft."
+
+### 16.3 Expected timeline (Humans, balanced; all after-values are guesses)
+
+| Minute | Before (pass 9) | After (expected) |
+|---|---|---|
+| 15 | 2 soldiers, 2 groups (group 2 at 14:09), 5 objectives behind | Same; no change before minute 14 |
+| 30 | 4 soldiers (soldier 5 at 30:39), stage 3 at 32:38, forge not built, 0 weapons; farm 29:02 | 4 soldiers; forge built ~25 to 28; tent2, woodshed, ore10 done; 2 to 3 weapons; stage 3 ~32; Sharp axes II bought |
+| 45 | 7 soldiers after boss at 43:55 (3+2+2), 5 weapons, 5/7 armed, mastery 0 | Boss ~40 to 43; **8 soldiers** (3+3 +2; one from rescue, two from the boss), 7 to 8 weapons, 7/8 armed, mastery 1, forge level 2 |
+| Boss | 43:55 (Humans), 53:49 (Orcs, +22 %) | ~41 to 43 Humans (limit 40), ~47 to 51 Orcs (ratio about 1.15) |
+
+Soldiers at 30 and 40 min stay 4 and 6 (D-50: 3 to 6). The rescue soldier arrives at ~37 min, so 40 min is the edge: if the bot lands at 7, move the rescue to stage 5 (stage reached 6, i.e. clear 5) or raise training cost. No soldier is added in minutes 0 to 30.
+
+### 16.4 Balance guards (new or changed)
+
+Existing guards in §11 stay, with these changes:
+- **New: event gap.** Between minute 15 and 45, at most 4:00 (240 s) between two events. Event = objective done, building done, recruit, stage clear, rescue/join, level step. Both races, `balanced` and `economy`.
+- **New: armed at the boss.** At the end of the run (after boss rewards), armed soldiers / soldiers >= 0.80 (Humans: 7 of 8). Also mastery >= 1 for `balanced`.
+- **Changed: boss window.** Humans 40 to 60 min stays; add Humans balanced must be >= 40 and <= 48 (the point is no lull). Orcs within +-25 % stays.
+- **Changed: soldiers.** Humans 3 to 6 at 30 and at 40 min stays (the rescue puts 40 min at 6); Orcs 1.0 to 1.6x stays.
+- **New: forge window.** Forge built <= 30 min (Humans balanced). Forge level 2 built before the boss.
+- **New: objective coverage.** Every new objective is done by the `balanced` bot by minute 50; optional ones may be skipped by `economy`.
+- The 90 s first-15-minutes gap guard stays unchanged.
+
+### 16.5 Save notes
+
+- Objective completion is stored by id, so the save shape does not change. `SAVE_VERSION` +1 is still recommended, with a migration (Systems to confirm) that evaluates the new objectives against an old save, as below.
+- **Immediate firing:** an old save may already satisfy `tent2` (tents level 2), `farm2` is impossible (level 2 does not exist), `rescue2` (stage >= 5), `forge2` impossible, `ore10` (ore gathered >= 10). The migration marks these **done silently**: grant unlocks (woodshed, Sharp axes II, Stone picks II) so nothing is locked, but **not** resources and **not** the `rescue2` soldier (no free soldiers to old saves; no surprise growth beyond D-50). Open question 3.
+- `forge`'s changed `requires` only matters for saves that have `twoTroops` done and `farm` not: the forge becomes available at once, which is intended. Saves that built the forge already keep it.
+- `firstMasteryStep`: mastery is derived from `weaponsCrafted`, so a save with 10 to 19 weapons gains level 1 on load. Harmless, no migration.
+- `levelStep` is an event on crossing only, never derived from the level on load, so old saves do not replay notices. Old saves with level 5 or higher get no retroactive notice.
+- Test needed: a v(N) save with stage 5 reached, tents 2 and ore 12 loads with the new objectives done, same soldier count, and no resources added.
+
+### 16.6 Open questions for the owner
+
+1. **Soldier count at 40 min:** is Humans at 6 soldiers at ~40 min (rescue at stage 4) acceptable, or should the stage-4 rescue replace some other future soldier so the army is 5 at 40 min?
+2. **Forge earlier:** may the forge unlock right after "two groups" (~14 min) instead of after the farm? This is the biggest timeline change in the spec (the farm stays as a goal but no longer opens the forge).
+3. **Old saves:** do players with stage 5 already reached get the stage-4 rescue soldier as a gift (recommended: no, mark done without a soldier), and should the level-5/10 notices be silent for already-high groups?
+
+### 16.7 Built and tuned (M10b, 2026-10-23)
+
+Implemented as specified, with these tunings and owner decisions (see [Balance Log pass 10](BALANCE_LOG.md)): Forge II costs 90 wood / 60 stone / 10 ore, Farm II 70 wood / 40 stone, the first mastery step is at **6** weapons (D-40 still holds: level 2 at 80, max at ~2,000). Forge II and Farm II are **post-boss goals** (a bridge to region 2). Guards: armed ratio measured when the boss fight starts; food floor 4 % until upkeep exists; event gap 4 min (Humans) / 7 min (Orcs) for the balanced bot; optional goals are not required. Save version 8.
+

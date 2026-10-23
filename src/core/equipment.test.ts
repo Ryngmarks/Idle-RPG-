@@ -156,6 +156,14 @@ describe('crafting', () => {
 
   it('mastery grows slowly: max quality chances need hundreds of weapons', () => {
     expect(masteryLevel(0, content)).toBe(0);
+    const first = content.equipment.firstMasteryStep;
+    expect(first).toBeLessThan(content.equipment.itemsPerMasteryStep); // the first step comes early (D-53)
+    expect(masteryLevel(first - 1, content)).toBe(0);
+    expect(masteryLevel(first, content)).toBe(1);
+    expect(masteryLevel(79, content)).toBe(1);
+    expect(masteryLevel(80, content)).toBe(2);
+    expect(craftedForMastery(2, content)).toBe(80);
+    expect(craftedForMastery(3, content)).toBe(180);
     expect(masteryLevel(craftedForMastery(1, content), content)).toBe(1);
     const toMax = craftedForMastery(content.equipment.maxMastery, content);
     expect(toMax).toBeGreaterThanOrEqual(500);

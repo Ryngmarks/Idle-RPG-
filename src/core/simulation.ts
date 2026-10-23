@@ -219,7 +219,10 @@ function processEvents(state: GameState, content: Content, levelsBefore: Map<str
   for (const t of state.troops) {
     const before = levelsBefore.get(t.id);
     const now = troopLevel(t, content);
-    if (before !== undefined && now > before) events.push({ type: 'troopLevelUp', at: state.clock, troopId: t.id, level: now });
+    if (before !== undefined && now > before) {
+      events.push({ type: 'troopLevelUp', at: state.clock, troopId: t.id, level: now });
+      for (const step of [5, 10] as const) if (before < step && now >= step) events.push({ type: 'levelStep', at: state.clock, troopId: t.id, level: step });
+    }
   }
 }
 

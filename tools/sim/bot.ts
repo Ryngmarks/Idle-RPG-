@@ -37,9 +37,14 @@ const WISHLIST: Wish[] = [
   { kind: 'building', id: 'tents', level: 1 },
   { kind: 'upgrade', id: 'stonePicks' },
   { kind: 'building', id: 'trainingCamp', level: 1 },
+  { kind: 'building', id: 'forge', level: 1 },
   { kind: 'building', id: 'tents', level: 2 },
   { kind: 'building', id: 'farm', level: 1 },
-  { kind: 'building', id: 'forge', level: 1 },
+  { kind: 'building', id: 'woodshed', level: 1 },
+  { kind: 'building', id: 'forge', level: 2 },
+  { kind: 'upgrade', id: 'sharpenedAxes2' },
+  { kind: 'building', id: 'farm', level: 2 },
+  { kind: 'upgrade', id: 'stonePicks2' },
   { kind: 'building', id: 'tents', level: 3 },
   { kind: 'upgrade', id: 'fieldKitchens' },
   { kind: 'upgrade', id: 'carpentry' },
@@ -66,6 +71,12 @@ export interface RunResult {
   activityTime: Record<ActivityKind | 'idle', number>;
   /** Longest stretch in the first 15 minutes without anything completing (a cycle, a kill, an event). */
   longestQuietGapEarly: number;
+  /** Times (s) of every "event" a player sees: objective, building, recruit, join, stage clear, new troop, level step. */
+  eventTimes: number[];
+  /** Longest stretch in minutes between two events inside [fromMin, toMin] (capped at the end of the run). */
+  /** Armed soldiers and soldiers when the boss fight starts (before its rewards add unarmed prisoners). */
+  armedAtBoss: { armed: number; soldiers: number } | null;
+  longestEventGap: (fromMin: number, toMin: number) => number;
   finalState: GameState;
 }
 
@@ -84,13 +95,17 @@ export function runBot(start: GameState, content: Content, opts: RunOptions): Ru
   const milestones: Record<string, number> = {};
   const activityTime = { combat: 0, mining: 0, woodcutting: 0, food: 0, construction: 0, smithing: 0, idle: 0 };
   let nextSnapshot = 0;
+  let armedAtBoss: { armed: number; soldiers: number } | null = null;
   let lastReward = 0;
   let longestQuietGapEarly = 0;
   const progressMark = (s: GameState) =>
     Object.values(s.stats.gathered).reduce((a, b) => a + b, 0) + Math.floor(s.stats.totalKills + 1e-9);
 
+  const eventTimes: number[] = [];
+  const EVENT_TYPES = new Set(['objectiveCompleted', 'constructionCompleted', 'recruitTrained', 'soldiersJoined', 'stageCleared', 'troopFormed', 'levelStep']);
   const note = (events: GameEvent[]) => {
     for (const e of events) {
+      if (EVENT_TYPES.has(e.type as string)) eventTimes.push(e.at);
       const key = describeEvent(e, state, content);
       if (!key) continue;
       log.push({ t: e.at, text: key.text });
@@ -112,6 +127,12 @@ export function runBot(start: GameState, content: Content, opts: RunOptions): Ru
     }
     decide(state, content, opts.strategy, exec, () => state);
     for (const t of state.troops) activityTime[t.activity ?? 'idle'] += opts.tickSeconds;
+    if (state.combat.boss && !armedAtBoss) {
+      armedAtBoss = {
+        armed: state.troops.reduce((n, t) => n + equippedCount(t), 0),
+        soldiers: state.troops.reduce((n, t) => n + t.size, 0),
+      };
+    }
     const before = progressMark(state);
     const r = advance(state, opts.tickSeconds, content);
     state = r.state;
@@ -120,7 +141,17 @@ export function runBot(start: GameState, content: Content, opts: RunOptions): Ru
     if (state.clock <= 15 * 60) longestQuietGapEarly = Math.max(longestQuietGapEarly, state.clock - lastReward);
   }
   snapshots.push(snapshot(state, content));
-  return { log, snapshots, milestones, activityTime, longestQuietGapEarly, finalState: state };
+  const endClock = state.clock;
+  const longestEventGap = (fromMin: number, toMin: number) => {
+    const from = fromMin * 60;
+    const to = Math.min(toMin * 60, endClock);
+    if (to <= from) return 0;
+    const pts = [from, ...eventTimes.filter((t) => t > from && t < to), to].sort((x, y) => x - y);
+    let gap = 0;
+    for (let i = 1; i < pts.length; i++) gap = Math.max(gap, pts[i]! - pts[i - 1]!);
+    return gap / 60;
+  };
+  return { log, snapshots, milestones, activityTime, longestQuietGapEarly, eventTimes, longestEventGap, armedAtBoss, finalState: state };
 }
 
 // ------------------------------------------------------------------ decisions
@@ -292,6 +323,8 @@ function describeEvent(e: GameEvent, state: GameState, content: Content): { text
       return { text: `🏗  Built ${content.buildings[e.buildingId]?.name ?? e.buildingId} ${e.level}`, milestone: `building:${e.buildingId}:${e.level}` };
     case 'stageCleared':
       return { text: `⚔  Stage ${e.stage} cleared`, milestone: `stage:${e.stage}` };
+    case 'levelStep' as GameEvent['type']:
+      return { text: '⭐ Level step', milestone: 'levelStep' };
     case 'bossDefeated':
       return { text: '👑 Boss defeated', milestone: 'boss' };
     case 'bossFailed':

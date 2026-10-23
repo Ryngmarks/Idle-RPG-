@@ -271,3 +271,49 @@ Soldiers over time (balanced): Humans 1 → 2 (5 min) → 4 (30 min) → 5 (35 m
 | Is every activity used? | Combat 46 %, mining 18–19 %, wood 10–17 %, food 7–10 %, building 7 %, smithing 5–8 % |
 | Known issues for M10b | ~10 min lull between stage 5 and the boss; 5 of 7 soldiers armed at the boss; the `economy` strategy is now a "builder first" player rather than a strawman |
 
+## Pass 10: 2026-10-23, M10b first-hour upgrade (D-53)
+
+Content from PROGRESSION_V2 §16 (new objectives, forge after two groups, rescue at stage 4, stage 5 = 8 kills, ore loot, Forge II / Farm II / woodshed, Sharp axes II / Stone picks II, level notices). Tuned within the spec's guesses: Forge II 150/100/10 → **90/60/10**, Farm II 120/60 → **70/40**, first mastery step 10 → **6**. Bot build order: forge right after the Training Camp, then tents 2, farm, woodshed, forge 2.
+
+```
+Milestones (simulated time mm:ss, bot decides every 5s, limit 70 min)
+
+race     strategy       Combat  Soldier 2    Group 2  Soldier 3  Soldier 5    Stage 3      Forge     Forge2 Zone clear       Boss
+humans   balanced         2:30       4:45      14:09      20:05      37:54      33:46      27:10        —        43:28      44:31
+humans   economy          2:30       4:45      14:09      25:00      35:34      50:26      23:28      40:08      55:27      56:28
+orcs     balanced         2:00       4:51      14:28      18:40      26:43      29:31      27:36        —        49:40      50:35
+orcs     economy          2:00       4:51      14:28      26:10      43:38      56:55      24:55      44:22      65:15      66:20
+
+Forge at the end (weapons crafted · armed soldiers · avg weapon power · mastery · quality mix N/G/O/E/M)
+
+humans   balanced  gap15-45 3.3m ·     6 crafted · 6/8 armed · ×1.20 · mastery 1 · 5/1/0/0/0
+humans   economy   gap15-45 8.5m ·     7 crafted · 7/9 armed · ×1.20 · mastery 1 · 6/1/0/0/0
+orcs     balanced  gap15-45 6.6m ·     8 crafted · 8/10 armed · ×1.21 · mastery 1 · 7/1/0/0/0
+orcs     economy   gap15-45 9.9m ·     8 crafted · 8/10 armed · ×1.21 · mastery 1 · 7/1/0/0/0
+
+Soldiers at 15 / 30 / 40 min
+
+humans   balanced  2 / 4 / 5
+humans   economy   2 / 4 / 5
+orcs     balanced  2 / 5 / 6
+orcs     economy   2 / 3 / 4
+
+Share of troop-time per activity
+
+race     strategy    combat  mining    wood    food   build   smith    idle   soldiers@end
+humans   balanced       45%     22%     15%      4%      7%      7%      0%   4+2+2
+humans   economy        18%     33%     21%     14%      9%      5%      0%   4+3+2
+orcs     balanced       46%     17%      9%      9%      7%     11%      0%   5+3+2
+orcs     economy        18%     28%     14%     24%     11%      5%      0%   5+3+2
+```
+
+| Question | Answer |
+|---|---|
+| Is the mid-game livelier? | Humans: forge at 27:10 (was 34:46); the longest gap between events in minutes 15–45 is 3.3 min (was ~6). Orcs 6.6 min |
+| Boss | Humans 44:31, Orcs 50:35 (+14 %) |
+| Soldiers | Humans 2 / 4 / 5 at 15 / 30 / 40 min, rescue at ~41 min, 8 after the boss |
+| Forge | Everyone is armed when the boss fight starts; mastery 1 for both races |
+| What didn't fit | With 4–6 soldiers the economy can't also afford Forge II and Farm II before the boss; food fell to ~4 % because the farm now comes after the forge |
+
+**Owner decisions after the first measurement (2026-10-23):** (1) Forge II and Farm II are goals after the boss, not required before it; (2) the armed ratio is measured when the boss fight starts (its freed prisoners arrive unarmed); (3) first mastery step at 6 weapons; (4) the food floor is 4 % until food gets a real sink (upkeep) later; (5) the gap guard applies to the balanced bot only, 4 min for Humans and 7 min for Orcs. Optional goals (ore10, farm2) are not required by the guards (Orcs get their ore from loot).
+

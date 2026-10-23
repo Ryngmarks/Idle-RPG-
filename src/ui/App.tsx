@@ -45,7 +45,7 @@ function ResourceBar({ state, rates }: { state: GameState; rates: Rates }) {
   );
 }
 
-const TOAST_TYPES = new Set<GameEvent['type']>(['objectiveCompleted', 'troopFormed', 'constructionCompleted', 'stageCleared', 'zoneCleared', 'bossDefeated', 'bossFailed', 'troopRetreated', 'craftOrderCompleted', 'masteryLevelUp']);
+const TOAST_TYPES = new Set<GameEvent['type']>(['objectiveCompleted', 'troopFormed', 'constructionCompleted', 'stageCleared', 'zoneCleared', 'bossDefeated', 'bossFailed', 'troopRetreated', 'craftOrderCompleted', 'masteryLevelUp', 'levelStep', 'soldiersJoined', 'recruitTrained']);
 
 interface Toast { text: string; color?: string }
 

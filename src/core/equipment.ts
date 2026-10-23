@@ -139,11 +139,14 @@ export function trimEquipment(troop: TroopState): void {
 
 export function masteryLevel(crafted: number, content: Content): number {
   const eq = content.equipment;
-  return Math.min(eq.maxMastery, Math.floor(Math.sqrt(Math.max(0, crafted) / eq.itemsPerMasteryStep)));
+  if (crafted < eq.firstMasteryStep) return 0;
+  return Math.min(eq.maxMastery, Math.max(1, Math.floor(Math.sqrt(crafted / eq.itemsPerMasteryStep))));
 }
 
 /** Weapons needed in total to reach a mastery level. */
 export function craftedForMastery(level: number, content: Content): number {
+  if (level <= 0) return 0;
+  if (level === 1) return content.equipment.firstMasteryStep;
   return level * level * content.equipment.itemsPerMasteryStep;
 }
 

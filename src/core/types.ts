@@ -185,8 +185,10 @@ export interface EquipmentContent {
   chancesAtMin: number[];
   chancesAtMax: number[];
   maxMastery: number;
-  /** Mastery level = floor(sqrt(weaponsCrafted / itemsPerMasteryStep)). */
+  /** Mastery level 0 below firstMasteryStep, then max(1, floor(sqrt(weaponsCrafted / itemsPerMasteryStep))). */
   itemsPerMasteryStep: number;
+  /** Weapons crafted for mastery level 1 (levels 2+ follow L² × itemsPerMasteryStep). */
+  firstMasteryStep: number;
 }
 
 export type ObjectiveCondition =
@@ -352,5 +354,6 @@ export type GameEvent =
   | { type: 'bossAbandoned'; at: number; zoneId: string }
   | { type: 'weaponCrafted'; at: number; recipeId: string; quality: QualityId }
   | { type: 'craftOrderCompleted'; at: number; recipeId: string }
+  | { type: 'levelStep'; at: number; troopId: string; level: 5 | 10 }
   | { type: 'masteryLevelUp'; at: number; weaponTypeId: string; tier: number; level: number }
   | { type: 'objectiveCompleted'; at: number; objectiveId: string };

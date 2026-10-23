@@ -19,12 +19,19 @@ describe('P0 pacing (balanced bot)', () => {
   const humans = run('humans');
   const orcs = run('orcs');
 
-  it('Troop 2 arrives within 4–9 bot minutes for both races', () => {
+  it('Troop 2 arrives within 9–16 bot minutes for both races (≈ 15–20 real minutes)', () => {
     for (const r of [humans, orcs]) {
       const t = r.milestones['troop:troop2'];
       expect(t).toBeDefined();
-      expect(t!).toBeGreaterThan(4 * 60);
-      expect(t!).toBeLessThan(9 * 60);
+      expect(t!).toBeGreaterThan(9 * 60);
+      expect(t!).toBeLessThan(16 * 60);
+    }
+  });
+
+  it('a careful player loses no soldiers before the boss fight', () => {
+    for (const r of [humans, orcs]) {
+      const firstLoss = r.milestones['firstLoss'];
+      if (firstLoss !== undefined) expect(firstLoss).toBeGreaterThanOrEqual(r.milestones['objective:zoneCleared']!);
     }
   });
 

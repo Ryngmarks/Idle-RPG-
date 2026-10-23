@@ -38,6 +38,11 @@
 | D-29 | Tier progression is **very slow**: T1 lasts, T2 is a real milestone, T8 is an extreme long-term goal. Meaningful progress *within* a tier comes from quality, crafting, soldier count, specialisation and upgrades. | 2026-10-22 | Owner, v0.5 |
 | D-30 | Tiers unlock through **progression, resources, developed buildings and crafting**, not just waiting | 2026-10-22 | Owner, v0.5 |
 | D-31 | T1–T8 is a long-term structure. No PvP, no advanced race balancing. The first prototype stays very small. | 2026-10-22 | Owner, v0.5 |
+| D-32 | **Start with a single soldier** (Humans and Orcs) who can only cut wood at first | 2026-10-23 | Owner, M4 feedback |
+| D-33 | Troop 2 after **~15 minutes** of active play (the first version felt too fast) | 2026-10-23 | Owner, M4 feedback |
+| D-34 | **Combat has life:** enemies hit back, soldiers can die, and the player picks a stage they can handle | 2026-10-23 | Owner, M4 feedback |
+| D-35 | A troop **retreats to camp after losing half** its soldiers and **never drops below one soldier** | 2026-10-23 | Owner, M4 feedback |
+| D-36 | **No losses while offline:** troops fall back to the highest safe stage (or camp) and an unfinished boss fight is abandoned when the player leaves | 2026-10-23 | Owner, M4 feedback |
 
 ## Proposed 💡 (awaiting confirmation)
 

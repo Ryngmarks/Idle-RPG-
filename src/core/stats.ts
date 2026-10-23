@@ -83,9 +83,14 @@ export interface TroopStats {
   armourPen: number;
   work: number;
   skills: Record<LabourActivity, number>;
+  /** HP and healing per soldier. */
+  hp: number;
+  regen: number;
   /** Headline numbers shown on the troop card. */
   strength: number;
   workTotal: number;
+  maxHp: number;
+  healPerSec: number;
 }
 
 export function troopStats(state: GameState, troop: TroopState, content: Content, mods = globalModifiers(state, content)): TroopStats {
@@ -113,14 +118,20 @@ export function troopStats(state: GameState, troop: TroopState, content: Content
     construction: resolveStat(r.soldier.skills.construction, 'skill.construction', all),
   };
   const armourPen = Math.min(1, resolveStat(r.soldier.armourPen, 'armourPen', all));
+  const hp = resolveStat(r.soldier.hp, 'hp', all) * levelMult;
+  const regen = resolveStat(r.soldier.regen, 'regen', all) * levelMult;
   return {
     level,
     attack,
     armourPen,
     work,
     skills,
+    hp,
+    regen,
     strength: troop.size * attack * c.attacksPerSecond,
     workTotal: troop.size * work,
+    maxHp: troop.size * hp,
+    healPerSec: troop.size * regen,
   };
 }
 
@@ -134,6 +145,8 @@ export interface Rates {
   bossDps: number;
   /** XP per second per troop id. */
   xpPerSec: Record<string, number>;
+  /** Net wounds per second per troop id: positive = taking damage, negative = healing. */
+  woundsPerSec: Record<string, number>;
   /** Per-troop output, useful for UI and the simulator. */
   perTroop: Record<string, { killsPerSec: number; bossDps: number; output: Partial<Resources>; work: number }>;
 }
@@ -153,11 +166,15 @@ export function computeRates(state: GameState, content: Content): Rates {
     constructionWorkPerSec: 0,
     bossDps: 0,
     xpPerSec: {},
+    woundsPerSec: {},
     perTroop: {},
   };
   const foe = currentEnemy(state, content);
   const boss = state.combat.boss ? enemy(zone(state, content).boss.enemyId, content) : null;
   const oreShare = Math.min(0.9, c.miningOreShare + (r.traits.includes('deepDelvers') ? 0.15 : 0));
+  const fighting = state.troops.filter((t) => t.activity === 'combat');
+  const fightingSize = fighting.reduce((sum, t) => sum + t.size, 0);
+  const incomingTotal = fightingSize > 0 ? (boss ?? foe).attack : 0;
 
   for (const t of state.troops) {
     const s = troopStats(state, t, content, mods);
@@ -196,6 +213,10 @@ export function computeRates(state: GameState, content: Content): Rates {
       rates.gathered[res] += v;
       rates.resources[res] += v;
     }
+    // Damage is shared by the fighting troops in proportion to their size; everyone heals.
+    const incoming = t.activity === 'combat' && fightingSize > 0 ? (incomingTotal * t.size) / fightingSize : 0;
+    const net = incoming - s.healPerSec;
+    rates.woundsPerSec[t.id] = net < 0 && t.wounds <= 0 ? 0 : net;
   }
 
   // Combat loot and XP (farming only; boss rewards are milestones, not loot).
@@ -221,6 +242,47 @@ function withRaiders(r: RaceDef, mods: Modifier[]): Modifier[] {
     { stat: 'loot.food', op: 'mult', value: 0.5, source: 'trait:raiders' },
     { stat: 'loot.ore', op: 'mult', value: 0.5, source: 'trait:raiders' },
   ];
+}
+
+export type Risk = 'safe' | 'risky' | 'deadly';
+
+export interface StageSafety {
+  risk: Risk;
+  /** Net damage per second for the whole group (≤ 0 means no losses). */
+  netDamagePerSec: number;
+  /** Seconds until the first soldier falls (Infinity if safe). */
+  secondsToFirstLoss: number;
+}
+
+/**
+ * How dangerous a stage (or the boss) would be for the given troops, all fighting together.
+ * Used by the UI risk badges, by offline safety and by the simulator. Ignores current wounds
+ * except for the time to the first loss.
+ */
+export function stageSafety(
+  state: GameState,
+  content: Content,
+  target: { stageIndex: number } | 'boss',
+  troopIds: string[] = state.troops.filter((t) => t.activity === 'combat').map((t) => t.id),
+): StageSafety {
+  const z = zone(state, content);
+  const foe = target === 'boss' ? enemy(z.boss.enemyId, content) : enemy(z.stages[Math.min(target.stageIndex, z.stages.length - 1)]!.enemyId, content);
+  const mods = globalModifiers(state, content);
+  const troops = state.troops.filter((t) => troopIds.includes(t.id));
+  const total = troops.reduce((sum, t) => sum + t.size, 0);
+  if (total === 0) return { risk: 'safe', netDamagePerSec: 0, secondsToFirstLoss: Infinity };
+  let worstNet = -Infinity;
+  let firstLoss = Infinity;
+  let groupNet = 0;
+  for (const t of troops) {
+    const s = troopStats(state, t, content, mods);
+    const net = (foe.attack * t.size) / total - s.healPerSec;
+    groupNet += net;
+    worstNet = Math.max(worstNet, net);
+    if (net > 0) firstLoss = Math.min(firstLoss, Math.max(0, s.hp - t.wounds) / net);
+  }
+  const risk: Risk = worstNet <= 0 ? 'safe' : firstLoss >= 120 ? 'risky' : 'deadly';
+  return { risk, netDamagePerSec: groupNet, secondsToFirstLoss: firstLoss };
 }
 
 /** Convenience used by the UI/simulator: would the current combat troops beat the boss? */

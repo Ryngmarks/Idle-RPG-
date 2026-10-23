@@ -15,6 +15,7 @@ export type Command =
   | { type: 'startConstruction'; buildingId: string }
   | { type: 'buyUpgrade'; upgradeId: string }
   | { type: 'challengeBoss' }
+  | { type: 'selectStage'; stageIndex: number }
   | { type: 'renameTroop'; troopId: string; name: string };
 
 export type CommandResult =
@@ -27,7 +28,7 @@ export function recruitCost(state: GameState, troopId: string, count: number, co
   const troop = state.troops.find((t) => t.id === troopId);
   const r = race(state, content);
   const base = resolveStat(r.population.foodPerSoldier, 'foodPerSoldier', globalModifiers(state, content));
-  const food = recruitFoodCost(base, troop?.size ?? 0, count, r.population.startSize, content.constants.recruitExponent);
+  const food = recruitFoodCost(base, troop?.size ?? 0, count, r.population.recruitScaleSize, content.constants.recruitExponent);
   const ore = content.gearTiers[troop?.gearTier ?? 0]?.orePerSoldier ?? 0;
   const cost: Cost = { food };
   if (ore > 0) cost.ore = count * ore;
@@ -45,7 +46,7 @@ export function maxRecruitable(state: GameState, troopId: string, content: Conte
   let n = 0;
   let food = 0;
   while (n < room) {
-    food += soldierFoodCost(base, troop.size + n, r.population.startSize, content.constants.recruitExponent);
+    food += soldierFoodCost(base, troop.size + n, r.population.recruitScaleSize, content.constants.recruitExponent);
     if (food > state.resources.food + 1e-9 || (n + 1) * orePer > state.resources.ore + 1e-9) break;
     n++;
   }
@@ -68,6 +69,7 @@ export function dispatch(input: GameState, cmd: Command, content: Content): Comm
       const troop = state.troops.find((t) => t.id === cmd.troopId);
       if (!troop) return fail('Unknown troop');
       if (cmd.activity && !hasUnlock(state, `activity:${cmd.activity}`)) return fail(`Activity ${cmd.activity} is locked`);
+      if (cmd.activity === 'combat' && troop.activity !== 'combat') troop.engagedSize = troop.size;
       troop.activity = cmd.activity;
       break;
     }
@@ -81,6 +83,7 @@ export function dispatch(input: GameState, cmd: Command, content: Content): Comm
       if (!canAfford(state, cost)) return fail('Not enough resources');
       pay(state, cost);
       troop.size += cmd.count;
+      if (troop.activity === 'combat') troop.engagedSize += cmd.count;
       state.stats.recruited += cmd.count;
       break;
     }
@@ -125,6 +128,14 @@ export function dispatch(input: GameState, cmd: Command, content: Content): Comm
       if (c.bossDefeated) return fail('Boss already defeated');
       const b = enemy(zone(state, content).boss.enemyId, content);
       c.boss = { hpLeft: b.hp, timeLeft: zone(state, content).boss.timeLimitSec };
+      for (const t of state.troops) if (t.activity === 'combat') t.engagedSize = t.size;
+      break;
+    }
+    case 'selectStage': {
+      const c = state.combat;
+      if (c.boss) return fail('Cannot change stage during a boss fight');
+      if (!Number.isInteger(cmd.stageIndex) || cmd.stageIndex < 0 || cmd.stageIndex > c.unlockedStage) return fail('Stage is locked');
+      c.stageIndex = cmd.stageIndex;
       break;
     }
     case 'renameTroop': {

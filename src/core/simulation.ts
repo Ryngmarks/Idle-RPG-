@@ -6,10 +6,16 @@ import { xpForLevel } from './formulas';
 import { applyEffects } from './mutations';
 import { evaluateObjectives } from './objectives';
 import { cloneState } from './state';
-import { computeRates, troopLevel, zone, type Rates } from './stats';
+import { computeRates, globalModifiers, stageSafety, troopLevel, troopStats, zone, type Rates } from './stats';
 import { RESOURCES, type Content, type GameEvent, type GameState } from './types';
 
 const MAX_STEPS = 100_000;
+
+/** Kills only count towards clearing a stage when fighting at the highest reached stage. */
+function onFrontier(state: GameState): boolean {
+  const c = state.combat;
+  return !c.cleared && !c.boss && c.stageIndex === c.unlockedStage;
+}
 
 interface Pending {
   t: number;
@@ -25,9 +31,21 @@ function pendingEvents(state: GameState, rates: Rates, content: Content): Pendin
   if (c.boss) {
     out.push({ t: c.boss.timeLeft, snap: (s) => s.combat.boss && (s.combat.boss.timeLeft = 0) });
     if (rates.bossDps > 0) out.push({ t: c.boss.hpLeft / rates.bossDps, snap: (s) => s.combat.boss && (s.combat.boss.hpLeft = 0) });
-  } else if (!c.cleared && rates.killsPerSec > 0) {
+  } else if (onFrontier(state) && rates.killsPerSec > 0) {
     const need = z.stages[c.stageIndex]?.killsToClear ?? Infinity;
     out.push({ t: (need - c.kills) / rates.killsPerSec, snap: (s) => (s.combat.kills = need) });
+  }
+
+  const mods = globalModifiers(state, content);
+  for (const t of state.troops) {
+    const rate = rates.woundsPerSec[t.id] ?? 0;
+    const id = t.id;
+    if (rate > 0) {
+      const hp = troopStats(state, t, content, mods).hp;
+      out.push({ t: (hp - t.wounds) / rate, snap: (s) => { const x = s.troops.find((y) => y.id === id); if (x) x.wounds = hp; } });
+    } else if (rate < 0 && t.wounds > 0) {
+      out.push({ t: t.wounds / -rate, snap: (s) => { const x = s.troops.find((y) => y.id === id); if (x) x.wounds = 0; } });
+    }
   }
 
   if (state.construction && rates.constructionWorkPerSec > 0) {
@@ -65,9 +83,10 @@ function integrate(state: GameState, rates: Rates, dt: number): void {
     c.boss.hpLeft -= rates.bossDps * dt;
     c.boss.timeLeft -= dt;
   } else if (rates.killsPerSec > 0) {
-    if (!c.cleared) c.kills += rates.killsPerSec * dt;
+    if (onFrontier(state)) c.kills += rates.killsPerSec * dt;
     state.stats.totalKills += rates.killsPerSec * dt;
   }
+  for (const t of state.troops) t.wounds = Math.max(0, t.wounds + (rates.woundsPerSec[t.id] ?? 0) * dt);
   if (state.construction) state.construction.progress += rates.constructionWorkPerSec * dt;
   for (const t of state.troops) t.xp += (rates.xpPerSec[t.id] ?? 0) * dt;
   state.clock += dt;
@@ -87,16 +106,40 @@ function processEvents(state: GameState, content: Content, levelsBefore: Map<str
       c.boss = null;
       events.push({ type: 'bossFailed', at: state.clock, zoneId: z.id });
     }
-  } else if (!c.cleared) {
+  } else if (onFrontier(state)) {
     const need = z.stages[c.stageIndex]?.killsToClear ?? Infinity;
     if (c.kills >= need - EPS) {
       events.push({ type: 'stageCleared', at: state.clock, zoneId: z.id, stage: c.stageIndex + 1 });
       c.kills = 0;
-      if (c.stageIndex >= z.stages.length - 1) {
+      if (c.unlockedStage >= z.stages.length - 1) {
         c.cleared = true;
         events.push({ type: 'zoneCleared', at: state.clock, zoneId: z.id });
       } else {
-        c.stageIndex++;
+        // The next stage opens, but the troops stay where they are: the player decides when to advance.
+        c.unlockedStage++;
+      }
+    }
+  }
+
+  // Casualties: a troop loses a soldier each time its wounds reach one soldier's HP.
+  // It never drops below one soldier, and it retreats to camp after losing half its engaged size.
+  const mods = globalModifiers(state, content);
+  for (const t of state.troops) {
+    const hp = troopStats(state, t, content, mods).hp;
+    if (t.wounds < hp - EPS) continue;
+    if (t.size > 1) {
+      t.size -= 1;
+      t.wounds = Math.max(0, t.wounds - hp);
+      events.push({ type: 'soldierLost', at: state.clock, troopId: t.id });
+      if (t.size <= Math.floor(t.engagedSize / 2) && t.activity === 'combat') {
+        t.activity = null;
+        events.push({ type: 'troopRetreated', at: state.clock, troopId: t.id, reason: 'losses' });
+      }
+    } else {
+      t.wounds = hp;
+      if (t.activity === 'combat') {
+        t.activity = null;
+        events.push({ type: 'troopRetreated', at: state.clock, troopId: t.id, reason: 'losses' });
       }
     }
   }
@@ -151,8 +194,45 @@ export function advance(input: GameState, dt: number, content: Content): Advance
   return { state, events };
 }
 
-/** Offline catch-up: clamps elapsed real time to [0, cap] and advances. */
+/**
+ * Offline rule (owner decision): no losses while away. Before simulating offline time,
+ * an unfinished boss fight is abandoned, and fighting troops on a stage where they would lose
+ * soldiers fall back to the highest safe stage, or retreat to camp if no stage is safe.
+ */
+export function secureForOffline(input: GameState, content: Content): AdvanceResult {
+  const state = cloneState(input);
+  const events: GameEvent[] = [];
+  const c = state.combat;
+  if (c.boss) {
+    c.boss = null;
+    events.push({ type: 'bossAbandoned', at: state.clock, zoneId: c.zoneId });
+  }
+  const fighters = state.troops.filter((t) => t.activity === 'combat');
+  if (fighters.length > 0 && stageSafety(state, content, { stageIndex: c.stageIndex }).risk !== 'safe') {
+    let safeStage = -1;
+    for (let i = c.stageIndex - 1; i >= 0; i--) {
+      if (stageSafety(state, content, { stageIndex: i }).risk === 'safe') {
+        safeStage = i;
+        break;
+      }
+    }
+    if (safeStage >= 0) {
+      c.stageIndex = safeStage;
+      events.push({ type: 'stageChanged', at: state.clock, stage: safeStage + 1, reason: 'offlineSafety' });
+    } else {
+      for (const t of fighters) {
+        t.activity = null;
+        events.push({ type: 'troopRetreated', at: state.clock, troopId: t.id, reason: 'offlineSafety' });
+      }
+    }
+  }
+  return { state, events };
+}
+
+/** Offline catch-up: secures the troops, clamps elapsed real time to [0, cap] and advances. */
 export function catchUp(state: GameState, elapsedSec: number, offlineCapSec: number, content: Content): AdvanceResult & { simulatedSec: number } {
   const simulatedSec = Math.min(Math.max(0, elapsedSec), offlineCapSec);
-  return { ...advance(state, simulatedSec, content), simulatedSec };
+  const secured = secureForOffline(state, content);
+  const r = advance(secured.state, simulatedSec, content);
+  return { state: r.state, events: [...secured.events, ...r.events], simulatedSec };
 }

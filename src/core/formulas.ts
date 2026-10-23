@@ -47,16 +47,16 @@ export function dpsAgainst(size: number, attack: number, armourPen: number, armo
 
 /**
  * Food cost of the next soldier when the troop already has `size` soldiers.
- * Escalates with size so that combat income (which grows with size) can't snowball.
+ * Flat up to `scaleSize`, then escalates so that combat income (which grows with size) can't snowball.
  */
-export function soldierFoodCost(baseCost: number, size: number, startSize: number, exponent: number): number {
-  return baseCost * Math.pow(Math.max(1, size / Math.max(1, startSize)), exponent);
+export function soldierFoodCost(baseCost: number, size: number, scaleSize: number, exponent: number): number {
+  return baseCost * Math.pow(Math.max(1, size / Math.max(1, scaleSize)), exponent);
 }
 
 /** Total food for recruiting `count` soldiers into a troop of `size`. */
-export function recruitFoodCost(baseCost: number, size: number, count: number, startSize: number, exponent: number): number {
+export function recruitFoodCost(baseCost: number, size: number, count: number, scaleSize: number, exponent: number): number {
   let total = 0;
-  for (let i = 0; i < count; i++) total += soldierFoodCost(baseCost, size + i, startSize, exponent);
+  for (let i = 0; i < count; i++) total += soldierFoodCost(baseCost, size + i, scaleSize, exponent);
   return total;
 }
 

@@ -82,3 +82,43 @@ orcs     balanced          39%     21%     9%   20%    11%   155 + 153
 - The bot is better than a human at optimisation and worse at "fun" choices. Real playtests (M4) must confirm the feel.
 - Boss HP (7000, armour 3) is untested against human timing. Revisit after the UI exists.
 - The balanced bot's "one troop always fights" is a strong rule. A cleverer bot could find better allocations. A dominant-strategy search (many random allocation policies) is a good M2+ extension.
+
+---
+
+## Pass 5: 2026-10-23, owner feedback "too fast", combat with life (D-32…D-36)
+
+**Rule changes (approved by the owner):**
+- Both races start with **1 soldier** (Troop 2 starts with 1 Human / 2 Orcs).
+- **Soldiers have HP and heal over time:** Humans 10 HP, +0.2 HP/s; Orcs 6 HP, +0.15 HP/s. Every enemy deals damage per second to the fighting troops. If damage > healing, soldiers fall one by one.
+- **The player picks the stage.** Clearing a stage opens the next one, but troops stay where they are. Each stage shows 🟢 safe / 🟡 risky / 🔴 deadly.
+- **Retreat at half losses, never below 1 soldier. No losses offline:** fall back to a safe stage on leaving.
+
+**Tuning:**
+- **Enemy damage/s:** chicken 0.12, rooster 0.5, rats 1.5, boar 4, old boar 7, boss 12.
+- **Recruitment:** recruit cost is flat up to 5 (Humans) / 10 (Orcs) soldiers, then escalates.
+- **Early pacing for one soldier:** Training Camp back to 40 wood / 20 stone / 20 food + 400 work. The early goals are shorter (15 → 30 wood, 3 chickens).
+- **Orc attack:** 0.4 → **0.5**, because a lone Orc was far too weak to get started.
+
+**Bot change:** the bot fights at the highest *safe* stage and grows a troop first while it is under half its cap. A careful player loses no soldiers before the boss (now a test).
+
+```
+race     strategy       Combat    Recruit    Troop 2 Barracks 1      Forge    Stage 3 Barracks 2 Zone clear       Boss
+humans   balanced         4:10       5:10      11:20      18:52      25:40      13:18      28:23      27:20      30:31
+humans   economy          4:10       5:10      12:46      37:35      68:13      75:37      79:06      88:22     104:00
+orcs     balanced         6:00       7:30      13:58      20:03      31:42      15:33      34:53      31:49      37:26
+orcs     economy          6:00       7:30      28:00      41:57      50:12      46:57      58:25      63:56      74:07
+
+Share of troop-time per activity
+
+race     strategy    combat  mining    wood    food   build    idle   soldiers@end
+humans   balanced       50%      6%     15%     23%      6%      0%   52+52
+humans   economy        32%     21%     27%      5%     15%      0%   31+31
+orcs     balanced       56%      8%     14%     16%      6%      0%   113+112
+orcs     economy        45%     22%     16%      2%     15%      0%   87+86
+```
+
+| Question | Answer |
+|---|---|
+| Troop 2 | 11:20 (Humans) / 13:58 (Orcs) bot time ≈ 15–20 real minutes |
+| Boss | 30:31 / 37:26 bot ≈ 45–70 real minutes; Orcs +23% (within ±25%) |
+| Losses | None for careful play; the boss fight costs soldiers |

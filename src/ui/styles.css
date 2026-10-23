@@ -89,6 +89,7 @@ p { margin: 0.35rem 0; }
 .bar--steel .bar__fill { background: linear-gradient(90deg, #4c6273, var(--steel)); }
 .bar--blood .bar__fill { background: linear-gradient(90deg, #6e2219, var(--blood)); }
 .bar--xp .bar__fill { background: linear-gradient(90deg, #4f3a78, var(--xp)); }
+.bar--life .bar__fill { background: linear-gradient(90deg, #4f6b2a, #8fb85a); }
 .bar--xp { height: 4px; margin-top: 4px; }
 
 /* ------------------------------------------------------------ app layout */
@@ -169,8 +170,18 @@ p { margin: 0.35rem 0; }
 .cost__item--short { color: #ff9b85; }
 
 /* ------------------------------------------------------------ battle */
-.stages { list-style: none; margin: 0 0 10px; padding: 0; display: flex; gap: 6px; }
-.stage { flex: 1; text-align: center; padding: 6px 0; border-radius: 6px; border: 1px solid var(--line-soft); background: #141116; color: var(--muted); font-weight: 600; }
+.stages { margin: 0 0 10px; display: flex; gap: 6px; }
+.stage { flex: 1; min-height: 44px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; padding: 4px 0; border-radius: 6px; border: 1px solid var(--line-soft); background: #141116; color: var(--muted); font-weight: 600; cursor: pointer; }
+.stage:disabled { cursor: not-allowed; opacity: 0.55; }
+.stage__risk { font-size: 0.6rem; line-height: 1; }
+.risk { font-size: 0.86rem; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--line-soft); background: #141116; }
+.risk--safe { border-color: #3f4f2a; }
+.risk--risky { border-color: #6b5426; }
+.risk--deadly { border-color: #6e2219; background: rgba(168, 64, 47, 0.12); }
+.troop__life { display: flex; flex-direction: column; gap: 3px; }
+.life-status { font-size: 0.8rem; }
+.life-status--danger { color: #ff9b85; }
+.life-status--healing { color: var(--ok); }
 .stage--done { color: var(--ok); border-color: #3f4f2a; }
 .stage--now { color: var(--gold-2); border-color: var(--gold); box-shadow: 0 0 10px rgba(201, 162, 74, 0.25); }
 .stage--boss { color: var(--blood); }

@@ -2,10 +2,11 @@ import { useState } from 'react';
 import { content } from '../../content';
 import { canAfford, race, type BuildingDef, type GameState, type Rates } from '../../core';
 import { SettlementScene } from '../art';
+import { Icon } from '../art/icons';
 import { Bar, CostList, Panel } from '../components/common';
 import { fmtDuration, fmtInt } from '../format';
 import { useStore } from '../game';
-import { effectText, settlementStage } from '../labels';
+import { BUILDING_ICON, effectText, settlementStage } from '../labels';
 
 const PLOTS = 6;
 const MAX_EMPTY_SHOWN = 2;
@@ -23,8 +24,9 @@ function BuildingPlot({ def, state, rates }: { def: BuildingDef; state: GameStat
   return (
     <article className={`plot ${level > 0 ? 'plot--built' : ''}`}>
       <header className="plot__head">
+        <span className="plot__icon" aria-hidden><Icon name={BUILDING_ICON[def.id] ?? 'castle'} size={34} /></span>
         <h3 className="plot__name">{def.name}</h3>
-        <span className="badge">{level > 0 ? `Nivå ${level}/${def.levels.length}` : 'Ej byggd'}</span>
+        <span className="badge plot__level">{level > 0 ? `Nivå ${level}/${def.levels.length}` : 'Ej byggd'}</span>
       </header>
       {building ? (
         <div className="plot__progress">
@@ -38,7 +40,7 @@ function BuildingPlot({ def, state, rates }: { def: BuildingDef; state: GameStat
                 <span className="small">
                   {rate > 0
                     ? `${builders.map((t) => t.name).join(', ')} bygger · klart om ${fmtDuration((work - building.progress) / rate)}`
-                    : '⚠️ Ingen trupp bygger. Ge en trupp ordern Bygge.'}
+                    : <><Icon name="warning" size={15} /> Ingen trupp bygger. Ge en trupp ordern Bygge.</>}
                 </span>
               </>
             );
@@ -82,7 +84,7 @@ export function Settlement({ state, rates }: { state: GameState; rates: Rates })
         {visible.map((b) => <BuildingPlot key={b.id} def={b} state={state} rates={rates} />)}
         {Array.from({ length: Math.min(MAX_EMPTY_SHOWN, Math.max(0, PLOTS - visible.length)) }, (_, i) => (
           <article key={`empty${i}`} className="plot plot--empty">
-            <h3 className="plot__name">Tom tomt</h3>
+            <h3 className="plot__name"><Icon name="lock" size={18} /> Tom tomt</h3>
             <p className="muted small">Låses upp när bosättningen växer.</p>
           </article>
         ))}

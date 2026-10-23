@@ -1,6 +1,7 @@
 import { content } from '../../content';
 import type { LabourActivity, RaceDef } from '../../core';
 import { RaceEmblem } from '../art';
+import { Icon } from '../art/icons';
 import { useStore } from '../game';
 import { ACTIVITY_LABEL, TRAIT_LABEL } from '../labels';
 
@@ -51,7 +52,7 @@ export function RaceSelect() {
                 Spela som {r.name.toLowerCase()}
               </button>
             ) : (
-              <button className="btn btn--block" disabled>🔒 Kommer senare</button>
+              <button className="btn btn--block" disabled><Icon name="lock" size={18} /> Kommer senare</button>
             )}
           </article>
         ))}

@@ -1,4 +1,5 @@
 import { QUALITY_IDS, type GameEvent, type GameState } from '../../core';
+import { Icon, type UiIconName } from '../art/icons';
 import { Panel } from '../components/common';
 import { RARE } from '../components/equipment';
 import { fmtClock, fmtInt } from '../format';
@@ -8,12 +9,12 @@ function Stats({ state }: { state: GameState }) {
   const s = state.stats;
   const soldiers = state.troops.reduce((n, t) => n + t.size, 0);
   const tiles = [
-    { icon: '⏱️', label: 'Speltid', value: fmtClock(state.clock) },
-    { icon: '👑', label: 'Bossen', value: s.bossDefeatedAt === null ? '–' : fmtClock(s.bossDefeatedAt) },
-    { icon: '⚔️', label: 'Besegrade', value: fmtInt(s.totalKills) },
-    { icon: '🛡️', label: 'Soldater', value: fmtInt(soldiers) },
-    { icon: '📯', label: 'Rekryterade', value: fmtInt(s.recruited) },
-    { icon: '🪦', label: 'Stupade', value: fmtInt(s.soldiersLost) },
+    { icon: 'clock' as UiIconName, label: 'Speltid', value: fmtClock(state.clock) },
+    { icon: 'crown' as UiIconName, label: 'Bossen', value: s.bossDefeatedAt === null ? '–' : fmtClock(s.bossDefeatedAt) },
+    { icon: 'swords' as UiIconName, label: 'Besegrade', value: fmtInt(s.totalKills) },
+    { icon: 'shield' as UiIconName, label: 'Soldater', value: fmtInt(soldiers) },
+    { icon: 'horn' as UiIconName, label: 'Rekryterade', value: fmtInt(s.recruited) },
+    { icon: 'skull' as UiIconName, label: 'Stupade', value: fmtInt(s.soldiersLost) },
   ];
   const byQuality = QUALITY_IDS.map((q) => ({ q, n: s.weaponsByQuality[q] })).filter((x) => x.n > 0).reverse();
   return (
@@ -21,14 +22,14 @@ function Stats({ state }: { state: GameState }) {
       <dl className="stat-grid">
         {tiles.map((t) => (
           <div key={t.label} className="stat-tile">
-            <dt><span aria-hidden>{t.icon}</span> {t.label}</dt>
+            <dt><Icon name={t.icon} size={18} /> {t.label}</dt>
             <dd>{t.value}</dd>
           </div>
         ))}
       </dl>
       {s.weaponsCrafted > 0 && (
         <div className="stat-forge">
-          <span className="small"><span aria-hidden>⚒️</span> {fmtInt(s.weaponsCrafted)} vapen smidda</span>
+          <span className="small"><Icon name="anvil" size={18} /> {fmtInt(s.weaponsCrafted)} vapen smidda</span>
           <span className="equip__pills">
             {byQuality.map(({ q, n }) => (
               <span key={q} className={`qpill ${RARE.has(q) ? 'qpill--rare' : ''}`} style={{ ['--q' as string]: QUALITY_COLOR[q] }} title={qualityName(q)}>

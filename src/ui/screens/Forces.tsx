@@ -277,7 +277,7 @@ function TroopCard({ troop, state, rates, hero }: { troop: TroopState; state: Ga
       {canRecruit && (
         <div className="train">
           <div className="train__main">
-            <span className="tag">Träning</span>
+            <span className="tag"><Icon name="hourglass" size={14} /> Träning</span>
             {trainingHere ? (
               <>
                 <span className="small">Ny soldat · klar om {fmtDuration(trainingHere.secLeft)}</span>

@@ -35,6 +35,15 @@ export const ACTIVITY_LABEL: Record<ActivityKind, { name: string; icon: UiIconNa
   smithing: { name: 'Smide', icon: 'anvil', verb: 'Smider vapen' },
 };
 
+export const BUILDING_ICON: Record<string, UiIconName> = {
+  tents: 'tent',
+  trainingCamp: 'trainingCamp',
+  farm: 'farm',
+  woodshed: 'woodshed',
+  forge: 'anvil',
+  barracks: 'barracks',
+};
+
 export const TRAIT_LABEL: Record<TraitId, string> = {
   horde: 'Horde: starkare ju fullare truppen är',
   raiders: 'Plundrare: mer mat och malm från strid',

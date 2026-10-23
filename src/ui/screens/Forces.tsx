@@ -140,7 +140,7 @@ function CycleHero({ troop, state, rates }: { troop: TroopState; state: GameStat
   const cycles = site ? (rates.siteCycles[site.id] ?? 0) : 0;
   if (!site || cycles <= 0) return <p className="troop__output">{outputText(troop, rates, state)}</p>;
   const reward = Object.entries(site.yield).map(([r, v]) => `${RESOURCE_LABEL[r as ResourceId].icon} ${v}`).join(' ');
-  const left = secondsToNextCycle(state, content, site.id) ?? (1 - (state.siteProgress[site.id] ?? 0)) / cycles;
+  const left = secondsToNextCycle(state, content, site.id) ?? 0;
   const cap = capacity(state, content, site.id);
   const working = rates.perTroop[troop.id]?.working ?? 0;
   const perMin = Object.entries(rates.perTroop[troop.id]?.output ?? {})

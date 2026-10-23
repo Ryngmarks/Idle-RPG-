@@ -54,6 +54,20 @@ const migrations: Record<number, (s: Record<string, unknown>) => Record<string, 
       },
     };
   },
+  // v6 → v7: work cycles, beds and training (M10a, docs/PROGRESSION_V2.md). Every soldier is kept,
+  // even beyond the new beds (training waits until there is room). Gathering troops get the
+  // default site for their activity; the rescue objective counts as done for saves past recruitment.
+  6: (s) => {
+    const defaultSite: Record<string, string> = { woodcutting: 'birchGrove', mining: 'oldQuarry', food: 'berryThickets' };
+    const troops = (s.troops as Record<string, unknown>[]).map((t) => ({ ...t, siteId: defaultSite[t.activity as string] ?? null }));
+    const done = [...(s.objectivesCompleted as string[])];
+    const unlocks = [...(s.unlocks as string[])];
+    const buildings = { ...(s.buildings as Record<string, number>) };
+    if (done.includes('recruit1') && !done.includes('rescue')) done.push('rescue');
+    if (done.includes('rescue') && !unlocks.includes('building:tents')) unlocks.push('building:tents');
+    if (buildings.trainingCamp && !unlocks.includes('recruit')) unlocks.push('recruit');
+    return { ...s, troops, troopSlots: troops.length, training: null, siteProgress: {}, objectivesCompleted: done, unlocks, buildings };
+  },
 };
 
 export function serialize(state: GameState): string {

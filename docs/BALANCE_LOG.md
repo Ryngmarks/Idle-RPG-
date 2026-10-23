@@ -234,3 +234,40 @@ orcs     economy        44%     17%     13%      1%     14%     10%      0%   93
 | Cost | Smaller armies (Humans 106 vs 139, Orcs 236 vs 311): troop-time moves from food to the forge, 7 % (Humans) and 12 % (Orcs) |
 | Long-term T1 | Maxing mastery now needs 2,000 weapons; at the boss the bot is at mastery 2–3 |
 
+## Pass 9: 2026-10-23, progression v2: work cycles, beds and training (M10a, D-45–D-50)
+
+A new economy (docs/PROGRESSION_V2.md): work sites with capacity and discrete cycles, soldiers from beds + training + rescues, groups as slots, combat rescaled for small armies. The bot was rewritten for it; the old guards were replaced by the ones in PROGRESSION_V2 §11 (soldier 2 at 4–8 min, group 2 at 12–18, Humans 3–6 soldiers at 30 and 40 min, Orcs 1.0–1.6×, boss 40–60 min within ±25 %, boss gives a third group, never more than 90 s without a reward in the first 15 min, every start activity ≥ 5 %, smithing used).
+
+```
+Milestones (simulated time mm:ss, bot decides every 5s, limit 90 min)
+
+race     strategy       Combat  Soldier 2    Group 2  Soldier 3  Soldier 5    Stage 3      Forge Zone clear       Boss
+humans   balanced         2:30       4:45      14:09      19:40      30:39      32:38      34:46      42:35      43:55
+humans   economy          2:30       4:45      14:09      21:05      32:59      40:38      30:11      47:39      48:51
+orcs     balanced         2:00       4:51      14:28      18:30      27:13      30:05      35:18      52:43      53:49
+orcs     economy          2:00       4:51      14:28      21:40      32:43      46:45      32:20      56:05      57:20
+
+Forge at the end (weapons crafted · armed soldiers · avg weapon power · mastery · quality mix N/G/O/E/M)
+
+humans   balanced      5 crafted · 5/7 armed · ×1.19 · mastery 0 · 4/1/0/0/0
+humans   economy       6 crafted · 6/8 armed · ×1.20 · mastery 0 · 5/1/0/0/0
+orcs     balanced      7 crafted · 7/9 armed · ×1.20 · mastery 0 · 6/1/0/0/0
+orcs     economy       7 crafted · 7/10 armed · ×1.18 · mastery 0 · 6/1/0/0/0
+
+Share of troop-time per activity
+
+race     strategy    combat  mining    wood    food   build   smith    idle   soldiers@end
+humans   balanced       46%     19%     17%      7%      7%      5%      0%   3+2+2
+humans   economy        26%     25%     21%     17%      6%      5%      0%   3+3+2
+orcs     balanced       47%     18%     10%     10%      7%      8%      0%   4+3+2
+orcs     economy        25%     22%     13%     26%      7%      7%      0%   4+4+2
+```
+
+Soldiers over time (balanced): Humans 1 → 2 (5 min) → 4 (30 min) → 5 (35 min) → 7 after the boss. Orcs 2 (5 min) → 5 (30 min) → 6 (40 min) → 9 after the boss.
+
+| Question | Answer |
+|---|---|
+| Does growth stay slow? | Yes: soldier count is capped by beds (buildings) and paced by training; production is capped by site capacity |
+| Is every activity used? | Combat 46 %, mining 18–19 %, wood 10–17 %, food 7–10 %, building 7 %, smithing 5–8 % |
+| Known issues for M10b | ~10 min lull between stage 5 and the boss; 5 of 7 soldiers armed at the boss; the `economy` strategy is now a "builder first" player rather than a strawman |
+

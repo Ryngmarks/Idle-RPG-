@@ -108,6 +108,20 @@ export function unequipAll(troop: TroopState, armoury: Record<string, number>): 
   troop.equipment = [];
 }
 
+/** After soldiers leave a troop alive, their weapons (the worst first) go back to the armoury. */
+export function returnExcessWeapons(troop: TroopState, armoury: Record<string, number>): void {
+  let excess = equippedCount(troop) - troop.size;
+  for (let i = troop.equipment.length - 1; i >= 0 && excess > 0; i--) {
+    const b = troop.equipment[i]!;
+    const take = Math.min(b.count, excess);
+    b.count -= take;
+    excess -= take;
+    const k = itemKey(troop.weaponTypeId, b.tier, b.quality);
+    armoury[k] = (armoury[k] ?? 0) + take;
+  }
+  troop.equipment = troop.equipment.filter((b) => b.count > 0);
+}
+
 /**
  * After a troop shrinks, drop weapons until Σ equipped ≤ size. The unarmed fall first
  * (only weapons beyond the new size are lost), and the worst weapons are lost before better ones.

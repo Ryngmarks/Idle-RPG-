@@ -45,26 +45,6 @@ export function dpsAgainst(size: number, attack: number, armourPen: number, armo
   return size * attacksPerSecond * damagePerHit(attack, armour, armourPen);
 }
 
-/**
- * Food cost of the next soldier when the troop already has `size` soldiers.
- * Flat up to `scaleSize`, then escalates so that combat income (which grows with size) can't snowball.
- */
-export function soldierFoodCost(baseCost: number, size: number, scaleSize: number, exponent: number): number {
-  return baseCost * Math.pow(Math.max(1, size / Math.max(1, scaleSize)), exponent);
-}
-
-/** Total food for recruiting `count` soldiers into a troop of `size`. */
-export function recruitFoodCost(baseCost: number, size: number, count: number, scaleSize: number, exponent: number): number {
-  let total = 0;
-  for (let i = 0; i < count; i++) total += soldierFoodCost(baseCost, size + i, scaleSize, exponent);
-  return total;
-}
-
-export function troopCap(maxTroopSize: number, capLevel: number, fractions: readonly number[]): number {
-  const i = Math.min(Math.max(0, capLevel), fractions.length - 1);
-  return Math.round(maxTroopSize * (fractions[i] ?? 0));
-}
-
 export function xpForLevel(level: number, base: number, exponent: number): number {
   return level <= 1 ? 0 : Math.round(base * Math.pow(level - 1, exponent));
 }

@@ -49,7 +49,6 @@ const STAT_LABEL: Record<Modifier['stat'], string> = {
   'skill.food': 'Matproduktion',
   'skill.construction': 'Byggande',
   'skill.smithing': 'Smide',
-  foodPerSoldier: 'Rekryteringskostnad',
   'loot.food': 'Mat från strid',
   'loot.ore': 'Malm från strid',
   hp: 'Liv',
@@ -62,16 +61,22 @@ export function modifierText(m: Modifier): string {
   return m.op === 'mult' ? `${STAT_LABEL[m.stat]} ${sign}${Math.round(v * 100)} %` : `${STAT_LABEL[m.stat]} ${sign}${v}`;
 }
 
-export function effectText(e: Effect, capForLevel: (level: number) => number): string {
+export function effectText(e: Effect, bedMult = 1): string {
   switch (e.kind) {
-    case 'capLevel':
-      return `Max ${capForLevel(e.level)} soldater per trupp`;
+    case 'beds': {
+      const n = e.amount * bedMult;
+      return `+${n} ${n === 1 ? 'säng' : 'sängar'} i lägret`;
+    }
+    case 'capacity':
+      return `+${e.amount} platser: ${content.sites[e.target]?.name ?? e.target}`;
     case 'troopSlot':
-      return 'En ny trupp kan bildas';
+      return 'En ny truppgrupp kan bildas';
     case 'modifier':
       return modifierText(e.modifier);
     case 'unlock':
       if (e.unlock === 'crafting') return 'Låser upp vapensmide';
+      if (e.unlock === 'recruit') return 'Utbilda rekryter';
+      if (e.unlock.startsWith('site:')) return `Ny arbetsplats: ${content.sites[e.unlock.slice(5)]?.name ?? e.unlock.slice(5)}`;
       if (e.unlock.startsWith('tier:')) return `Låser upp T${e.unlock.slice(5)}-vapen`;
       if (e.unlock.startsWith('tab:')) return '';
       if (e.unlock.startsWith('activity:')) return `Ny aktivitet: ${ACTIVITY_LABEL[e.unlock.slice(9) as ActivityKind]?.name ?? e.unlock.slice(9)}`;
@@ -88,8 +93,8 @@ export function objectiveProgress(state: GameState, c: ObjectiveCondition): { cu
       return { current: Math.min(c.amount, Math.floor(state.stats.totalKills)), target: c.amount };
     case 'recruited':
       return { current: Math.min(c.amount, state.stats.recruited), target: c.amount };
-    case 'troopSizeAtLeast':
-      return { current: Math.min(c.size, Math.max(...state.troops.map((t) => t.size))), target: c.size };
+    case 'soldiersAtLeast':
+      return { current: Math.min(c.count, state.troops.reduce((n, t) => n + t.size, 0)), target: c.count };
     case 'troopsAssigned':
       return { current: Math.min(c.count, state.troops.filter((t) => t.activity).length), target: c.count };
     case 'stageReached':
@@ -104,7 +109,13 @@ export function eventText(e: GameEvent, state: GameState): string | null {
     case 'objectiveCompleted':
       return `✔ ${content.objectives.find((o) => o.id === e.objectiveId)?.text ?? e.objectiveId}`;
     case 'troopFormed':
-      return `🚩 En ny trupp har bildats: ${state.troops.find((t) => t.id === e.troopId)?.name ?? ''}`;
+      return `🚩 En ny truppgrupp har bildats: ${state.troops.find((t) => t.id === e.troopId)?.name ?? ''}`;
+    case 'recruitTrained':
+      return `🛡️ En ny rekryt är färdigutbildad och ansluter till ${state.troops.find((t) => t.id === e.troopId)?.name ?? ''}`;
+    case 'soldiersJoined':
+      return e.count === 1
+        ? `✨ En räddad bonddräng ansluter till ${state.troops.find((t) => t.id === e.troopId)?.name ?? ''}`
+        : `✨ ${e.count} befriade fångar ansluter: ${state.troops.find((t) => t.id === e.troopId)?.name ?? ''}`;
     case 'constructionCompleted':
       return `🏰 ${content.buildings[e.buildingId]?.name ?? e.buildingId} färdigbyggd (nivå ${e.level})`;
     case 'stageCleared':

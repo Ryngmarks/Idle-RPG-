@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { content } from '../../content';
-import { canAfford, race, troopCap, type BuildingDef, type GameState, type Rates } from '../../core';
+import { canAfford, race, type BuildingDef, type GameState, type Rates } from '../../core';
 import { SettlementScene } from '../art';
 import { Bar, CostList, Panel } from '../components/common';
 import { fmtDuration, fmtInt } from '../format';
@@ -18,7 +18,6 @@ function BuildingPlot({ def, state, rates }: { def: BuildingDef; state: GameStat
   const building = state.construction?.buildingId === def.id ? state.construction : null;
   const busy = state.construction !== null && !building;
   const r = race(state, content);
-  const capFor = (l: number) => troopCap(r.population.maxTroopSize, l, content.constants.capLevelFractions);
   const builders = state.troops.filter((t) => t.activity === 'construction');
 
   return (
@@ -48,7 +47,7 @@ function BuildingPlot({ def, state, rates }: { def: BuildingDef; state: GameStat
       ) : next ? (
         <>
           <ul className="plot__effects">
-            {next.effects.map((e) => effectText(e, capFor)).filter(Boolean).map((t, i) => <li key={i}>{t}</li>)}
+            {next.effects.map((e) => effectText(e, r.population.bedMult)).filter(Boolean).map((t, i) => <li key={i}>{t}</li>)}
           </ul>
           <p className="small">
             Kostnad: <CostList cost={next.cost} state={state} /> · {fmtInt(next.work)} arbete

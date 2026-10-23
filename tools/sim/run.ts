@@ -52,12 +52,12 @@ for (const race of races) {
 // ------------------------------------------------------------------ summary
 const KEYS: [string, string][] = [
   ['objective:wood60', 'Combat'],
-  ['objective:recruit1', 'Recruit'],
-  ['troop:troop2', 'Troop 2'],
-  ['building:barracks:1', 'Barracks 1'],
-  ['building:forge:1', 'Forge'],
+  ['soldiers:2', 'Soldier 2'],
+  ['troop:troop2', 'Group 2'],
+  ['soldiers:3', 'Soldier 3'],
+  ['soldiers:5', 'Soldier 5'],
   ['stage:3', 'Stage 3'],
-  ['building:barracks:2', 'Barracks 2'],
+  ['building:forge:1', 'Forge'],
   ['objective:zoneCleared', 'Zone clear'],
   ['boss', 'Boss'],
 ];

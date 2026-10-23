@@ -1,5 +1,5 @@
 import { content } from '../../content';
-import { troopCap, type LabourActivity, type RaceDef } from '../../core';
+import type { LabourActivity, RaceDef } from '../../core';
 import { RaceEmblem } from '../art';
 import { useStore } from '../game';
 import { ACTIVITY_LABEL, TRAIT_LABEL } from '../labels';
@@ -19,7 +19,6 @@ function bestSkills(r: RaceDef): string {
 
 export function RaceSelect() {
   const store = useStore();
-  const fractions = content.constants.capLevelFractions;
   return (
     <main className="race-select">
       <header className="race-select__head">
@@ -38,7 +37,7 @@ export function RaceSelect() {
             <dl className="race-card__stats">
               <div><dt>Första truppen</dt><dd>{r.population.startSize} soldater</dd></div>
               <div><dt>Max per trupp</dt><dd>{r.population.maxTroopSize}</dd></div>
-              <div><dt>Startgräns</dt><dd>{troopCap(r.population.maxTroopSize, 0, fractions)}</dd></div>
+              <div><dt>Sängar från start</dt><dd>{r.population.startBeds}</dd></div>
               <div><dt>Styrka/soldat</dt><dd>{r.soldier.attack}</dd></div>
               <div><dt>Bäst på</dt><dd>{bestSkills(r)}</dd></div>
             </dl>

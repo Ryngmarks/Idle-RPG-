@@ -114,7 +114,7 @@ describe('secondsPerKill', () => {
   it('is null during a boss fight', () => {
     const s = base(3);
     s.troops[0]!.activity = 'combat';
-    s.combat.boss = { hpLeft: 100, timeLeft: 60 };
+    s.combat.boss = { index: 0, hpLeft: 100, timeLeft: 60 };
     expect(secondsPerKill(s, content)).toBeNull();
   });
 });

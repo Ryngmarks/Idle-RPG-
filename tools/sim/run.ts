@@ -1,7 +1,9 @@
 // Balance simulator CLI.
 //   npm run sim                         → all playable races × all strategies, summary
 //   npm run sim -- --race orcs --log    → one race, full milestone log and snapshots
-// Options: --race <id> --strategy balanced|economy|careless|feast --minutes <n> --tick <sec> --log
+//   npm run sim -- --strategy checkin   → the check-in player to level 40 (boss table); --hours <n> sets the horizon (default 40)
+//   npm run sim -- --strategy balanced --hours 40 --stop 8   → the active bot to level 40 (slow: it acts every tick)
+// Options: --race <id> --strategy balanced|economy|careless|feast|checkin --minutes <n> --hours <n> --stop <boss count> --tick <sec> --log
 
 import { content } from '../../src/content';
 import { averageWeaponPower, equippedCount, masteryLevel, newGame } from '../../src/core';
@@ -17,23 +19,30 @@ const minutes = Number(opt('minutes') ?? 180);
 const tick = Number(opt('tick') ?? 5);
 const races = opt('race') ? [opt('race')!] : Object.values(content.races).filter((r) => r.playable).map((r) => r.id);
 const strategies: Strategy[] = opt('strategy') ? [opt('strategy') as Strategy] : ['balanced', 'economy', 'careless', 'feast'];
+const hours = opt('hours') ? Number(opt('hours')) : undefined;
+const stopOpt = opt('stop') ? Number(opt('stop')) : undefined;
+/** Runs that go past the first boss get the boss table instead of the first-hour tables. */
+const isLong = (strategy: Strategy) => strategy === 'checkin' || hours !== undefined || (stopOpt ?? 1) > 1;
 
 const mmss = (t: number | undefined) =>
   t === undefined ? '  —  ' : `${String(Math.floor(t / 60)).padStart(2, ' ')}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
 const r0 = (n: number) => String(Math.floor(n));
 
 const results: { race: string; strategy: Strategy; res: RunResult }[] = [];
+const longResults: { race: string; strategy: Strategy; res: RunResult }[] = [];
 
 for (const race of races) {
   for (const strategy of strategies) {
+    const long = isLong(strategy);
     const res = runBot(newGame(race, content), content, {
       raceId: race,
       strategy,
-      maxSeconds: minutes * 60,
+      maxSeconds: long ? (hours ?? 40) * 3600 : minutes * 60,
       tickSeconds: tick,
-      snapshotEverySeconds: 5 * 60,
+      snapshotEverySeconds: long ? 3600 : 5 * 60,
+      stopAtBoss: long ? (stopOpt ?? 8) : 1,
     });
-    results.push({ race, strategy, res });
+    (long ? longResults : results).push({ race, strategy, res });
 
     if (showLog) {
       console.log(`\n=== ${race.toUpperCase()} · ${strategy} ===`);
@@ -46,6 +55,14 @@ for (const race of races) {
         );
       }
     }
+  }
+}
+
+// A check-in run for each race after the default first-hour tables (npm run sim with no strategy).
+if (!opt('strategy') && hours === undefined && stopOpt === undefined) {
+  for (const race of races) {
+    const res = runBot(newGame(race, content), content, { raceId: race, strategy: 'checkin', maxSeconds: 40 * 3600, tickSeconds: tick, snapshotEverySeconds: 3600, stopAtBoss: 8 });
+    longResults.push({ race, strategy: 'checkin', res });
   }
 }
 
@@ -62,6 +79,33 @@ const KEYS: [string, string][] = [
   ['objective:zoneCleared', 'Zone clear'],
   ['boss', 'Boss'],
 ];
+
+const hm = (t: number | null | undefined) => (t == null ? '   -  ' : `${Math.floor(t / 3600)}:${String(Math.floor((t % 3600) / 60)).padStart(2, '0')}`.padStart(6));
+const median = (xs: number[]) => (xs.length ? [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)]! : 0);
+
+function printLong(race: string, strategy: Strategy, res: RunResult) {
+  const bosses = content.zones[content.constants.startZoneId]!.bosses;
+  console.log(`\n=== ${race} · ${strategy} to level ${bosses[bosses.length - 1]!.level} (game time h:mm) ===`);
+  console.log('boss  level   time    gap   soldiers  groups  armed  T2 share  tries');
+  let prev = 0;
+  bosses.forEach((b, i) => {
+    const t = res.bossTimes[i] ?? null;
+    const starts = res.bossStarts.filter((x) => x.boss === i + 1);
+    const ok = starts.find((x) => !x.failed) ?? starts[starts.length - 1];
+    const gap = t == null ? null : t - prev;
+    if (t != null) prev = t;
+    const share = ok && ok.armed > 0 ? `${ok.t2Armed}/${ok.armed}` : '-';
+    console.log(
+      `${String(i + 1).padStart(4)}  ${String(b.level).padStart(5)} ${hm(t)} ${hm(gap)}  ${String(ok?.soldiers ?? '-').padStart(8)}  ${String(ok?.groups ?? '-').padStart(6)}  ${String(ok?.armed ?? '-').padStart(5)}  ${share.padStart(8)}  ${String(starts.length).padStart(5)}`,
+    );
+  });
+  const per: number[] = [];
+  for (let l = 6; l <= 20; l++) if (res.levelTimes[l + 1] !== undefined && res.levelTimes[l] !== undefined) per.push(res.levelTimes[l + 1]! - res.levelTimes[l]!);
+  const last = res.bossTimes[bosses.length - 1];
+  const s = res.finalState;
+  console.log(`level 40 boss defeated: ${last == null ? 'not within the horizon (ended at ' + hm(s.clock) + ')' : hm(last)}; median time per level 6-20: ${(median(per) / 60).toFixed(1)} min; weapons crafted ${s.stats.weaponsCrafted}; longest event gap boss 10-40: ${res.longestEventGap(((res.bossTimes[1] ?? 0) / 60), (res.bossTimes[7] ?? s.clock) / 60).toFixed(0)} min`);
+}
+for (const { race, strategy, res } of longResults) printLong(race, strategy, res);
 
 console.log(`\nMilestones (simulated time mm:ss, bot decides every ${tick}s, limit ${minutes} min)\n`);
 console.log('race     strategy  ' + KEYS.map(([, label]) => label.padStart(11)).join(''));

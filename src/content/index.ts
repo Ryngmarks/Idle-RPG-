@@ -14,6 +14,9 @@ export const content: Content = {
   constants: {
     trainFoodGrowth: 1.5,
     trainTimeGrowth: 1.35,
+    lateFrom: 8,
+    trainFoodGrowthLate: 1.12,
+    trainTimeGrowthLate: 1.06,
     crews: { construction: 3, smithing: 1 },
     workXp: 2,
     workMoment: 30,

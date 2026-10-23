@@ -52,7 +52,11 @@ export function nextBoss(state: GameState, content: Content): { index: number; l
   return def ? { index: state.combat.bossesDefeated, level: def.level, timeLimitSec: def.timeLimitSec, enemy: enemy(def.enemyId, content) } : null;
 }
 
-/** During a boss fight a troop's wounds stop short of a lost soldier: bosses are not lethal (docs/PROGRESSION_V2.md §19.2). */
+/**
+ * Bosses are not lethal (docs/PROGRESSION_V2.md §19.2): during a boss fight a troop's wounds are pooled over all its
+ * soldiers (up to this share of their combined HP, no soldier falls); when the fight ends the excess is healed
+ * (see `endBossFight` in simulation.ts), because outside boss fights wounds stay below one soldier's HP.
+ */
 export const BOSS_WOUND_CAP = 0.99;
 /** The fight is lost when the fighting troops' wounds reach this share of their max HP. */
 export const BOSS_RETREAT_SHARE = 0.5;
@@ -382,7 +386,7 @@ function computeBase(state: GameState, content: Content, hungerWork: number, hun
     // Damage is shared by the fighting troops in proportion to their size; everyone heals.
     const incoming = t.activity === 'combat' && fightingSize > 0 ? (incomingTotal * t.size) / fightingSize : 0;
     const net = incoming - s.healPerSec;
-    const capped = net > 0 && state.combat.boss && t.wounds >= s.hp * BOSS_WOUND_CAP - 1e-9;
+    const capped = net > 0 && state.combat.boss && t.wounds >= s.maxHp * BOSS_WOUND_CAP - 1e-9;
     rates.woundsPerSec[t.id] = (net < 0 && t.wounds <= 0) || capped ? 0 : net;
   }
 

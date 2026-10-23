@@ -4,12 +4,15 @@
 import {
   advance,
   availableSites,
+  catchUp,
   dispatch,
   estimatedBossDamage,
   averageWeaponPower,
   equippedCount,
   foodBalance,
   maxCraftable,
+  masteryKey,
+  masteryLevel,
   recipeAvailable,
   stageSafety,
   trainBlocker,
@@ -29,7 +32,17 @@ import {
  * nothing is missing. `careless`: like balanced but never reacts to hunger (proves hunger cannot lock the game).
  * `feast`: balanced, plus a Feast whenever it is ready and food is above 100 (the balanced bot never feasts).
  */
-export type Strategy = 'balanced' | 'economy' | 'careless' | 'feast';
+export type Strategy = 'balanced' | 'economy' | 'careless' | 'feast' | 'checkin';
+
+/**
+ * `checkin` (docs/PROGRESSION_V2.md §19.3): balanced for the first 2 h, then it only acts every 45 minutes,
+ * with one 8 h blackout per 24 h (clock 15-23 h, 39-47 h, ...) resolved with the offline catch-up.
+ */
+export const CHECKIN_START_SEC = 2 * 3600;
+export const CHECKIN_STEP_SEC = 45 * 60;
+export const BLACKOUT_FROM_SEC = 15 * 3600;
+export const BLACKOUT_LEN_SEC = 8 * 3600;
+export const DAY_SEC = 24 * 3600;
 
 type Wish =
   | { kind: 'upgrade'; id: string }
@@ -53,7 +66,45 @@ const WISHLIST: Wish[] = [
   { kind: 'building', id: 'tents', level: 3 },
   { kind: 'upgrade', id: 'fieldKitchens' },
   { kind: 'upgrade', id: 'carpentry' },
+  // After boss 1 (docs/PROGRESSION_V2.md §19.5): beds and the army first, then the economy and the forge.
+  { kind: 'building', id: 'barracks', level: 1 },
+  { kind: 'building', id: 'drillGround', level: 1 },
+  { kind: 'building', id: 'tents', level: 4 },
+  { kind: 'building', id: 'farm', level: 3 },
+  { kind: 'upgrade', id: 'drillPractice2' },
+  { kind: 'building', id: 'woodshed', level: 2 },
+  { kind: 'building', id: 'drillGround', level: 2 },
+  { kind: 'building', id: 'tents', level: 5 },
+  { kind: 'upgrade', id: 'fieldKitchens2' },
+  { kind: 'building', id: 'farm', level: 4 },
+  { kind: 'building', id: 'barracks', level: 2 },
+  { kind: 'building', id: 'forge', level: 3 },
+  { kind: 'building', id: 'drillGround', level: 3 },
+  { kind: 'building', id: 'tents', level: 6 },
+  { kind: 'building', id: 'woodshed', level: 3 },
+  { kind: 'building', id: 'forge', level: 4 },
+  { kind: 'building', id: 'farm', level: 5 },
+  { kind: 'building', id: 'barracks', level: 3 },
+  { kind: 'building', id: 'tents', level: 7 },
+  { kind: 'building', id: 'drillGround', level: 4 },
+  { kind: 'building', id: 'woodshed', level: 4 },
+  { kind: 'building', id: 'farm', level: 6 },
+  { kind: 'building', id: 'forge', level: 5 },
+  { kind: 'building', id: 'barracks', level: 4 },
+  { kind: 'building', id: 'tents', level: 8 },
+  { kind: 'building', id: 'drillGround', level: 5 },
+  { kind: 'building', id: 'barracks', level: 5 },
 ];
+
+/** Buildings that give beds: when recruiting is blocked by a missing bed, these jump the queue. */
+const BED_BUILDINGS = new Set(['tents', 'barracks']);
+
+/** T1 weapons to craft before T2 opens: mastery 2 (docs/PROGRESSION_V2.md §19.5) needs 80 of one type. */
+const MASTERY_GRIND_TARGET = 80;
+/** Labour groups after boss 1 aim at this many soldiers (the work sites hold 2-4). */
+const LABOUR_GROUP_SIZE = 3;
+/** Iron the bot keeps in stock once T2 is open (10 weapons). */
+const IRON_STOCK = 60;
 
 /** The bot sends a group to food when the stock lasts less than this. */
 const FOOD_BUFFER_SEC = 180;
@@ -92,7 +143,23 @@ export interface RunResult {
   /** Longest unbroken hungry stretch (s) before the boss fight started. */
   longestHungrySec: number;
   longestEventGap: (fromMin: number, toMin: number) => number;
+  /** One entry per boss fight started (failed attempts included): the army when the fight begins. */
+  bossStarts: BossStart[];
+  /** Game clock (s) when boss i+1 fell. */
+  bossTimes: (number | null)[];
+  /** Game clock (s) when the troops first reached level L (1-based; index L). */
+  levelTimes: Record<number, number>;
   finalState: GameState;
+}
+
+export interface BossStart {
+  boss: number;
+  t: number;
+  soldiers: number;
+  groups: number;
+  armed: number;
+  t2Armed: number;
+  failed: boolean;
 }
 
 export interface RunOptions {
@@ -101,6 +168,8 @@ export interface RunOptions {
   maxSeconds: number;
   tickSeconds: number;
   snapshotEverySeconds: number;
+  /** Stop when this many bosses have fallen (default 1: the first-hour runs end at Gamle Betarn). */
+  stopAtBoss?: number;
 }
 
 export function runBot(start: GameState, content: Content, opts: RunOptions): RunResult {
@@ -109,42 +178,71 @@ export function runBot(start: GameState, content: Content, opts: RunOptions): Ru
   const snapshots: Snapshot[] = [];
   const milestones: Record<string, number> = {};
   const activityTime = { combat: 0, mining: 0, woodcutting: 0, food: 0, construction: 0, smithing: 0, idle: 0 };
+  const stopAt = opts.stopAtBoss ?? 1;
+  const checkin = opts.strategy === 'checkin';
   let nextSnapshot = 0;
   let hungrySec = 0;
   let longestHungrySec = 0;
   let hungryRun = 0;
   let armedAtBoss: { armed: number; soldiers: number } | null = null;
+  const bossStarts: BossStart[] = [];
+  const levelTimes: Record<number, number> = {};
+  const memory: Memory = { failedAtDps: 0 };
   let lastReward = 0;
   let longestQuietGapEarly = 0;
   const progressMark = (s: GameState) =>
     Object.values(s.stats.gathered).reduce((a, b) => a + b, 0) + Math.floor(s.stats.totalKills + 1e-9);
 
   const eventTimes: number[] = [];
-  const EVENT_TYPES = new Set(['objectiveCompleted', 'constructionCompleted', 'recruitTrained', 'soldiersJoined', 'stageCleared', 'troopFormed', 'levelStep']);
+  const EVENT_TYPES = new Set(['objectiveCompleted', 'constructionCompleted', 'recruitTrained', 'soldiersJoined', 'stageCleared', 'troopFormed', 'levelStep', 'bossDefeated']);
   const note = (events: GameEvent[]) => {
     for (const e of events) {
       if (EVENT_TYPES.has(e.type as string)) eventTimes.push(e.at);
+      if (e.type === 'bossDefeated') milestones[`boss:${e.index + 1}`] = e.at;
+      if (e.type === 'bossFailed') {
+        const last = bossStarts[bossStarts.length - 1];
+        if (last) last.failed = true;
+      }
       const key = describeEvent(e, state, content);
       if (!key) continue;
       log.push({ t: e.at, text: key.text });
       if (key.milestone && milestones[key.milestone] === undefined) milestones[key.milestone] = e.at;
     }
   };
+  let commands = 0;
   const exec = (cmd: Command): boolean => {
+    const before = state;
     const r = dispatch(state, cmd, content);
     if (!r.ok) return false;
     state = r.state;
+    commands++;
+    if (cmd.type === 'challengeBoss' && state.combat.boss) {
+      const armed = state.troops.reduce((n, t) => n + equippedCount(t), 0);
+      bossStarts.push({
+        boss: state.combat.boss.index + 1,
+        t: state.clock,
+        soldiers: state.troops.reduce((n, t) => n + t.size, 0),
+        groups: state.troops.length,
+        armed,
+        t2Armed: state.troops.reduce((n, t) => n + t.equipment.filter((b) => b.tier >= 2).reduce((m, b) => m + b.count, 0), 0),
+        failed: false,
+      });
+      memory.lastDps = estimatedBossDamage(before, content, before.troops.map((t) => t.id)).dps;
+    }
     note(r.events);
     return true;
   };
-
-  while (state.clock < opts.maxSeconds && !state.combat.bossDefeated) {
-    if (state.clock >= nextSnapshot) {
-      snapshots.push(snapshot(state, content));
-      nextSnapshot += opts.snapshotEverySeconds;
+  /** One action: the bot looks around and does everything it wants (the checkin bot repeats until nothing changes). */
+  const act = () => {
+    const rounds = checkin && state.clock >= CHECKIN_START_SEC ? 12 : 1;
+    for (let i = 0; i < rounds; i++) {
+      commands = 0;
+      decide(state, content, opts.strategy, exec, () => state, memory);
+      if (commands === 0) break;
     }
-    decide(state, content, opts.strategy, exec, () => state);
-    for (const t of state.troops) activityTime[t.activity ?? 'idle'] += opts.tickSeconds;
+  };
+  const stepTo = (dt: number) => {
+    for (const t of state.troops) activityTime[t.activity ?? 'idle'] += dt;
     if (state.combat.boss && !armedAtBoss) {
       armedAtBoss = {
         armed: state.troops.reduce((n, t) => n + equippedCount(t), 0),
@@ -153,17 +251,55 @@ export function runBot(start: GameState, content: Content, opts: RunOptions): Ru
     }
     if (!state.combat.boss) {
       if (foodBalance(state, content).hungry) {
-        hungrySec += opts.tickSeconds;
-        hungryRun += opts.tickSeconds;
+        hungrySec += dt;
+        hungryRun += dt;
         longestHungrySec = Math.max(longestHungrySec, hungryRun);
       } else hungryRun = 0;
     }
     const before = progressMark(state);
-    const r = advance(state, opts.tickSeconds, content);
+    const r = advance(state, dt, content);
     state = r.state;
     note(r.events);
     if (progressMark(state) > before + 1e-9 || r.events.length > 0) lastReward = state.clock;
     if (state.clock <= 15 * 60) longestQuietGapEarly = Math.max(longestQuietGapEarly, state.clock - lastReward);
+  };
+  /** The next moment the checkin bot wants to act: the 45-minute grid, or the start of a blackout. */
+  const nextCheckin = (): { at: number; blackout: boolean } => {
+    const k = Math.floor((state.clock - CHECKIN_START_SEC + 1e-3) / CHECKIN_STEP_SEC) + 1;
+    const grid = CHECKIN_START_SEC + k * CHECKIN_STEP_SEC;
+    // Blackouts start at 15 h, 39 h, ... (every 24 h); the next one that has not started yet.
+    const start = BLACKOUT_FROM_SEC + (state.clock < BLACKOUT_FROM_SEC - 1e-3 ? 0 : Math.floor((state.clock - BLACKOUT_FROM_SEC + 1e-3) / DAY_SEC) + 1) * DAY_SEC;
+    return start <= grid ? { at: start, blackout: true } : { at: grid, blackout: false };
+  };
+
+  while (state.clock < opts.maxSeconds && state.combat.bossesDefeated < stopAt) {
+    while (state.clock >= nextSnapshot) {
+      snapshots.push(snapshot(state, content));
+      nextSnapshot += opts.snapshotEverySeconds;
+    }
+    const level = state.combat.unlockedStage + 1;
+    if (levelTimes[level] === undefined) levelTimes[level] = state.clock;
+    if (!checkin || state.clock < CHECKIN_START_SEC - 1e-3) {
+      act();
+      stepTo(Math.min(opts.tickSeconds, checkin ? CHECKIN_START_SEC - state.clock : Infinity));
+    } else {
+      const next = nextCheckin();
+      stepTo(Math.max(1e-3, next.at - state.clock));
+      if (state.clock >= opts.maxSeconds) break;
+      act();
+      // A boss fight takes a couple of minutes: the player watches it, then carries on with his chores.
+      for (let i = 0; i < 20 && state.combat.boss; i++) {
+        stepTo(state.combat.boss.timeLeft + 0.5);
+        act();
+      }
+      if (next.blackout) {
+        // Asleep for 8 h: the offline rule (abandon a boss fight, fall back to a safe level) and no actions.
+        const r = catchUp(state, BLACKOUT_LEN_SEC, BLACKOUT_LEN_SEC, content);
+        for (const t of state.troops) activityTime[t.activity ?? 'idle'] += BLACKOUT_LEN_SEC;
+        state = r.state;
+        note(r.events);
+      }
+    }
   }
   snapshots.push(snapshot(state, content));
   const endClock = state.clock;
@@ -176,19 +312,34 @@ export function runBot(start: GameState, content: Content, opts: RunOptions): Ru
     for (let i = 1; i < pts.length; i++) gap = Math.max(gap, pts[i]! - pts[i - 1]!);
     return gap / 60;
   };
-  return { log, snapshots, milestones, activityTime, longestQuietGapEarly, eventTimes, longestEventGap, armedAtBoss, hungrySec, longestHungrySec, finalState: state };
+  return {
+    log, snapshots, milestones, activityTime, longestQuietGapEarly, eventTimes, longestEventGap, armedAtBoss, hungrySec, longestHungrySec,
+    bossStarts, bossTimes: state.stats.bossTimes, levelTimes, finalState: state,
+  };
 }
 
 // ------------------------------------------------------------------ decisions
 
-/** Where a resource is gathered, as an activity and a work site. */
+interface Memory {
+  /** Boss dps at the last fight start, and at the last failure: the bot retries only when it got stronger. */
+  lastDps?: number;
+  failedAtDps: number;
+}
+
+/** The work site that gives a resource fastest per worker, among the sites the player can use. */
 function gatherJob(state: GameState, content: Content, r: ResourceId): { activity: ActivityKind; siteId?: string } | undefined {
-  if (r === 'wood') return { activity: 'woodcutting', siteId: 'birchGrove' };
-  if (r === 'stone') return { activity: 'mining', siteId: 'oldQuarry' };
-  if (r === 'ore') return { activity: 'mining', siteId: 'oreVein' };
-  const food = availableSites(state, content, 'food');
-  const best = [...food].sort((a, b) => b.yield.food! / b.cycleSec - a.yield.food! / a.cycleSec)[0];
-  return best ? { activity: 'food', siteId: best.id } : undefined;
+  let best: { activity: ActivityKind; siteId: string; rate: number } | undefined;
+  for (const activity of ['woodcutting', 'mining', 'food'] as const) {
+    for (const site of availableSites(state, content, activity)) {
+      const rate = (site.yield[r] ?? 0) / site.cycleSec;
+      if (rate > 0 && (!best || rate > best.rate)) best = { activity, siteId: site.id, rate };
+    }
+  }
+  return best;
+}
+
+function t2Armed(state: GameState): number {
+  return state.troops.reduce((n, t) => n + t.equipment.filter((b) => b.tier >= 2).reduce((m, b) => m + b.count, 0), 0);
 }
 
 function decide(
@@ -197,29 +348,44 @@ function decide(
   strategy: Strategy,
   exec: (cmd: Command) => boolean,
   current: () => GameState,
+  memory: Memory,
 ): void {
   let state = initial;
   const refresh = () => (state = current());
   const can = (a: ActivityKind) => state.unlocks.includes(`activity:${a}`);
+  const zoneDef = content.zones[state.combat.zoneId]!;
+  const bossesLeft = state.combat.bossesDefeated < zoneDef.bosses.length;
 
   // 1. Boss: commit everyone when the estimate says it falls in time.
   if (state.combat.boss) {
     for (const t of state.troops) if (t.activity !== 'combat') exec({ type: 'assignTroop', troopId: t.id, activity: 'combat' });
     return;
   }
-  if (state.unlocks.includes('boss') && !state.combat.bossDefeated) {
-    const est = estimatedBossDamage(state, content, state.troops.map((t) => t.id));
-    if (est.damage >= est.hp * 1.05) {
-      for (const t of state.troops) exec({ type: 'assignTroop', troopId: t.id, activity: 'combat' });
-      exec({ type: 'challengeBoss' });
-      return;
-    }
+  // After a fight: a failure (the boss is still ready) remembers how strong the army was, a win forgets it.
+  if (memory.lastDps !== undefined) {
+    memory.failedAtDps = state.combat.cleared ? memory.lastDps : 0;
+    memory.lastDps = undefined;
   }
+  // The check-in player does his chores first and challenges the boss last; the active bot goes straight for it.
+  const bossLast = strategy === 'checkin';
+  const tryBoss = (): boolean => {
+    if (!(state.unlocks.includes('boss') && state.combat.cleared && bossesLeft && !state.combat.boss)) return false;
+    const est = estimatedBossDamage(state, content, state.troops.map((t) => t.id));
+    const margin = strategy === 'checkin' ? 1.0 : 1.05;
+    // After a failed attempt the bot waits until its damage has grown.
+    if (!(est.canWin && est.damage >= est.hp * margin && est.dps > memory.failedAtDps * 1.02)) return false;
+    for (const t of state.troops) exec({ type: 'assignTroop', troopId: t.id, activity: 'combat' });
+    return exec({ type: 'challengeBoss' });
+  };
+  if (!bossLast && tryBoss()) return;
+  const lateGame = state.combat.bossesDefeated >= 1;
 
   // 1b. Feast whenever it is ready and there is food to spare.
 
-  // 2. Buy the next wish when affordable.
-  const wish = WISHLIST.find((w) => !wishDone(w, state) && wishUnlocked(w, state) && !(w.kind === 'building' && state.construction));
+  // 2. Buy the next wish when affordable. A missing bed (after boss 1) moves a bed building to the front.
+  const open = WISHLIST.filter((w) => !wishDone(w, state) && wishUnlocked(w, state, content) && !(w.kind === 'building' && state.construction));
+  const bedBlocked = lateGame && trainBlocker(state, content) === 'noBed';
+  const wish = (bedBlocked ? open.find((w) => w.kind === 'building' && BED_BUILDINGS.has(w.id)) : undefined) ?? open[0];
   let goal: Cost = {};
   if (wish) {
     if (tryBuy(wish, state, content, exec)) refresh();
@@ -227,11 +393,12 @@ function decide(
   }
 
   // 3. Train a recruit whenever a bed is free and the food is there (the wish's food stays reserved).
-  const smallest = () => [...state.troops].sort((a, b) => a.size - b.size)[0]!;
+  // After boss 1 recruits join the biggest group: the small labour groups keep their size and the front grows.
+  const recruitTo = () => (lateGame ? [...state.troops].sort((a, b) => b.size - a.size)[0]! : [...state.troops].sort((a, b) => a.size - b.size)[0]!);
   const blocker = trainBlocker(state, content);
   const trainFood = trainCost(state, content).food;
   if (blocker === null && state.resources.food - trainFood >= (goal.food ?? 0)) {
-    exec({ type: 'trainRecruit', troopId: smallest().id });
+    exec({ type: 'trainRecruit', troopId: recruitTo().id });
     refresh();
   } else if (blocker === null || blocker === 'food') {
     goal.food = (goal.food ?? 0) + trainFood;
@@ -245,26 +412,72 @@ function decide(
     }
   }
 
-  // 4. Forge: weapons for unarmed soldiers only (racing to the boss, not grinding quality).
-  const recipeId = `${content.races[state.raceId]!.weaponTypeId}_t1`;
-  if (recipeAvailable(state, recipeId, content)) {
-    const soldiers = state.troops.reduce((n, t) => n + t.size, 0);
+  // 4. Forge: weapons for unarmed soldiers (racing to the boss, not grinding quality) ...
+  const weaponType = content.races[state.raceId]!.weaponTypeId;
+  const t1 = `${weaponType}_t1`;
+  const t2 = `${weaponType}_t2`;
+  const soldiersNow = () => state.troops.reduce((n, t) => n + t.size, 0);
+  const queuedOf = (id: string) => state.crafting.queue.filter((o) => o.recipeId === id).reduce((n, o) => n + o.remaining, 0);
+  const queueUpTo = (recipeId: string, want: number, opportunistic = false): number => {
+    const recipe = content.equipment.recipes[recipeId]!;
+    const free = { ...state.resources };
+    for (const [r, v] of Object.entries(goal) as [ResourceId, number][]) free[r] = Math.max(0, free[r] - v);
+    const n = Math.min(want, maxCraftable({ ...state, resources: free }, recipeId, content));
+    if (n > 0 && exec({ type: 'queueCraft', recipeId, count: n })) {
+      refresh();
+      return n;
+    }
+    if (!opportunistic) for (const [r, v] of Object.entries(recipe.materials) as [ResourceId, number][]) goal[r] = (goal[r] ?? 0) + v;
+    return 0;
+  };
+  if (recipeAvailable(state, t1, content)) {
     const queued = state.crafting.queue.reduce((n, o) => n + o.remaining, 0);
     const spare = Object.values(state.armoury).reduce((a, b) => a + b, 0);
-    const unarmed = soldiers - state.troops.reduce((n, t) => n + equippedCount(t), 0) - spare - queued;
+    const unarmed = soldiersNow() - state.troops.reduce((n, t) => n + equippedCount(t), 0) - spare - queued;
     if (unarmed > 0) {
-      const n = Math.min(unarmed, maxCraftable({ ...state, resources: { ...state.resources, ore: Math.max(0, state.resources.ore - (goal.ore ?? 0)) } }, recipeId, content));
-      if (n > 0) exec({ type: 'queueCraft', recipeId, count: n });
-      else goal.ore = (goal.ore ?? 0) + (content.equipment.recipes[recipeId]?.materials.ore ?? 0);
+      // A T2 weapon is the better buy once the player can make it.
+      const useT2 = recipeAvailable(state, t2, content) && maxCraftable(state, t2, content) > 0;
+      queueUpTo(useT2 ? t2 : t1, unarmed);
       refresh();
     }
   }
+  if (lateGame && recipeAvailable(state, t1, content)) {
+    const crafted1 = state.crafting.crafted[masteryKey(weaponType, 1)] ?? 0;
+    if (recipeAvailable(state, t2, content)) {
+      // T2 is the backbone: replace every soldier's weapon, a few at a time.
+      const have2 = t2Armed(state) + Object.entries(state.armoury).filter(([k]) => k.includes(':t2:')).reduce((a, [, v]) => a + v, 0) + queuedOf(t2);
+      const want = soldiersNow() - have2;
+      if (want > 0) queueUpTo(t2, want);
+    }
+    // Keep some iron in stock once T2 is open, so the next weapons are never waiting for the mine.
+    if (state.unlocks.includes('tier:2') && state.unlocks.includes('site:jarngruvan') && soldiersNow() > t2Armed(state)) {
+      goal.iron = Math.max(goal.iron ?? 0, IRON_STOCK);
+    }
+    // Mastery 2 in this weapon type opens the T2 recipe (80 crafted): grind T1 weapons with spare ore from boss 1 on;
+    // the spares also swap in better qualities.
+    if (masteryLevel(crafted1, content) < 2 && crafted1 + queuedOf(t1) < MASTERY_GRIND_TARGET && !recipeAvailable(state, t2, content)) {
+      queueUpTo(t1, MASTERY_GRIND_TARGET - crafted1 - queuedOf(t1), true);
+    }
+  }
 
-  // 5. An open group slot: split a soldier off the biggest group.
+  // 5. An open group slot: split soldiers off the biggest group.
   if (state.troops.length < state.troopSlots) {
     const big = [...state.troops].sort((a, b) => b.size - a.size)[0];
-    if (big && big.size >= 2) exec({ type: 'transferSoldiers', fromTroopId: big.id, toTroopId: null, count: 1 });
+    const take = lateGame ? Math.max(1, Math.min(LABOUR_GROUP_SIZE, Math.floor((big?.size ?? 0) / 4))) : 1;
+    if (big && big.size >= take + 1) exec({ type: 'transferSoldiers', fromTroopId: big.id, toTroopId: null, count: take });
     refresh();
+  }
+  // 5b. Late game: labour groups top up to a working crew from the biggest group (the front stays at least half).
+  if (lateGame && state.troops.length >= 3) {
+    const sorted = [...state.troops].sort((a, b) => b.size - a.size);
+    const big = sorted[0]!;
+    for (const t of sorted.slice(1)) {
+      if (t.size >= LABOUR_GROUP_SIZE) continue;
+      const total = soldiersNow();
+      const give = Math.min(LABOUR_GROUP_SIZE - t.size, big.size - Math.ceil(total / 2));
+      if (give > 0) exec({ type: 'transferSoldiers', fromTroopId: big.id, toTroopId: t.id, count: give });
+      refresh();
+    }
   }
 
   // 6. Assign groups: economy jobs in order of urgency, the rarest missing material first.
@@ -293,16 +506,24 @@ function decide(
     const job = gatherJob(state, content, m.r);
     if (job && can(job.activity)) econ.push(job);
   }
-  const fight = can('combat') && !state.combat.bossDefeated;
+  // Keep one group on a job only once.
+  const seen = new Set<string>();
+  const jobsWanted = econ.filter((j) => {
+    const k = `${j.activity}:${j.siteId ?? ''}`;
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+  const fight = can('combat') && bossesLeft;
   const fallback: Job = fight ? { activity: 'combat' } : gatherJob(state, content, 'food') && can('food') ? gatherJob(state, content, 'food')! : { activity: 'woodcutting' };
   const ordered = [...state.troops].sort((a, b) => b.size - a.size || a.id.localeCompare(b.id));
   const jobs: Job[] =
     ordered.length === 1
       ? // Alone: rescue the first companion, then follow the most urgent need and fight when nothing is missing.
-        [fight && (state.combat.unlockedStage === 0 || econ.length === 0) ? { activity: 'combat' } : (econ[0] ?? fallback)]
+        [fight && (state.combat.unlockedStage === 0 || jobsWanted.length === 0) ? { activity: 'combat' } : (jobsWanted[0] ?? fallback)]
       : strategy !== 'economy' && fight
-        ? [{ activity: 'combat' }, ...econ]
-        : econ;
+        ? [{ activity: 'combat' }, ...jobsWanted]
+        : jobsWanted;
   ordered.forEach((t, i) => {
     const job = jobs[i] ?? fallback;
     if (t.activity !== job.activity || (job.siteId && t.siteId !== job.siteId)) {
@@ -319,6 +540,12 @@ function decide(
     }
     if (best !== state.combat.stageIndex) exec({ type: 'selectStage', stageIndex: best });
   }
+
+  // 8. Check-in player: the boss comes last, with everyone fighting.
+  if (bossLast) {
+    refresh();
+    tryBoss();
+  }
 }
 
 function wishDone(w: Wish, state: GameState): boolean {
@@ -327,9 +554,10 @@ function wishDone(w: Wish, state: GameState): boolean {
   return (state.buildings[w.id] ?? 0) >= w.level || inProgress;
 }
 
-function wishUnlocked(w: Wish, state: GameState): boolean {
+function wishUnlocked(w: Wish, state: GameState, content: Content): boolean {
   if (w.kind === 'upgrade') return state.unlocks.includes(`upgrade:${w.id}`);
-  return state.unlocks.includes(`building:${w.id}`) && (state.buildings[w.id] ?? 0) === w.level - 1;
+  const req = content.buildings[w.id]?.levels[w.level - 1]?.requires;
+  return state.unlocks.includes(`building:${w.id}`) && (state.buildings[w.id] ?? 0) === w.level - 1 && (!req || state.unlocks.includes(req));
 }
 
 function wishCost(w: Wish, state: GameState, content: Content): Cost {
@@ -369,9 +597,9 @@ function describeEvent(e: GameEvent, state: GameState, content: Content): { text
     case 'levelStep' as GameEvent['type']:
       return { text: '⭐ Level step', milestone: 'levelStep' };
     case 'bossDefeated':
-      return { text: '👑 Boss defeated', milestone: 'boss' };
+      return { text: `👑 Boss ${e.index + 1} defeated`, milestone: e.index === 0 ? 'boss' : undefined };
     case 'bossFailed':
-      return { text: '✖ Boss attempt failed' };
+      return { text: `✖ Boss ${e.index + 1} attempt failed (${e.reason})` };
     case 'soldierLost':
       return { text: `☠ ${state.troops.find((x) => x.id === e.troopId)?.name ?? e.troopId} lost a soldier`, milestone: 'firstLoss' };
     case 'troopRetreated':
@@ -383,11 +611,11 @@ function describeEvent(e: GameEvent, state: GameState, content: Content): { text
 
 function snapshot(state: GameState, content: Content): Snapshot {
   const z = content.zones[state.combat.zoneId]!;
-  const stage = state.combat.bossDefeated
-    ? 'boss defeated'
+  const stage = state.combat.bossesDefeated >= z.bosses.length
+    ? 'zone done'
     : state.combat.cleared
-      ? 'cleared'
-      : `${state.combat.stageIndex + 1}/${z.stages.length}`;
+      ? `L${state.combat.unlockedStage + 1} boss`
+      : `${state.combat.stageIndex + 1}/${state.combat.unlockedStage + 1}`;
   return {
     t: state.clock,
     troops: state.troops.map((t) => ({

@@ -52,8 +52,9 @@ function pendingEvents(state: GameState, rates: Rates, content: Content): Pendin
     const rate = rates.woundsPerSec[t.id] ?? 0;
     const id = t.id;
     if (rate > 0) {
-      // In a boss fight wounds stop just short of a lost soldier.
-      const hp = troopStats(state, t, content, mods).hp * (c.boss ? BOSS_WOUND_CAP : 1);
+      // In a boss fight wounds pool over the whole troop and stop just short of its combined HP.
+      const ts = troopStats(state, t, content, mods);
+      const hp = c.boss ? ts.maxHp * BOSS_WOUND_CAP : ts.hp;
       out.push({ t: (hp - t.wounds) / rate, snap: (s) => { const x = s.troops.find((y) => y.id === id); if (x) x.wounds = hp; } });
     } else if (rate < 0 && t.wounds > 0) {
       out.push({ t: t.wounds / -rate, snap: (s) => { const x = s.troops.find((y) => y.id === id); if (x) x.wounds = 0; } });
@@ -150,6 +151,13 @@ function integrate(state: GameState, rates: Rates, dt: number, content: Content)
   state.clock += dt;
 }
 
+/** Ends a boss fight: the wounds pooled during it shrink to what one soldier can carry, so nobody is lost afterwards. */
+function endBossFight(state: GameState, content: Content): void {
+  state.combat.boss = null;
+  const mods = globalModifiers(state, content);
+  for (const t of state.troops) t.wounds = Math.min(t.wounds, troopStats(state, t, content, mods).hp * BOSS_WOUND_CAP);
+}
+
 /** After a clear: the troops standing on the level below the frontier move up when the new level is safe for them. */
 function autoAdvance(state: GameState, content: Content, events: GameEvent[]): void {
   const c = state.combat;
@@ -178,12 +186,12 @@ function processEvents(state: GameState, content: Content, levelsBefore: Map<str
     }
     const failed = (reason: 'time' | 'wounds') => {
       // Nobody dies: the troops step back to the level before the boss and may try again at once.
-      c.boss = null;
+      endBossFight(state, content);
       c.stageIndex = Math.max(0, (def?.level ?? 1) - 2);
       events.push({ type: 'bossFailed', at: state.clock, zoneId: z.id, index: fight.index, reason });
     };
     if (fight.hpLeft <= EPS) {
-      c.boss = null;
+      endBossFight(state, content);
       c.bossesDefeated = Math.max(c.bossesDefeated, fight.index + 1);
       state.stats.bossTimes[fight.index] = state.clock;
       events.push({ type: 'bossDefeated', at: state.clock, zoneId: z.id, index: fight.index });
@@ -360,7 +368,7 @@ export function secureForOffline(input: GameState, content: Content): AdvanceRes
   const c = state.combat;
   if (c.boss) {
     events.push({ type: 'bossAbandoned', at: state.clock, zoneId: c.zoneId, index: c.boss.index });
-    c.boss = null;
+    endBossFight(state, content);
   }
   const fighters = state.troops.filter((t) => t.activity === 'combat');
   if (fighters.length > 0 && stageSafety(state, content, { stageIndex: c.stageIndex }).risk !== 'safe') {

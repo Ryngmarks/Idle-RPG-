@@ -136,7 +136,7 @@ export function Battle({ state, rates }: { state: GameState; rates: Rates }) {
           enemyId={c.boss ? boss.id : foe.id}
           hitKey={Math.floor(state.stats.totalKills)}
           strikeSec={rates.killsPerSec > 0 ? Math.max(0.5, Math.min(1.4, 1 / rates.killsPerSec)) : undefined}
-          dmg={rates.killsPerSec < 1 ? `-${fmtRate((c.boss ? rates.bossDps : totalDps) * 2)}` : undefined}
+          dmg={rates.killsPerSec < 1 ? `-${fmtRate(c.boss ? rates.bossDps : totalDps)}/s` : undefined}
           fighting={fighters.length > 0}
           boss={!!c.boss}
           equipment={normalizeBuckets(fighters.flatMap((t) => t.equipment), content)}

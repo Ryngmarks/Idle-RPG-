@@ -65,7 +65,7 @@ export const buildings: Record<string, BuildingDef> = {
     name: 'Gård',
     levels: [
       { cost: { wood: 60, stone: 30 }, work: 180, effects: [{ kind: 'unlock', unlock: 'site:fields' }] },
-      { cost: { wood: 120, stone: 60 }, work: 300, effects: [{ kind: 'capacity', target: 'fields', amount: 1 }] },
+      { cost: { wood: 70, stone: 40 }, work: 300, effects: [{ kind: 'capacity', target: 'fields', amount: 1 }] },
     ],
   },
   woodshed: {
@@ -87,7 +87,7 @@ export const buildings: Record<string, BuildingDef> = {
           { kind: 'unlock', unlock: 'activity:smithing' },
         ],
       },
-      { cost: { wood: 150, stone: 100, ore: 10 }, work: 480, effects: [{ kind: 'capacity', target: 'smithing', amount: 1 }] },
+      { cost: { wood: 90, stone: 60, ore: 10 }, work: 480, effects: [{ kind: 'capacity', target: 'smithing', amount: 1 }] },
     ],
   },
   barracks: {
@@ -175,7 +175,7 @@ export const equipment: EquipmentContent = {
   chancesAtMax: [0.3, 0.33, 0.22, 0.11, 0.04],
   maxMastery: 10,
   itemsPerMasteryStep: 20,
-  firstMasteryStep: 10,
+  firstMasteryStep: 8,
 };
 
 export const objectives: ObjectiveDef[] = [

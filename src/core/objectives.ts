@@ -1,11 +1,13 @@
 // Objectives: the tutorial, the unlock gates and the "what next?" list in one system.
 // See docs/FIRST_15_MINUTES.md §4.
 
-import { autoEquipAll } from './equipment';
+import { autoEquipAll, masteryLevel } from './equipment';
+import { xpForLevel } from './formulas';
+import { troopLevel } from './stats';
 import { addSoldiers, addUnlock, gain } from './mutations';
 import type { Content, GameEvent, GameState, ObjectiveCondition, ObjectiveDef } from './types';
 
-export function conditionMet(state: GameState, c: ObjectiveCondition): boolean {
+export function conditionMet(state: GameState, c: ObjectiveCondition, content: Content): boolean {
   switch (c.kind) {
     case 'troopAssigned':
       return state.troops.some((t) => t.activity === c.activity);
@@ -27,9 +29,15 @@ export function conditionMet(state: GameState, c: ObjectiveCondition): boolean {
       // stage is 1-based; reaching stage N means stages 1..N-1 are cleared.
       return state.combat.cleared || state.combat.unlockedStage + 1 >= c.stage;
     case 'zoneCleared':
-      return state.combat.cleared;
+      return state.combat.cleared || state.combat.bossesDefeated >= 1;
     case 'bossDefeated':
-      return state.combat.bossDefeated;
+      return state.combat.bossesDefeated >= (c.index ?? 1);
+    case 'levelReached':
+      return state.combat.unlockedStage + 1 >= c.level;
+    case 'tierCrafted':
+      return Object.entries(state.crafting.crafted).some(([k, n]) => n > 0 && k.endsWith(`:t${c.tier}`));
+    case 'masteryReached':
+      return Object.entries(state.crafting.crafted).some(([k, n]) => k.endsWith(':t1') && masteryLevel(n, content) >= c.level);
     case 'weaponsEquipped':
       return state.troops.reduce((n, t) => n + t.equipment.reduce((m, b) => m + b.count, 0), 0) >= c.amount;
     case 'weaponsCrafted':
@@ -46,7 +54,7 @@ export function activeObjectives(state: GameState, content: Content): ObjectiveD
 /** Completes every satisfied objective (repeatedly, since one can enable the next). */
 export function evaluateObjectives(state: GameState, content: Content, events: GameEvent[]): void {
   for (;;) {
-    const ready = activeObjectives(state, content).filter((o) => conditionMet(state, o.condition));
+    const ready = activeObjectives(state, content).filter((o) => conditionMet(state, o.condition, content));
     if (ready.length === 0) return;
     for (const o of ready) {
       state.objectivesCompleted.push(o.id);
@@ -54,6 +62,13 @@ export function evaluateObjectives(state: GameState, content: Content, events: G
       if (o.rewards.resources) gain(state, o.rewards.resources);
       events.push({ type: 'objectiveCompleted', at: state.clock, objectiveId: o.id });
       if (o.rewards.troopSlots) state.troopSlots += o.rewards.troopSlots;
+      if (o.rewards.troopLevelSteps) {
+        const officer = [...state.troops].sort((a, b) => b.size - a.size)[0];
+        if (officer) {
+          const level = troopLevel(officer, content) + o.rewards.troopLevelSteps;
+          officer.xp = Math.max(officer.xp, xpForLevel(level, content.constants.xpBase, content.constants.xpExponent));
+        }
+      }
       if (o.rewards.soldiers) {
         const troop = addSoldiers(state, content, o.rewards.soldiers, events, state.troops[0]?.id);
         events.push({ type: 'soldiersJoined', at: state.clock, troopId: troop.id, count: o.rewards.soldiers });

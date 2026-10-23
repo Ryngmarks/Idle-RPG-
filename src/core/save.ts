@@ -101,6 +101,37 @@ const migrations: Record<number, (s: Record<string, unknown>) => Record<string, 
     if (done.includes('raid1') && !done.includes('raid2') && kills >= 130) done.push('raid2');
     return { ...s, objectivesCompleted: done, feast: { until: 0, readyAt: 0 } };
   },
+  // v9 → v10: M13, zone 1 grows to level 40 with eight bosses (docs/PROGRESSION_V2.md §19.7). A save that beat
+  // the old boss has boss 1 done and continues at level 6; the region:2 unlock now comes with boss 8.
+  // New resource `iron` starts at 0; no soldiers, no tier:2 and no new objectives are granted.
+  9: (s) => {
+    const old = s.combat as Record<string, unknown> & { unlockedStage: number; kills: number; cleared: boolean; bossDefeated?: boolean; boss?: Record<string, number> | null };
+    const stats = s.stats as Record<string, unknown> & { gathered: Record<string, number>; bossDefeatedAt?: number | null };
+    const beaten = old.bossDefeated === true;
+    const { bossDefeated: _bd, boss, ...combatRest } = old;
+    const { bossDefeatedAt, ...statsRest } = stats;
+    const unlocks = (s.unlocks as string[]).filter((u) => u !== 'region:2');
+    if (beaten) for (const u of ['building:drillGround', 'level:tents:4', 'level:farm:3']) if (!unlocks.includes(u)) unlocks.push(u);
+    return {
+      ...s,
+      resources: { ...(s.resources as Record<string, number>), iron: 0 },
+      combat: {
+        ...combatRest,
+        unlockedStage: beaten ? Math.max(old.unlockedStage, 5) : old.unlockedStage,
+        kills: beaten ? 0 : old.kills,
+        cleared: beaten ? false : old.cleared,
+        bossesDefeated: beaten ? 1 : 0,
+        autoAdvance: true,
+        boss: boss ? { index: 0, hpLeft: boss.hpLeft, timeLeft: boss.timeLeft } : null,
+      },
+      stats: {
+        ...statsRest,
+        gathered: { ...stats.gathered, iron: 0 },
+        bossTimes: [bossDefeatedAt ?? null, null, null, null, null, null, null, null],
+      },
+      unlocks,
+    };
+  },
 };
 
 export function serialize(state: GameState): string {

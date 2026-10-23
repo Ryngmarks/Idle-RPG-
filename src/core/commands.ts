@@ -1,12 +1,13 @@
 // Player actions. Every state change made by the player goes through dispatch().
 // See docs/ARCHITECTURE.md §6.
 
-import { autoEquipAll, equipBest, unequipAll } from './equipment';
+import { autoEquipAll, equipBest, masteryKey, masteryLevel, unequipAll } from './equipment';
 import { canAfford, gain, hasUnlock, moveSoldiers, openTroopSlot, pay } from './mutations';
 import { evaluateObjectives } from './objectives';
 import { cloneState } from './state';
-import { availableSites, computeRates, enemy, feastActive, freeBeds, race, soldierCount, zone } from './stats';
+import { availableSites, computeRates, feastActive, freeBeds, nextBoss, race, soldierCount, zone } from './stats';
 import type { ActivityKind, Content, Cost, GameEvent, GameState } from './types';
+
 
 export type Command =
   /** `siteId` picks the work site for woodcutting, mining or food (default: the troop's or the first one). */
@@ -26,6 +27,8 @@ export type Command =
   | { type: 'startFeast' }
   | { type: 'challengeBoss' }
   | { type: 'selectStage'; stageIndex: number }
+  /** Turn auto-advance (move up to the next level after a clear when it is safe) on or off. */
+  | { type: 'setAutoAdvance'; on: boolean }
   | { type: 'renameTroop'; troopId: string; name: string };
 
 export type CommandResult =
@@ -39,6 +42,14 @@ export function trainCost(state: GameState, content: Content): { food: number; s
   const p = race(state, content).population;
   const c = content.constants;
   const n = soldierCount(state) + (state.training ? 1 : 0);
+  if (n > c.lateFrom) {
+    // Gentler tail after soldier 8 (docs/PROGRESSION_V2.md §19.5): continues from the cost at `lateFrom`.
+    const k = n - c.lateFrom;
+    return {
+      food: Math.round(p.trainFood * Math.pow(c.trainFoodGrowth, c.lateFrom - 2) * Math.pow(c.trainFoodGrowthLate, k)),
+      sec: Math.round(p.trainSec * Math.pow(c.trainTimeGrowth, c.lateFrom - 2) * Math.pow(c.trainTimeGrowthLate, k)),
+    };
+  }
   return {
     food: Math.round(p.trainFood * Math.pow(c.trainFoodGrowth, n - 2)),
     sec: Math.round(p.trainSec * Math.pow(c.trainTimeGrowth, n - 2)),
@@ -73,15 +84,24 @@ export function maxCraftable(state: GameState, recipeId: string, content: Conten
   return Number.isFinite(n) ? n : 0;
 }
 
-/** A recipe can be crafted once crafting is unlocked and its tier is open (only T1 for now). */
-export function recipeAvailable(state: GameState, recipeId: string, content: Content): boolean {
+/**
+ * Why a recipe can't be queued, or null if it can: another race's weapon ('type'), forge or tier not open
+ * ('locked'), or the same weapon type's mastery one tier below is too low ('mastery').
+ */
+export function recipeBlocker(state: GameState, recipeId: string, content: Content): 'type' | 'locked' | 'mastery' | null {
   const recipe = content.equipment.recipes[recipeId];
-  return (
-    !!recipe &&
-    recipe.weaponTypeId === race(state, content).weaponTypeId &&
-    hasUnlock(state, 'crafting') &&
-    hasUnlock(state, `tier:${recipe.tier}`)
-  );
+  if (!recipe || recipe.weaponTypeId !== race(state, content).weaponTypeId) return 'type';
+  if (!hasUnlock(state, 'crafting') || !hasUnlock(state, `tier:${recipe.tier}`)) return 'locked';
+  if (recipe.requiresMastery) {
+    const have = masteryLevel(state.crafting.crafted[masteryKey(recipe.weaponTypeId, recipe.tier - 1)] ?? 0, content);
+    if (have < recipe.requiresMastery.level) return 'mastery';
+  }
+  return null;
+}
+
+/** A recipe can be crafted once crafting and its tier are unlocked and the mastery gate (if any) is met. */
+export function recipeAvailable(state: GameState, recipeId: string, content: Content): boolean {
+  return recipeBlocker(state, recipeId, content) === null;
 }
 
 /** Why the Feast can't start right now, or null if it can. */
@@ -187,6 +207,7 @@ export function dispatch(input: GameState, cmd: Command, content: Content): Comm
       const level = (state.buildings[def.id] ?? 0) + 1;
       const levelDef = def.levels[level - 1];
       if (!levelDef) return fail('Building is at max level');
+      if (levelDef.requires && !hasUnlock(state, levelDef.requires)) return fail('Building level is locked');
       if (!canAfford(state, levelDef.cost)) return fail('Not enough resources');
       pay(state, levelDef.cost);
       state.construction = { buildingId: def.id, level, progress: 0 };
@@ -217,9 +238,10 @@ export function dispatch(input: GameState, cmd: Command, content: Content): Comm
       const c = state.combat;
       if (!hasUnlock(state, 'boss')) return fail('Boss is locked');
       if (c.boss) return fail('Boss fight already in progress');
-      if (c.bossDefeated) return fail('Boss already defeated');
-      const b = enemy(zone(state, content).boss.enemyId, content);
-      c.boss = { hpLeft: b.hp, timeLeft: zone(state, content).boss.timeLimitSec };
+      const nb = nextBoss(state, content);
+      if (!nb) return fail('Boss already defeated');
+      if (!c.cleared) return fail('The boss level is not cleared yet');
+      c.boss = { index: nb.index, hpLeft: nb.enemy.hp, timeLeft: nb.timeLimitSec };
       for (const t of state.troops) if (t.activity === 'combat') t.engagedSize = t.size;
       break;
     }
@@ -230,6 +252,9 @@ export function dispatch(input: GameState, cmd: Command, content: Content): Comm
       c.stageIndex = cmd.stageIndex;
       break;
     }
+    case 'setAutoAdvance':
+      state.combat.autoAdvance = cmd.on;
+      break;
     case 'renameTroop': {
       const troop = state.troops.find((t) => t.id === cmd.troopId);
       if (!troop) return fail('Unknown troop');

@@ -3,12 +3,12 @@
 
 export type ActivityKind = 'combat' | 'mining' | 'woodcutting' | 'food' | 'construction' | 'smithing';
 export type LabourActivity = Exclude<ActivityKind, 'combat'>;
-export type ResourceId = 'food' | 'wood' | 'stone' | 'ore';
+export type ResourceId = 'food' | 'wood' | 'stone' | 'ore' | 'iron';
 export type Resources = Record<ResourceId, number>;
 export type Cost = Partial<Resources>;
 
 export const ACTIVITIES: readonly ActivityKind[] = ['combat', 'mining', 'woodcutting', 'food', 'construction', 'smithing'];
-export const RESOURCES: readonly ResourceId[] = ['food', 'wood', 'stone', 'ore'];
+export const RESOURCES: readonly ResourceId[] = ['food', 'wood', 'stone', 'ore', 'iron'];
 
 /** Weapon quality, worst to best. See docs/EQUIPMENT_AND_CRAFTING.md. */
 export type QualityId = 'normal' | 'good' | 'outstanding' | 'excellent' | 'masterpiece';
@@ -120,8 +120,12 @@ export interface ZoneDef {
   name: string;
   /** Work sites in this zone, in the order a troop picks them by default. */
   sites: string[];
+  /** One stage per level (stage index = level - 1). */
   stages: { enemyId: string; killsToClear: number }[];
-  boss: { enemyId: string; timeLimitSec: number };
+  /** Bosses in order; boss i stands at `level` (1-based, a multiple of 5) and opens the levels after it. */
+  bosses: { level: number; enemyId: string; timeLimitSec: number }[];
+  /** Names for groups of levels, for the level picker (1-based, inclusive). */
+  bands?: { name: string; fromLevel: number; toLevel: number }[];
 }
 
 export type Unlock = string; // 'activity:mining', 'tab:upgrades', 'upgrade:x', 'building:x', 'recruit', 'gear:1', 'boss', ...
@@ -136,6 +140,8 @@ export type Effect =
   | { kind: 'troopSlot' };
 
 export interface BuildingLevelDef {
+  /** An unlock needed before this level can be started (e.g. 'level:tents:4'); none = open once the building is. */
+  requires?: Unlock;
   cost: Cost;
   work: number;
   effects: Effect[];
@@ -182,6 +188,8 @@ export interface RecipeDef {
   materials: Cost;
   /** Forge work needed per weapon. */
   workPerItem: number;
+  /** Mastery level needed in the same weapon type at the tier below (T2 needs T1 mastery 2). */
+  requiresMastery?: { level: number };
 }
 
 export interface EquipmentContent {
@@ -213,7 +221,14 @@ export type ObjectiveCondition =
   | { kind: 'soldiersAtLeast'; count: number }
   | { kind: 'stageReached'; stage: number }
   | { kind: 'zoneCleared' }
-  | { kind: 'bossDefeated' }
+  /** Boss number `index` (1-based, default 1) has fallen. */
+  | { kind: 'bossDefeated'; index?: number }
+  /** The highest level the troops have reached (1-based) is at least `level`. */
+  | { kind: 'levelReached'; level: number }
+  /** At least one weapon of this tier has been crafted. */
+  | { kind: 'tierCrafted'; tier: number }
+  /** Some weapon type has this mastery level or more at tier 1. */
+  | { kind: 'masteryReached'; level: number }
   | { kind: 'weaponsEquipped'; amount: number }
   | { kind: 'weaponsCrafted'; amount: number };
 
@@ -229,6 +244,8 @@ export interface ObjectiveDef {
     soldiers?: number;
     /** Extra troop group slots. */
     troopSlots?: number;
+    /** The biggest troop gains this many levels (an officer joins). */
+    troopLevelSteps?: number;
   };
 }
 
@@ -245,6 +262,10 @@ export interface Content {
     /** Each further trained soldier costs this many times more food / training time. */
     trainFoodGrowth: number;
     trainTimeGrowth: number;
+    /** From the army size `lateFrom` on, the cost grows by these gentler factors instead (docs/PROGRESSION_V2.md §19.5). */
+    lateFrom: number;
+    trainFoodGrowthLate: number;
+    trainTimeGrowthLate: number;
     /** Builders per construction project and smiths per forge before buildings add more. */
     crews: { construction: number; smithing: number };
     /** XP a troop gets per finished work cycle; construction and smithing count `workMoment` work as one cycle. */
@@ -306,6 +327,8 @@ export interface TroopState {
 }
 
 export interface BossFight {
+  /** 0-based index into the zone's `bosses`. */
+  index: number;
   hpLeft: number;
   timeLeft: number;
 }
@@ -333,8 +356,12 @@ export interface GameState {
     /** Highest stage the player has reached; kills there count towards clearing it. */
     unlockedStage: number;
     kills: number;
+    /** The boss level is cleared and the next boss is ready (or all bosses have fallen). */
     cleared: boolean;
-    bossDefeated: boolean;
+    /** Bosses defeated in this zone (0 … zone.bosses.length). */
+    bossesDefeated: number;
+    /** Move the troops up to the next level after a clear, if it is safe. */
+    autoAdvance: boolean;
     boss: BossFight | null;
   };
   /** Spare weapons, by item key `${weaponTypeId}:t${tier}:${quality}`. */
@@ -360,8 +387,8 @@ export interface GameState {
     /** Finished weapons per quality (counted from save v6; older weapons are only in the total). */
     weaponsByQuality: Record<QualityId, number>;
     soldiersLost: number;
-    /** Game clock when the zone boss fell, or null. */
-    bossDefeatedAt: number | null;
+    /** Game clock when boss i fell, or null; one entry per boss of the zone. */
+    bossTimes: (number | null)[];
   };
 }
 
@@ -373,12 +400,16 @@ export type GameEvent =
   | { type: 'recruitTrained'; at: number; troopId: string }
   | { type: 'soldiersJoined'; at: number; troopId: string; count: number }
   | { type: 'troopLevelUp'; at: number; troopId: string; level: number }
-  | { type: 'bossDefeated'; at: number; zoneId: string }
-  | { type: 'bossFailed'; at: number; zoneId: string }
+  /** `index` is 0-based. */
+  | { type: 'bossDefeated'; at: number; zoneId: string; index: number }
+  /** Timer ran out or the fighting troops lost half their HP; nobody dies. The troops go back one level. */
+  | { type: 'bossFailed'; at: number; zoneId: string; index: number; reason: 'time' | 'wounds' }
+  /** The boss level is cleared: the next boss can be challenged. */
+  | { type: 'bossReady'; at: number; zoneId: string; index: number }
   | { type: 'soldierLost'; at: number; troopId: string }
   | { type: 'troopRetreated'; at: number; troopId: string; reason: 'losses' | 'offlineSafety' }
-  | { type: 'stageChanged'; at: number; stage: number; reason: 'offlineSafety' }
-  | { type: 'bossAbandoned'; at: number; zoneId: string }
+  | { type: 'stageChanged'; at: number; stage: number; reason: 'offlineSafety' | 'autoAdvance' }
+  | { type: 'bossAbandoned'; at: number; zoneId: string; index: number }
   | { type: 'weaponCrafted'; at: number; recipeId: string; quality: QualityId }
   | { type: 'craftOrderCompleted'; at: number; recipeId: string }
   | { type: 'levelStep'; at: number; troopId: string; level: 5 | 10 }

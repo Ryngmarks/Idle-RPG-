@@ -45,6 +45,18 @@ export function currentEnemy(state: GameState, content: Content): EnemyDef {
   return enemy(stage.enemyId, content);
 }
 
+/** The boss the troops would fight next (bosses are fought in order), or null when the zone has none left. */
+export function nextBoss(state: GameState, content: Content): { index: number; level: number; timeLimitSec: number; enemy: EnemyDef } | null {
+  const z = zone(state, content);
+  const def = z.bosses[state.combat.bossesDefeated];
+  return def ? { index: state.combat.bossesDefeated, level: def.level, timeLimitSec: def.timeLimitSec, enemy: enemy(def.enemyId, content) } : null;
+}
+
+/** During a boss fight a troop's wounds stop short of a lost soldier: bosses are not lethal (docs/PROGRESSION_V2.md §19.2). */
+export const BOSS_WOUND_CAP = 0.99;
+/** The fight is lost when the fighting troops' wounds reach this share of their max HP. */
+export const BOSS_RETREAT_SHARE = 0.5;
+
 /** Modifiers from race, completed buildings and bought upgrades. */
 export function globalModifiers(state: GameState, content: Content): Modifier[] {
   const mods: Modifier[] = [...race(state, content).modifiers];
@@ -238,7 +250,7 @@ export interface Rates {
 }
 
 export function emptyResources(): Resources {
-  return { food: 0, wood: 0, stone: 0, ore: 0 };
+  return { food: 0, wood: 0, stone: 0, ore: 0, iron: 0 };
 }
 
 export function computeRates(state: GameState, content: Content): Rates {
@@ -303,7 +315,8 @@ function computeBase(state: GameState, content: Content, hungerWork: number, hun
   const workMult = hungerWork * feastWork;
   const attackMult = hungerAttack * feastAttack;
   const foe = currentEnemy(state, content);
-  const boss = state.combat.boss ? enemy(zone(state, content).boss.enemyId, content) : null;
+  const bossDef = state.combat.boss ? zone(state, content).bosses[state.combat.boss.index] : undefined;
+  const boss = bossDef ? enemy(bossDef.enemyId, content) : null;
   const fighting = state.troops.filter((t) => t.activity === 'combat');
   const fightingSize = fighting.reduce((sum, t) => sum + t.size, 0);
   const incomingTotal = fightingSize > 0 ? (boss ?? foe).attack : 0;
@@ -369,7 +382,8 @@ function computeBase(state: GameState, content: Content, hungerWork: number, hun
     // Damage is shared by the fighting troops in proportion to their size; everyone heals.
     const incoming = t.activity === 'combat' && fightingSize > 0 ? (incomingTotal * t.size) / fightingSize : 0;
     const net = incoming - s.healPerSec;
-    rates.woundsPerSec[t.id] = net < 0 && t.wounds <= 0 ? 0 : net;
+    const capped = net > 0 && state.combat.boss && t.wounds >= s.hp * BOSS_WOUND_CAP - 1e-9;
+    rates.woundsPerSec[t.id] = (net < 0 && t.wounds <= 0) || capped ? 0 : net;
   }
 
   // Combat loot and XP (farming only; boss rewards are milestones, not loot).
@@ -420,7 +434,8 @@ export function stageSafety(
   troopIds: string[] = state.troops.filter((t) => t.activity === 'combat').map((t) => t.id),
 ): StageSafety {
   const z = zone(state, content);
-  const foe = target === 'boss' ? enemy(z.boss.enemyId, content) : enemy(z.stages[Math.min(target.stageIndex, z.stages.length - 1)]!.enemyId, content);
+  const bossDef = z.bosses[Math.min(state.combat.bossesDefeated, z.bosses.length - 1)];
+  const foe = target === 'boss' ? enemy(bossDef!.enemyId, content) : enemy(z.stages[Math.min(target.stageIndex, z.stages.length - 1)]!.enemyId, content);
   const mods = globalModifiers(state, content);
   const troops = state.troops.filter((t) => troopIds.includes(t.id));
   const total = troops.reduce((sum, t) => sum + t.size, 0);
@@ -439,18 +454,58 @@ export function stageSafety(
   return { risk, netDamagePerSec: groupNet, secondsToFirstLoss: firstLoss };
 }
 
-/** Convenience used by the UI/simulator: would the current combat troops beat the boss? */
-export function estimatedBossDamage(state: GameState, content: Content, troopIds?: string[]): { damage: number; hp: number } {
-  const z = zone(state, content);
-  const b = enemy(z.boss.enemyId, content);
+export interface BossEstimate {
+  /** 0-based index of the boss that would be fought (the next one); -1 when every boss has fallen. */
+  index: number;
+  hp: number;
+  timeLimitSec: number;
+  /** Damage per second the chosen troops deal to the boss, and the dps needed to kill it within the time limit. */
+  dps: number;
+  neededDps: number;
+  /** dps x time limit, to compare with `hp`. */
+  damage: number;
+  /** Seconds until the fighting troops have lost half their HP (Infinity when they out-heal the boss). */
+  secondsToRetreat: number;
+  /** The boss falls before both the timer and the retreat point (hunger and the Feast are included). */
+  canWin: boolean;
+}
+
+/**
+ * Convenience used by the UI/simulator: would the given troops (default: the combat troops) beat the next boss?
+ * Includes the current hunger and Feast multipliers on attack.
+ */
+export function estimatedBossDamage(state: GameState, content: Content, troopIds?: string[]): BossEstimate {
+  const nb = nextBoss(state, content);
+  if (!nb) return { index: -1, hp: 0, timeLimitSec: 0, dps: 0, neededDps: 0, damage: 0, secondsToRetreat: Infinity, canWin: false };
+  const b = nb.enemy;
   const mods = globalModifiers(state, content);
+  const rates = computeRates(state, content);
+  const attackMult = rates.attackMult * rates.feastAttackMult;
   let dps = 0;
+  let maxHp = 0;
+  let wounds = 0;
+  let heal = 0;
   for (const t of state.troops) {
     if (troopIds ? !troopIds.includes(t.id) : t.activity !== 'combat') continue;
     const s = troopStats(state, t, content, mods);
     for (const g of weaponGroups(t, content)) {
-      dps += g.count * content.constants.attacksPerSecond * damagePerHit(s.attack * g.power, b.armour, s.armourPen);
+      dps += g.count * content.constants.attacksPerSecond * damagePerHit(s.attack * g.power * attackMult, b.armour, s.armourPen);
     }
+    maxHp += s.maxHp;
+    wounds += t.wounds;
+    heal += s.healPerSec;
   }
-  return { damage: dps * z.boss.timeLimitSec, hp: b.hp };
+  const net = maxHp > 0 ? b.attack - heal : 0;
+  const secondsToRetreat = net > 0 ? Math.max(0, (BOSS_RETREAT_SHARE * maxHp - wounds) / net) : Infinity;
+  const timeToKill = dps > 0 ? b.hp / dps : Infinity;
+  return {
+    index: nb.index,
+    hp: b.hp,
+    timeLimitSec: nb.timeLimitSec,
+    dps,
+    neededDps: b.hp / nb.timeLimitSec,
+    damage: dps * nb.timeLimitSec,
+    secondsToRetreat,
+    canWin: timeToKill <= nb.timeLimitSec && timeToKill < secondsToRetreat,
+  };
 }

@@ -486,7 +486,7 @@ Implemented as specified, with these tunings and owner decisions (see [Balance L
 
 ---
 
-## 17. M11 food upkeep spec (proposal, awaiting the owner's approval)
+## 17. M11 food upkeep spec (✅ approved by the owner 2026-10-23, D-55)
 
 Status: **proposal**. Not decided, not built. Owner decisions it builds on: path A (soldiers eat; no food means slower, never dead), D-35 / D-36 (no losses, online or offline), D-13 (Humans better at food), D-50 (soldier targets), D-54 (food floor 4 % until upkeep). Out of scope: feasts and rations (surplus sink), new regions. **Every number marked (guess) is a starting point for QA to tune with `npm run sim`.**
 
@@ -561,3 +561,5 @@ The extra food time is taken mostly from mining and wood, so the boss slips by 1
 1. **Strength of hunger:** work -40 % and attack -25 % at zero income (guess). Milder (-30 % / -15 %) or stronger?
 2. **Allowance and race rates:** first soldier free, Humans 0.5, Orcs 0.6 food per soldier per minute. Fine, or should Orcs eat the same as Humans?
 3. **Offline:** hunger applies offline the same as online (recommended, simple), or should offline be milder (for example never below x0.8)?
+
+**Owner decisions (2026-10-23):** hunger strength work ×0.6 / attack ×0.75 at zero coverage; the first soldier eats for free, Humans 0.5 and Orcs 0.6 food per soldier per minute; offline uses the same rule as online (offline must equal online). Feasts/rations come later.

@@ -1,4 +1,4 @@
-// Race data. Numbers follow docs/TROOP_MODEL.md and docs/FIRST_15_MINUTES.md (tuning starting points).
+// Race data. Numbers follow docs/PROGRESSION_V2.md (tuning starting points from the prototype).
 
 import type { RaceDef } from '../core/types';
 
@@ -7,14 +7,14 @@ export const races: Record<string, RaceDef> = {
     id: 'humans',
     name: 'Människor',
     playable: true,
-    population: { maxTroopSize: 500, startSize: 1, newTroopSize: 1, foodPerSoldier: 5, recruitScaleSize: 5 },
+    population: { maxTroopSize: 500, startSize: 1, startBeds: 2, bedMult: 1, trainFood: 40, trainSec: 90 },
     soldier: {
       attack: 1,
       work: 1,
       armourPen: 0,
       hp: 10,
       regen: 0.2,
-      skills: { mining: 1, woodcutting: 1, food: 1.5, construction: 1.2, smithing: 1 },
+      skills: { mining: 1, woodcutting: 1, food: 1.4, construction: 1.2, smithing: 1 },
     },
     modifiers: [],
     traits: ['adaptable'],
@@ -25,14 +25,14 @@ export const races: Record<string, RaceDef> = {
     id: 'orcs',
     name: 'Orcher',
     playable: true,
-    population: { maxTroopSize: 1000, startSize: 1, newTroopSize: 2, foodPerSoldier: 1.25, recruitScaleSize: 10 },
+    population: { maxTroopSize: 1000, startSize: 1, startBeds: 3, bedMult: 2, trainFood: 30, trainSec: 70 },
     soldier: {
-      attack: 0.5,
+      attack: 0.75,
       work: 1,
       armourPen: 0,
-      hp: 6,
+      hp: 8,
       regen: 0.15,
-      skills: { mining: 0.3, woodcutting: 0.7, food: 0.3, construction: 0.4, smithing: 0.4 },
+      skills: { mining: 1, woodcutting: 1.3, food: 0.8, construction: 0.9, smithing: 0.7 },
     },
     modifiers: [],
     traits: ['horde', 'raiders'],
@@ -43,7 +43,7 @@ export const races: Record<string, RaceDef> = {
     id: 'dwarves',
     name: 'Dvärgar',
     playable: false,
-    population: { maxTroopSize: 200, startSize: 1, newTroopSize: 1, foodPerSoldier: 15, recruitScaleSize: 2 },
+    population: { maxTroopSize: 200, startSize: 1, startBeds: 2, bedMult: 1, trainFood: 40, trainSec: 150 },
     soldier: {
       attack: 2.5,
       work: 1,
@@ -61,7 +61,7 @@ export const races: Record<string, RaceDef> = {
     id: 'elves',
     name: 'Alver',
     playable: false,
-    population: { maxTroopSize: 150, startSize: 1, newTroopSize: 1, foodPerSoldier: 19, recruitScaleSize: 2 },
+    population: { maxTroopSize: 150, startSize: 1, startBeds: 2, bedMult: 1, trainFood: 45, trainSec: 150 },
     soldier: {
       attack: 2.6,
       work: 1,

@@ -24,9 +24,9 @@ describe('GameStore', () => {
     const store = new GameStore({ storage, now: c.now });
     store.startNewGame('humans');
     expect(store.command({ type: 'assignTroop', troopId: 'troop1', activity: 'woodcutting' })).toBeNull();
-    c.advance(20);
+    c.advance(30);
     store.tick();
-    expect(store.getSnapshot().state!.resources.wood).toBeCloseTo(2); // 1 soldier × 0.1/s × 20 s
+    expect(store.getSnapshot().state!.resources.wood).toBe(5); // one tree felled in 30 s
     expect(storage.data.size).toBe(1);
   });
 
@@ -42,9 +42,9 @@ describe('GameStore', () => {
     const second = new GameStore({ storage, now: c.now });
     const snap = second.getSnapshot();
     expect(snap.state!.troops[0]!.activity).toBe('woodcutting');
-    expect(snap.state!.resources.wood).toBeCloseTo(60);
+    expect(snap.state!.resources.wood).toBe(100); // 20 trees
     expect(snap.report?.awaySec).toBeCloseTo(600);
-    expect(snap.report?.resources.wood).toBeCloseTo(60);
+    expect(snap.report?.resources.wood).toBe(100);
   });
 
   it('caps offline progress', () => {
@@ -68,7 +68,7 @@ describe('GameStore', () => {
     c.advance(300);
     store.tick();
     expect(store.getSnapshot().report?.awaySec).toBeCloseTo(300);
-    expect(store.getSnapshot().state!.resources.wood).toBeCloseTo(30);
+    expect(store.getSnapshot().state!.resources.wood).toBe(50);
   });
 
   it('reports command errors from the core', () => {

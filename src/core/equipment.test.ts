@@ -103,14 +103,15 @@ describe('crafting', () => {
     expect(s.stats.weaponsCrafted).toBe(5);
   });
 
-  it('smithing speed grows with troop size and follows the race skill', () => {
+  it('one smith per anvil works; speed follows the race skill', () => {
     const rate = (size: number, raceId: string) => {
       const s = run(withForge(size, raceId), { type: 'queueCraft', recipeId: raceId === 'orcs' ? 'cleaver_t1' : 'sword_t1', count: 1 });
       return computeRates(s, content).craftWorkPerSec;
     };
-    expect(rate(20, 'humans')).toBeCloseTo(2 * rate(10, 'humans'));
-    expect(rate(10, 'humans')).toBeCloseTo(10 * 1 * content.races.humans!.soldier.skills.smithing * content.constants.smithRate);
-    expect(rate(10, 'orcs')).toBeLessThan(rate(10, 'humans')); // Orcs are cruder smiths per soldier
+    const anvils = content.constants.crews.smithing;
+    expect(rate(10, 'humans')).toBeCloseTo(rate(anvils, 'humans'));
+    expect(rate(1, 'humans')).toBeCloseTo(content.races.humans!.soldier.skills.smithing * content.constants.smithRate);
+    expect(rate(1, 'orcs')).toBeLessThan(rate(1, 'humans')); // Orcs are cruder smiths per soldier
   });
 
   it('smiths without an order produce no work', () => {
@@ -259,13 +260,16 @@ describe('auto-equip', () => {
     expect(r.armoury).toEqual({ [itemKey('sword', 1, 'normal')]: 1 });
   });
 
-  it('new recruits are armed from the armoury at once', () => {
+  it('a newly trained recruit is armed from the armoury at once', () => {
     const s = auto(withForge(5));
     s.unlocks.push('recruit');
+    s.buildings.trainingCamp = 1;
+    s.buildings.tents = 3;
     s.resources.food = 1000;
     s.armoury = { [itemKey('sword', 1, 'normal')]: 10 };
-    const r = run(s, { type: 'recruit', troopId: 'troop1', count: 3 });
-    expect(equippedCount(troop(r))).toBe(8);
+    const r = advance(run(s, { type: 'trainRecruit', troopId: 'troop1' }), 3600, content).state;
+    expect(troop(r).size).toBe(6);
+    expect(equippedCount(troop(r))).toBe(6);
   });
 
   it('the fighting troop chooses first', () => {
@@ -343,13 +347,13 @@ describe('combat uses the actual equipment', () => {
   });
 
   it('casualties in the simulation keep Σ equipped ≤ size', () => {
-    const s = withForge(8);
-    troop(s).equipment = [{ tier: 1, quality: 'good', count: 8 }];
+    const s = withForge(4);
+    troop(s).equipment = [{ tier: 1, quality: 'good', count: 4 }];
     s.combat.unlockedStage = 4;
     s.combat.stageIndex = 4;
     troop(s).activity = 'combat';
     const r = advance(s, 600, content).state;
-    expect(troop(r).size).toBeLessThan(8);
+    expect(troop(r).size).toBeLessThan(4);
     expect(equippedCount(troop(r))).toBeLessThanOrEqual(troop(r).size);
   });
 

@@ -28,7 +28,7 @@ const TABS: { id: Tab; label: string; icon: string; unlock?: string }[] = [
 
 function ResourceBar({ state, rates }: { state: GameState; rates: Rates }) {
   const shown = RESOURCES.filter(
-    (r) => r === 'wood' || state.resources[r] > 0 || state.stats.gathered[r] > 0 || rates.resources[r] > 0,
+    (r) => r === 'wood' || state.resources[r] > 0 || state.stats.gathered[r] > 0 || rates.income[r] > 0,
   );
   return (
     <div className="resources" aria-label="Resurser">
@@ -36,7 +36,7 @@ function ResourceBar({ state, rates }: { state: GameState; rates: Rates }) {
         <div key={r} className="resource">
           <span className="resource__icon" aria-hidden>{RESOURCE_LABEL[r].icon}</span>
           <span className="resource__amount">{fmtAmount(state.resources[r])}</span>
-          <span className="resource__rate">{rates.resources[r] > 0 ? `+${fmtRate(rates.resources[r])}/s` : ''}</span>
+          <span className="resource__rate">{rates.income[r] > 0 ? `+${fmtRate(rates.income[r] * 60)}/min` : ''}</span>
           <span className="sr-only">{RESOURCE_LABEL[r].name}</span>
         </div>
       ))}

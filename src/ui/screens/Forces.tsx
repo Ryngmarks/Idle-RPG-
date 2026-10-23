@@ -3,10 +3,12 @@ import { content } from '../../content';
 import {
   ACTIVITIES,
   activeObjectives,
-  canAfford,
-  currentCap,
-  maxRecruitable,
-  recruitCost,
+  availableSites,
+  beds,
+  capacity,
+  soldierCount,
+  trainBlocker,
+  trainCost,
   troopStats,
   xpForLevel,
   type ActivityKind,
@@ -58,12 +60,29 @@ function outputText(troop: TroopState, rates: Rates, state: GameState): string {
       return state.construction ? `+${fmtRate(t.work)} arbete/s` : 'Inget bygge pågår';
     case 'smithing':
       return state.crafting.queue.length > 0 ? `+${fmtRate(t.work)} smidesarbete/s` : 'Ingen beställning i smedjan';
-    default:
-      return Object.entries(t.output)
+    default: {
+      const per = Object.entries(t.output)
         .filter(([, v]) => (v ?? 0) > 0)
-        .map(([r, v]) => `+${fmtRate(v ?? 0)} ${RESOURCE_LABEL[r as ResourceId].name.toLowerCase()}/s`)
+        .map(([r, v]) => `+${fmtRate((v ?? 0) * 60)} ${RESOURCE_LABEL[r as ResourceId].name.toLowerCase()}/min`)
         .join(' · ');
+      return t.working < troop.size ? `${per} · ${t.working} av ${troop.size} arbetar, platsen är full` : per;
+    }
   }
+}
+
+/** The current work cycle at a site: a felled tree, a broken block… */
+function CycleBar({ troop, state, rates }: { troop: TroopState; state: GameState; rates: Rates }) {
+  const site = troop.siteId ? content.sites[troop.siteId] : undefined;
+  const cycles = site ? (rates.siteCycles[site.id] ?? 0) : 0;
+  if (!site || cycles <= 0) return null;
+  const reward = Object.entries(site.yield).map(([r, v]) => `${RESOURCE_LABEL[r as ResourceId].icon} ${v}`).join(' ');
+  const left = (1 - (state.siteProgress[site.id] ?? 0)) / cycles;
+  return (
+    <div className="cycle">
+      <span className="small">{site.name} · nästa {reward} om {fmtDuration(left)}</span>
+      <Bar value={state.siteProgress[site.id] ?? 0} max={1} tone="gold" label={`${site.name}: arbetscykel`} />
+    </div>
+  );
 }
 
 function LifeStatus({ troop, rates, hpPerSoldier }: { troop: TroopState; rates: Rates; hpPerSoldier: number }) {
@@ -83,14 +102,17 @@ function TroopCard({ troop, state, rates }: { troop: TroopState; state: GameStat
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(troop.name);
   const stats = troopStats(state, troop, content);
-  const cap = currentCap(state, content);
   const c = content.constants;
   const lvlFrom = xpForLevel(stats.level, c.xpBase, c.xpExponent);
   const lvlTo = xpForLevel(stats.level + 1, c.xpBase, c.xpExponent);
   const unlocked = ACTIVITIES.filter((a) => state.unlocks.includes(`activity:${a}`));
   const canRecruit = state.unlocks.includes('recruit');
-  const room = cap - troop.size;
-  const maxN = maxRecruitable(state, troop.id, content);
+  const blocker = trainBlocker(state, content);
+  const cost = trainCost(state, content);
+  const trainingHere = state.training?.troopId === troop.id ? state.training : null;
+  const sites = troop.activity ? availableSites(state, content, troop.activity) : [];
+  const others = state.troops.filter((t) => t.id !== troop.id);
+  const openSlot = state.troops.length < state.troopSlots;
   const inArmoury = Object.entries(state.armoury)
     .filter(([k]) => k.startsWith(`${troop.weaponTypeId}:`))
     .reduce((n, [, v]) => n + v, 0);
@@ -98,7 +120,7 @@ function TroopCard({ troop, state, rates }: { troop: TroopState; state: GameStat
 
   const run = (fn: () => string | null) => setError(fn());
   const assign = (activity: ActivityKind) => run(() => store.command({ type: 'assignTroop', troopId: troop.id, activity }));
-  const recruit = (n: number) => run(() => store.command({ type: 'recruit', troopId: troop.id, count: n }));
+  const move = (to: string | null) => run(() => store.command({ type: 'transferSoldiers', fromTroopId: troop.id, toTroopId: to, count: 1 }));
 
   return (
     <article className="troop">
@@ -126,9 +148,8 @@ function TroopCard({ troop, state, rates }: { troop: TroopState; state: GameStat
 
       <div className="troop__size">
         <span className="troop__count">
-          <strong>{troop.size}</strong> / {cap} soldater
+          <strong>{troop.size}</strong> {troop.size === 1 ? 'soldat' : 'soldater'}
         </span>
-        <Bar value={troop.size} max={cap} tone="steel" label="Soldater" />
       </div>
       <Bar value={troop.xp - lvlFrom} max={lvlTo - lvlFrom} tone="xp" label="Erfarenhet" />
       <div className="troop__life">
@@ -146,6 +167,7 @@ function TroopCard({ troop, state, rates }: { troop: TroopState; state: GameStat
         </div>
       </dl>
       <p className="troop__output">{outputText(troop, rates, state)}</p>
+      <CycleBar troop={troop} state={state} rates={rates} />
 
       <div className="activity-picker" role="group" aria-label="Välj aktivitet">
         {unlocked.map((a) => (
@@ -161,26 +183,50 @@ function TroopCard({ troop, state, rates }: { troop: TroopState; state: GameStat
         ))}
       </div>
 
+      {sites.length > 1 && (
+        <div className="site-picker" role="group" aria-label="Välj arbetsplats">
+          {sites.map((site) => (
+            <button
+              key={site.id}
+              className={`btn btn--small ${troop.siteId === site.id ? 'btn--on' : ''}`}
+              aria-pressed={troop.siteId === site.id}
+              onClick={() => run(() => store.command({ type: 'assignTroop', troopId: troop.id, activity: troop.activity, siteId: site.id }))}
+            >
+              {site.name} · {Object.entries(site.yield).map(([r, v]) => `${RESOURCE_LABEL[r as ResourceId].icon}${v}`).join(' ')} · {capacity(state, content, site.id)} {capacity(state, content, site.id) === 1 ? 'plats' : 'platser'}
+            </button>
+          ))}
+        </div>
+      )}
+
       {canRecruit && (
         <div className="recruit">
-          <span className="recruit__label">Rekrytera</span>
-          {room <= 0 ? (
-            <span className="muted">Truppen är full. Bygg för att höja gränsen.</span>
+          <span className="recruit__label">Rekryter</span>
+          {trainingHere ? (
+            <>
+              <span className="small">⏳ En rekryt utbildas för {troop.name}: klar om {fmtDuration(trainingHere.secLeft)}</span>
+              <Bar value={trainingHere.totalSec - trainingHere.secLeft} max={trainingHere.totalSec} tone="xp" label="Utbildning" />
+            </>
           ) : (
             <div className="recruit__buttons">
-              {[1, 10].filter((n) => n <= room).map((n) => {
-                const cost = recruitCost(state, troop.id, n, content);
-                return (
-                  <button key={n} className="btn btn--small" disabled={!canAfford(state, cost)} onClick={() => recruit(n)}>
-                    +{n} <CostList cost={cost} state={state} />
-                  </button>
-                );
-              })}
-              <button className="btn btn--small" disabled={maxN <= 0} onClick={() => recruit(maxN)}>
-                Max{maxN > 0 ? ` (+${maxN})` : ''}
+              <button className="btn btn--small" disabled={blocker !== null} onClick={() => run(() => store.command({ type: 'trainRecruit', troopId: troop.id }))}>
+                Utbilda rekryt <CostList cost={{ food: cost.food }} state={state} /> · {fmtDuration(cost.sec)}
               </button>
+              {blocker === 'noBed' && <span className="muted small">Ingen ledig säng. Bygg tält.</span>}
+              {blocker === 'busy' && <span className="muted small">Lägret utbildar redan en rekryt.</span>}
             </div>
           )}
+        </div>
+      )}
+
+      {(others.length > 0 || openSlot) && troop.size > 1 && (
+        <div className="recruit">
+          <span className="recruit__label">Flytta en soldat</span>
+          <div className="recruit__buttons">
+            {others.map((o) => (
+              <button key={o.id} className="btn btn--small btn--ghost" onClick={() => move(o.id)}>→ {o.name}</button>
+            ))}
+            {openSlot && <button className="btn btn--small" onClick={() => move(null)}>→ Ny grupp</button>}
+          </div>
         </div>
       )}
 
@@ -221,7 +267,10 @@ export function Forces({ state, rates }: { state: GameState; rates: Rates }) {
   return (
     <div className="screen">
       <Objectives state={state} />
-      <Panel title={state.troops.length > 1 ? 'Dina styrkor' : 'Din trupp'}>
+      <Panel
+        title={state.troops.length > 1 ? 'Dina styrkor' : 'Din trupp'}
+        aside={<span className="badge" title="Soldater / sängar i lägret">🛏 {soldierCount(state)} / {beds(state, content)}</span>}
+      >
         <div className="troop-list">
           {state.troops.map((t) => <TroopCard key={t.id} troop={t} state={state} rates={rates} />)}
         </div>

@@ -4,7 +4,7 @@
 
 import { autoEquipAll, itemKey, masteryKey, masteryLevel, pickQuality, qualityChances, trimEquipment } from './equipment';
 import { xpForLevel } from './formulas';
-import { applyEffects } from './mutations';
+import { addSoldiers, applyEffects } from './mutations';
 import { evaluateObjectives } from './objectives';
 import { cloneState } from './state';
 import { computeRates, globalModifiers, stageSafety, troopLevel, troopStats, zone, type Rates } from './stats';
@@ -56,6 +56,8 @@ function pendingEvents(state: GameState, rates: Rates, content: Content): Pendin
     out.push({ t: (work - state.crafting.progress) / rates.craftWorkPerSec, snap: (s) => (s.crafting.progress = work) });
   }
 
+  if (state.training) out.push({ t: state.training.secLeft, snap: (s) => s.training && (s.training.secLeft = 0) });
+
   if (state.construction && rates.constructionWorkPerSec > 0) {
     const proj = state.construction;
     const work = content.buildings[proj.buildingId]?.levels[proj.level - 1]?.work ?? 0;
@@ -81,11 +83,23 @@ function pendingEvents(state: GameState, rates: Rates, content: Content): Pendin
   return out;
 }
 
-function integrate(state: GameState, rates: Rates, dt: number): void {
-  for (const r of RESOURCES) {
-    state.resources[r] += rates.resources[r] * dt;
-    state.stats.gathered[r] += rates.gathered[r] * dt;
+function integrate(state: GameState, rates: Rates, dt: number, content: Content): void {
+  for (const r of RESOURCES) state.resources[r] += rates.resources[r] * dt;
+  // Work cycles: progress is kept per site and every whole cycle pays its reward at once.
+  // The remainder carries over, so many small steps and one big step pay the same.
+  for (const [siteId, cycles] of Object.entries(rates.siteCycles)) {
+    const site = content.sites[siteId];
+    if (!site || cycles <= 0) continue;
+    const progress = (state.siteProgress[siteId] ?? 0) + cycles * dt;
+    const done = Math.floor(progress + 1e-9);
+    state.siteProgress[siteId] = Math.max(0, progress - done);
+    if (done <= 0) continue;
+    for (const [r, v] of Object.entries(site.yield) as [keyof typeof state.resources, number][]) {
+      state.resources[r] += v * done;
+      state.stats.gathered[r] += v * done;
+    }
   }
+  if (state.training) state.training.secLeft -= dt;
   const c = state.combat;
   if (c.boss) {
     c.boss.hpLeft -= rates.bossDps * dt;
@@ -156,6 +170,14 @@ function processEvents(state: GameState, content: Content, levelsBefore: Map<str
     }
   }
 
+  if (state.training && state.training.secLeft <= EPS) {
+    const troop = addSoldiers(state, content, 1, events, state.training.troopId);
+    state.training = null;
+    state.stats.recruited += 1;
+    events.push({ type: 'recruitTrained', at: state.clock, troopId: troop.id });
+    autoEquipAll(state, content);
+  }
+
   const proj = state.construction;
   if (proj) {
     const def = content.buildings[proj.buildingId];
@@ -222,7 +244,7 @@ export function advance(input: GameState, dt: number, content: Content): Advance
     for (const p of pending) step = Math.min(step, Math.max(0, p.t));
 
     const levelsBefore = new Map(state.troops.map((t) => [t.id, troopLevel(t, content)]));
-    integrate(state, rates, step);
+    integrate(state, rates, step, content);
     for (const p of pending) if (p.t <= step + 1e-12) p.snap(state);
     remaining -= step;
 

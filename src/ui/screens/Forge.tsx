@@ -13,7 +13,6 @@ import {
   race,
   recipeAvailable,
   smithingWork,
-  troopStats,
   weaponPower,
   type GameEvent,
   type GameState,
@@ -34,7 +33,8 @@ export function Forge({ state, rates, log }: { state: GameState; rates: Rates; l
   const available = recipeAvailable(state, recipe.id, content);
   // Smiths work only while there is an order, so the speed shown is what the assigned troops give.
   const smiths = state.troops.filter((t) => t.activity === 'smithing');
-  const speed = smiths.reduce((n, t) => n + smithingWork(troopStats(state, t, content), content), 0);
+  // With an order the core's rate is exact; without one, show what the best smith would manage at the anvil.
+  const speed = rates.craftWorkPerSec > 0 ? rates.craftWorkPerSec : Math.max(0, ...smiths.map((t) => smithingWork(state, t, content)));
   const secPerItem = speed > 0 ? recipe.workPerItem / speed : Infinity;
   const mk = masteryKey(weaponTypeId, 1);
   const crafted = state.crafting.crafted[mk] ?? 0;

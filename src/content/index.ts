@@ -1,6 +1,6 @@
 import type { Content } from '../core/types';
 import { races } from './races';
-import { buildings, enemies, equipment, objectives, upgrades, zones } from './world';
+import { buildings, enemies, equipment, objectives, sites, upgrades, zones } from './world';
 
 export const content: Content = {
   races,
@@ -10,15 +10,17 @@ export const content: Content = {
   upgrades,
   equipment,
   objectives,
+  sites,
   constants: {
-    recruitExponent: 1.2,
-    capLevelFractions: [0.04, 0.08, 0.15, 0.3, 0.5, 0.75, 1],
-    gatherRate: 0.1,
+    trainFoodGrowth: 1.5,
+    trainTimeGrowth: 1.35,
+    crews: { construction: 3, smithing: 1 },
+    workXp: 2,
+    workMoment: 30,
     attacksPerSecond: 1,
-    smithRate: 0.3,
-    miningOreShare: 0.25,
-    xpBase: 30,
-    xpExponent: 1.8,
+    smithRate: 1,
+    xpBase: 25,
+    xpExponent: 1.7,
     levelBonus: 0.1,
     startZoneId: 'farmsteads',
     startUnlocks: ['activity:woodcutting'],

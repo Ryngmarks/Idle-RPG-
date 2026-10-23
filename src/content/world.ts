@@ -1,64 +1,77 @@
 // Start-area content for prototype P0 "The Farmstead Camp".
 // See docs/ROADMAP.md §2 and docs/FIRST_15_MINUTES.md. Player-facing text is Swedish for now.
 
-import type { BuildingDef, EnemyDef, EquipmentContent, ObjectiveDef, UpgradeDef, ZoneDef } from '../core/types';
+import type { BuildingDef, EnemyDef, EquipmentContent, ObjectiveDef, UpgradeDef, WorkSiteDef, ZoneDef } from '../core/types';
 
+// Combat is tuned for a handful of soldiers (docs/PROGRESSION_V2.md §8.3).
 export const enemies: Record<string, EnemyDef> = {
-  wildChicken: { id: 'wildChicken', name: 'Vild kyckling', hp: 15, armour: 0, attack: 0.12, xp: 2, loot: { food: 1 } },
-  angryRooster: { id: 'angryRooster', name: 'Arg tupp', hp: 30, armour: 0, attack: 0.5, xp: 3, loot: { food: 1.5 } },
-  ratSwarm: { id: 'ratSwarm', name: 'Råttsvärm', hp: 1, armour: 0, attack: 1.5, xp: 0.05, loot: { food: 0.01 } },
-  wildBoar: { id: 'wildBoar', name: 'Vildsvin', hp: 150, armour: 2, attack: 4, xp: 10, loot: { food: 3, ore: 2 } },
-  oldBoar: { id: 'oldBoar', name: 'Gammal galt', hp: 300, armour: 3, attack: 7, xp: 15, loot: { food: 4, ore: 3 } },
-  oldTusker: { id: 'oldTusker', name: 'Gamle Betarn', hp: 7000, armour: 3, attack: 12, xp: 0, loot: {} },
+  wildChicken: { id: 'wildChicken', name: 'Vild kyckling', hp: 12, armour: 0, attack: 0.12, xp: 3, loot: { food: 1 } },
+  angryRooster: { id: 'angryRooster', name: 'Arg tupp', hp: 25, armour: 0, attack: 0.4, xp: 5, loot: { food: 1 } },
+  fox: { id: 'fox', name: 'Räv', hp: 45, armour: 1, attack: 0.7, xp: 8, loot: { food: 1.5 } },
+  wildBoar: { id: 'wildBoar', name: 'Vildsvin', hp: 80, armour: 2, attack: 0.9, xp: 12, loot: { food: 2, ore: 1 } },
+  oldBoar: { id: 'oldBoar', name: 'Gammal galt', hp: 130, armour: 3, attack: 1.1, xp: 18, loot: { food: 3, ore: 2 } },
+  oldTusker: { id: 'oldTusker', name: 'Gamle Betarn', hp: 500, armour: 3, attack: 1.2, xp: 0, loot: {} },
 };
 
 export const zones: Record<string, ZoneDef> = {
   farmsteads: {
     id: 'farmsteads',
     name: 'Gårdarna',
+    sites: ['birchGrove', 'oldQuarry', 'oreVein', 'berryThickets', 'fields'],
     stages: [
-      { enemyId: 'wildChicken', killsToClear: 15 },
-      { enemyId: 'angryRooster', killsToClear: 25 },
-      { enemyId: 'ratSwarm', killsToClear: 1500 },
-      { enemyId: 'wildBoar', killsToClear: 30 },
-      { enemyId: 'oldBoar', killsToClear: 40 },
+      { enemyId: 'wildChicken', killsToClear: 12 },
+      { enemyId: 'angryRooster', killsToClear: 12 },
+      { enemyId: 'fox', killsToClear: 12 },
+      { enemyId: 'wildBoar', killsToClear: 12 },
+      { enemyId: 'oldBoar', killsToClear: 12 },
     ],
-    boss: { enemyId: 'oldTusker', timeLimitSec: 60 },
+    boss: { enemyId: 'oldTusker', timeLimitSec: 90 },
   },
 };
 
+/** Work sites: one cycle per working soldier every cycleSec / (work × skill); `capacity` soldiers at once. */
+export const sites: Record<string, WorkSiteDef> = {
+  birchGrove: { id: 'birchGrove', name: 'Björkdungen', activity: 'woodcutting', capacity: 3, cycleSec: 30, yield: { wood: 5 } },
+  oldQuarry: { id: 'oldQuarry', name: 'Gamla stenbrottet', activity: 'mining', capacity: 2, cycleSec: 40, yield: { stone: 4 } },
+  oreVein: { id: 'oreVein', name: 'Malmådern', activity: 'mining', capacity: 1, cycleSec: 60, yield: { ore: 2 } },
+  berryThickets: { id: 'berryThickets', name: 'Bärsnåren', activity: 'food', capacity: 2, cycleSec: 20, yield: { food: 2 } },
+  fields: { id: 'fields', name: 'Åkrarna', activity: 'food', capacity: 3, cycleSec: 60, yield: { food: 9 }, unlock: 'site:fields' },
+};
+
+// Construction work: one soldier with work 1 and skill 1 does 1 work per second (a 30 s work moment = 30).
 export const buildings: Record<string, BuildingDef> = {
+  tents: {
+    id: 'tents',
+    name: 'Tält',
+    levels: [
+      { cost: { wood: 25, stone: 10 }, work: 60, effects: [{ kind: 'beds', amount: 1 }] },
+      { cost: { wood: 45, stone: 25 }, work: 90, effects: [{ kind: 'beds', amount: 1 }] },
+      { cost: { wood: 80, stone: 50 }, work: 120, effects: [{ kind: 'beds', amount: 1 }] },
+    ],
+  },
   trainingCamp: {
     id: 'trainingCamp',
     name: 'Träningsläger',
-    levels: [{ cost: { wood: 40, stone: 20, food: 20 }, work: 400, effects: [{ kind: 'capLevel', level: 1 }, { kind: 'troopSlot' }] }],
-  },
-  barracks: {
-    id: 'barracks',
-    name: 'Baracker',
     levels: [
-      { cost: { wood: 120, stone: 80, food: 40 }, work: 1500, effects: [{ kind: 'capLevel', level: 2 }] },
-      { cost: { wood: 400, stone: 300, food: 100 }, work: 5000, effects: [{ kind: 'capLevel', level: 3 }] },
+      {
+        cost: { wood: 40, stone: 25, food: 20 },
+        work: 180,
+        effects: [{ kind: 'beds', amount: 1 }, { kind: 'troopSlot' }, { kind: 'unlock', unlock: 'recruit' }],
+      },
     ],
   },
   farm: {
     id: 'farm',
     name: 'Gård',
-    levels: [
-      {
-        cost: { wood: 80, stone: 30, food: 20 },
-        work: 800,
-        effects: [{ kind: 'modifier', modifier: { stat: 'skill.food', op: 'mult', value: 0.5, source: 'building:farm' } }],
-      },
-    ],
+    levels: [{ cost: { wood: 60, stone: 30 }, work: 180, effects: [{ kind: 'unlock', unlock: 'site:fields' }] }],
   },
   forge: {
     id: 'forge',
     name: 'Smedja',
     levels: [
       {
-        cost: { wood: 80, stone: 80, ore: 10 },
-        work: 3000,
+        cost: { wood: 50, stone: 50, ore: 6 },
+        work: 240,
         effects: [
           { kind: 'unlock', unlock: 'crafting' },
           { kind: 'unlock', unlock: 'tier:1' },
@@ -66,6 +79,14 @@ export const buildings: Record<string, BuildingDef> = {
           { kind: 'unlock', unlock: 'activity:smithing' },
         ],
       },
+    ],
+  },
+  barracks: {
+    id: 'barracks',
+    name: 'Baracker',
+    levels: [
+      { cost: { wood: 120, stone: 80, food: 40 }, work: 600, effects: [{ kind: 'beds', amount: 3 }] },
+      { cost: { wood: 400, stone: 300, food: 100 }, work: 1500, effects: [{ kind: 'beds', amount: 5 }] },
     ],
   },
 };
@@ -86,8 +107,8 @@ export const upgrades: Record<string, UpgradeDef> = {
   stonePicks: {
     id: 'stonePicks',
     name: 'Stenhackor',
-    cost: { wood: 40, stone: 20 },
-    modifiers: [{ stat: 'skill.mining', op: 'mult', value: 0.5, source: 'upgrade:stonePicks' }],
+    cost: { wood: 30, stone: 15 },
+    modifiers: [{ stat: 'skill.mining', op: 'mult', value: 0.33, source: 'upgrade:stonePicks' }],
   },
   fieldKitchens: {
     id: 'fieldKitchens',
@@ -123,10 +144,10 @@ export const equipment: EquipmentContent = {
     { id: 'masterpiece', name: 'Mästerverk', powerMult: POWER_STEP },
   ],
   recipes: {
-    sword_t1: { id: 'sword_t1', weaponTypeId: 'sword', tier: 1, materials: { ore: 2 }, workPerItem: 15 },
-    cleaver_t1: { id: 'cleaver_t1', weaponTypeId: 'cleaver', tier: 1, materials: { ore: 2 }, workPerItem: 15 },
-    axe_t1: { id: 'axe_t1', weaponTypeId: 'axe', tier: 1, materials: { ore: 2 }, workPerItem: 15 },
-    bow_t1: { id: 'bow_t1', weaponTypeId: 'bow', tier: 1, materials: { wood: 3 }, workPerItem: 15 },
+    sword_t1: { id: 'sword_t1', weaponTypeId: 'sword', tier: 1, materials: { ore: 2 }, workPerItem: 60 },
+    cleaver_t1: { id: 'cleaver_t1', weaponTypeId: 'cleaver', tier: 1, materials: { ore: 2 }, workPerItem: 60 },
+    axe_t1: { id: 'axe_t1', weaponTypeId: 'axe', tier: 1, materials: { ore: 2 }, workPerItem: 60 },
+    bow_t1: { id: 'bow_t1', weaponTypeId: 'bow', tier: 1, materials: { wood: 3 }, workPerItem: 60 },
   },
   unarmedMult: 1,
   chancesAtMin: [0.85, 0.13, 0.02, 0, 0],
@@ -138,14 +159,14 @@ export const equipment: EquipmentContent = {
 export const objectives: ObjectiveDef[] = [
   {
     id: 'sendWood',
-    text: 'Din soldat väntar på order. Skicka den för att samla ved.',
+    text: 'Din soldat väntar på order. Skicka den för att hugga ved.',
     requires: [],
     condition: { kind: 'troopAssigned', activity: 'woodcutting' },
     rewards: {},
   },
   {
     id: 'wood30',
-    text: 'Samla 15 ved.',
+    text: 'Fäll träd: samla 15 ved.',
     requires: ['sendWood'],
     condition: { kind: 'totalGathered', resource: 'wood', amount: 15 },
     rewards: { unlocks: ['tab:upgrades', 'upgrade:sharpenedAxes'] },
@@ -162,44 +183,59 @@ export const objectives: ObjectiveDef[] = [
     text: 'Kycklingar har setts vid den gamla gården. Besegra 3.',
     requires: ['wood60'],
     condition: { kind: 'kills', amount: 3 },
-    rewards: { unlocks: ['recruit', 'activity:food', 'upgrade:drillPractice'] },
+    rewards: { unlocks: ['activity:food', 'upgrade:drillPractice'] },
   },
   {
-    id: 'recruit1',
-    text: 'Rekrytera en soldat.',
+    id: 'rescue',
+    text: 'Någon ropar på hjälp från hönsgården. Rensa steg 1.',
     requires: ['kill5'],
-    condition: { kind: 'recruited', amount: 1 },
+    condition: { kind: 'stageReached', stage: 2 },
     rewards: {
-      unlocks: ['activity:mining', 'activity:construction', 'tab:settlement', 'building:trainingCamp'],
+      soldiers: 1,
+      unlocks: ['activity:mining', 'activity:construction', 'tab:settlement', 'building:tents'],
     },
   },
   {
     id: 'stone20',
-    text: 'Bryt 20 sten.',
-    requires: ['recruit1'],
+    text: 'Bryt 20 sten i stenbrottet.',
+    requires: ['rescue'],
     condition: { kind: 'totalGathered', resource: 'stone', amount: 20 },
-    rewards: { unlocks: ['upgrade:stonePicks'] },
+    rewards: { unlocks: ['upgrade:stonePicks', 'building:trainingCamp'] },
   },
   {
     id: 'food10',
-    text: 'Producera mat på fälten.',
+    text: 'Plocka bär: samla 10 mat.',
     requires: ['kill5'],
     condition: { kind: 'totalGathered', resource: 'food', amount: 10 },
     rewards: { unlocks: ['upgrade:fieldKitchens'] },
   },
   {
+    id: 'tent1',
+    text: 'Res ett tält: en säng till.',
+    requires: ['rescue'],
+    condition: { kind: 'buildingLevel', buildingId: 'tents', level: 1 },
+    rewards: {},
+  },
+  {
     id: 'trainingCamp',
     text: 'Bygg ett träningsläger.',
-    requires: ['recruit1'],
+    requires: ['stone20'],
     condition: { kind: 'buildingLevel', buildingId: 'trainingCamp', level: 1 },
     rewards: {},
   },
   {
     id: 'twoTroops',
-    text: 'Ge din nya trupp order.',
+    text: 'Två grupper: ge båda order.',
     requires: ['trainingCamp'],
     condition: { kind: 'troopsAssigned', count: 2 },
-    rewards: { unlocks: ['building:barracks', 'building:farm', 'upgrade:carpentry'] },
+    rewards: { unlocks: ['building:farm', 'upgrade:carpentry'] },
+  },
+  {
+    id: 'train1',
+    text: 'Utbilda en rekryt på träningslägret.',
+    requires: ['trainingCamp'],
+    condition: { kind: 'recruited', amount: 1 },
+    rewards: {},
   },
   {
     id: 'stage3',
@@ -209,23 +245,23 @@ export const objectives: ObjectiveDef[] = [
     rewards: { resources: { food: 20 } },
   },
   {
-    id: 'size15',
-    text: 'Låt en trupp växa till 15 soldater.',
-    requires: ['twoTroops'],
-    condition: { kind: 'troopSizeAtLeast', size: 15 },
+    id: 'soldiers5',
+    text: 'Väx till fem soldater.',
+    requires: ['train1'],
+    condition: { kind: 'soldiersAtLeast', count: 5 },
     rewards: { resources: { wood: 30 } },
   },
   {
-    id: 'barracks1',
-    text: 'Bygg baracker.',
+    id: 'farm',
+    text: 'Bygg en gård och odla åkrarna.',
     requires: ['twoTroops'],
-    condition: { kind: 'buildingLevel', buildingId: 'barracks', level: 1 },
+    condition: { kind: 'buildingLevel', buildingId: 'farm', level: 1 },
     rewards: { unlocks: ['building:forge'] },
   },
   {
     id: 'forge',
     text: 'Bygg en smedja.',
-    requires: ['barracks1'],
+    requires: ['farm'],
     condition: { kind: 'buildingLevel', buildingId: 'forge', level: 1 },
     rewards: {},
   },
@@ -252,9 +288,9 @@ export const objectives: ObjectiveDef[] = [
   },
   {
     id: 'boss',
-    text: 'Besegra Gamle Betarn.',
+    text: 'Besegra Gamle Betarn och befria hans fångar.',
     requires: ['zoneCleared'],
     condition: { kind: 'bossDefeated' },
-    rewards: { unlocks: ['region:2'] },
+    rewards: { troopSlots: 1, soldiers: 2, unlocks: ['region:2', 'building:barracks'] },
   },
 ];

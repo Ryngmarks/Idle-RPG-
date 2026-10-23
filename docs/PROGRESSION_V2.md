@@ -797,7 +797,7 @@ A wall exists when the next level is not `safe` (stageSafety) or when the boss e
 
 ### 19.5 Economy growth
 
-Principle: **extend what exists with formula levels, add almost nothing new.** New content in total: **1 new building (Drill ground), 2 new upgrades, 2 new work sites** (the sites are boss rewards, not buildings; if the owner wants a strict three, drop Ekskogen and give the woodshed two more levels instead).
+Principle: **extend what exists with formula levels, add almost nothing new.** New content in total: **1 new building (Drill ground), 2 new upgrades, 2 new work sites** (Ekskogen and Järngruvan; the sites are boss rewards, not buildings), plus the T2 recipes and one new resource, iron.
 
 *Repeatable building levels* (`repeatLevels(base, n, growth)` in content, so no hand-written tables):
 
@@ -806,15 +806,15 @@ Principle: **extend what exists with formula levels, add almost nothing new.** N
 | Tält | 4-8 | +1 bed (x race bed multiplier) | wood `80 x 1.35^(n-3)`, stone `50 x 1.35^(n-3)`, work `120 x 1.25^(n-3)` | Tent 4 after boss 1 |
 | Baracker | 3-5 | +5 beds | x2.0 per level from level 2 (400/300/100 food, work 1,500) | III boss 5, IV/V by cost only |
 | Gård | 3-6 | +1 field slot | wood `70 x 1.4^(n-2)`, stone `40 x 1.4^(n-2)`, work `300 x 1.3^(n-2)` | After boss 1 |
-| Smedja | 3-5 | +1 anvil | wood 150 / stone 100 / ore `10 x 1.6^(n-2)` | Boss 4 |
+| Smedja | 3-5 | +1 anvil | wood 150 / stone 100 / ore `10 x 1.6^(n-2)` | III boss 4 (also opens T2), IV/V by cost only |
 | Vedskjul | 2-4 | +1 slot in Björkdungen | wood `50 x 1.5^(n-1)`, stone `20 x 1.5^(n-1)` | After woodshed 1 |
 
-Humans beds: 14 today + 5 (tents) + 15 (barracks III-V) = **34**, enough for 31 soldiers. Extra work sites: **Ekskogen** (woodcutting, capacity 4, 8 wood per 40 s, boss 2) and **Djupa brottet** (mining, capacity 3, 5 stone per 40 s, boss 3). They fix the stone/wood bottleneck of the barracks.
+Humans beds: 14 today + 5 (tents) + 15 (barracks III-V) = **34**, enough for 31 soldiers. Extra work sites: **Ekskogen** (woodcutting, capacity 4, 8 wood per 40 s, boss 2) and **Järngruvan** (mining, boss 3; replaces and merges "Djupa brottet"): **capacity 2, cycle 90 s, yield 2 iron + 6 stone** per cycle (guess), i.e. about 160 iron/h and 480 stone/h with both workers. Iron is the new raw material `iron` (T2 only); the stone covers the barracks bottleneck Djupa brottet was meant for, at the price of 2 soldiers leaving other jobs.
 
 *New building:* **Övningsplan (Drill ground)**, 5 levels, each `modifier attack mult +0.08` (level 5 = +40 %; assumes modifiers of the same stat add, QA to verify), wood `150 x 1.5^(n-1)`, stone `100 x 1.5^(n-1)`, food `60 x 1.5^(n-1)`, work `400 x 1.3^(n-1)`. Unlocked by boss 1.
 *New upgrades:* **Exercis II** (attack +0.25, food 120 + wood 120, unlocked by boss 2) and **Fältkök II** (food skill +0.3, wood 200 + food 150, unlocked by Farm III).
 
-*Recruit curve (needs owner approval, §19.10).* Keep today's `1.5^(n-2)` / `1.35^(n-2)` up to n = 8 and use a gentler tail: food `456 x 1.12^(n-8)`, time `546 s x 1.06^(n-8)` (soldier 16 about 1,400 food and 15 min; soldier 29 about 4,900 food and 30 min; whole tail about 40,000 food and 6 h of training; guess). Implement as `trainFoodGrowthLate` and `trainTimeGrowthLate` after `lateFrom: 8` in constants.
+*Recruit curve (approved, D-59).* Keep today's `1.5^(n-2)` / `1.35^(n-2)` up to n = 8 and use a gentler tail: food `456 x 1.12^(n-8)`, time `546 s x 1.06^(n-8)` (soldier 16 about 1,400 food and 15 min; soldier 29 about 4,900 food and 30 min; whole tail about 40,000 food and 6 h of training; guess). Implement as `trainFoodGrowthLate` and `trainTimeGrowthLate` after `lateFrom: 8` in constants.
 
 *Troop slots:* 3 (boss 1, today), 4 (boss 3, level 15), 5 (boss 6, level 30). Slots 4-5 give the player "one group per job".
 
@@ -822,37 +822,45 @@ Humans beds: 14 today + 5 (tents) + 15 (barracks III-V) = **34**, enough for 31 
 
 | id | Type | requires | Condition | Reward (guess) | Time |
 |---|---|---|---|---|---|
-| `barracks1` | G | boss | Barracks level 1 | food 50 | 0:55 |
-| `drill1` | G | boss | Drill ground level 1 | wood 60 | 1:15 |
-| `lvl8` | O | boss | reach level 8 | food 60 | 1:30 |
-| `soldiers10` | G | boss | 10 soldiers | wood 80 | 2:10 |
-| `boss2` | G | `lvl10` | beat boss 2 | see §19.2 | 2:30 |
-| `tents5` | G | boss2 | Tent level 5 | stone 60 | 3:00 |
-| `farm4` | O | boss2 | Farm level 4 | food 100 | 3:40 |
-| `kills300` | O | boss2 | 300 kills | ore 15 | 4:10 |
-| `boss3` | G | `lvl15` | beat boss 3 | | 5:00 |
-| `weapons60` | G | boss3 | 60 weapons crafted | ore 20 | 5:50 |
-| `soldiers14` | G | boss3 | 14 soldiers | food 150 | 6:40 |
-| `barracks3` | G | boss3 | Barracks level 3 | wood 150 | 7:30 |
-| `boss4` | G | `lvl20` | beat boss 4 | | 8:30 |
-| `forge4` | G | boss4 | Forge level 4 | ore 30 | 10:00 |
-| `mastery3` | O | boss4 | mastery step 3 (180 weapons) | food 200 | 11:00 |
-| `drill3` | G | boss4 | Drill ground level 3 | stone 150 | 11:45 |
-| `boss5` | G | `lvl25` | beat boss 5 | | 13:00 |
-| `farm6` | G | boss5 | Farm level 6 | food 250 | 14:30 |
-| `kills700` | O | boss5 | 700 kills | ore 40 | 16:00 |
-| `soldiers22` | G | boss5 | 22 soldiers | wood 200 | 17:10 |
-| `boss6` | G | `lvl30` | beat boss 6 | | 18:30 |
-| `barracks5` | G | boss6 | Barracks level 5 | food 300 | 21:00 |
-| `drill5` | G | boss6 | Drill ground level 5 | stone 300 | 23:00 |
-| `boss7` | G | `lvl35` | beat boss 7 | | 25:00 |
-| `weapons500` | O | boss7 | 500 weapons crafted | ore 80 | 28:00 |
-| `soldiers28` | G | boss7 | 28 soldiers | food 500 | 29:30 |
-| `boss8` | G | `lvl40` | beat boss 8, "Öppna bron" | region 2 | 32:00 |
+| `barracks1` | G | boss | Barracks level 1 | food 50 | 0:48 |
+| `drill1` | G | boss | Drill ground level 1 | wood 60 | 0:58 |
+| `lvl8` | O | boss | reach level 8 | food 60 | 1:06 |
+| `soldiers10` | G | boss | 10 soldiers | wood 80 | 1:26 |
+| `boss2` | G | `lvl10` | beat boss 2 | see §19.2 | 1:36 |
+| `tents5` | G | boss2 | Tent level 5 | stone 60 | 1:48 |
+| `farm4` | O | boss2 | Farm level 4 | food 100 | 2:04 |
+| `iron1` | G | boss3 | first iron mined (Järngruvan) | ore 20 | 2:45 |
+| `boss3` | G | `lvl15` | beat boss 3 | | 2:36 |
+| `weapons60` | G | boss3 | 60 weapons crafted | ore 20 | 2:53 |
+| `soldiers14` | G | boss3 | 14 soldiers | food 150 | 3:09 |
+| `barracks3` | G | boss3 | Barracks level 3 | wood 150 | 3:26 |
+| `boss4` | G | `lvl20` | beat boss 4 | | 3:46 |
+| `t2first` | G | boss4 | craft the first T2 weapon | iron 20 | 4:15 |
+| `kills300` | O | boss4 | 300 kills | ore 15 | 4:50 |
+| `forge4` | G | boss4 | Forge level 4 | ore 30 | 4:41 |
+| `mastery3` | O | boss4 | mastery step 3 (180 weapons of one T1 type) | food 200 | 5:18 |
+| `drill3` | G | boss4 | Drill ground level 3 | stone 150 | 5:45 |
+| `boss5` | G | `lvl25` | beat boss 5 | | 6:31 |
+| `farm6` | G | boss5 | Farm level 6 | food 250 | 7:53 |
+| `soldiers22` | G | boss5 | 22 soldiers | wood 200 | 10:18 |
+| `kills500` | O | boss5 | 500 kills | ore 40 | 11:00 |
+| `boss6` | G | `lvl30` | beat boss 6 | | 11:31 |
+| `barracks5` | G | boss6 | Barracks level 5 | food 300 | 14:36 |
+| `drill5` | G | boss6 | Drill ground level 5 | stone 300 | 17:23 |
+| `boss7` | G | `lvl35` | beat boss 7 | | 19:31 |
+| `weapons400` | O | boss7 | 400 weapons crafted | ore 80 | 21:00 |
+| `soldiers28` | G | boss7 | 28 soldiers | food 500 | 27:13 |
+| `boss8` | G | `lvl40` | beat boss 8, "Öppna bron" | region 2 | 31:30 |
+
+(Times are the check-in bot's, rescaled from the first draft to the §19.3 curve; `iron1` and `t2first` are new, rows are not strictly time-sorted where a goal follows its boss. QA re-times after the first sim pass.)
 
 Boss objectives need `{ kind: 'bossDefeated', index }` (index optional, default 1) and a `levelReached` condition (or reuse `stageReached`, 1-based). `boss` (id kept) is boss 1.
 
-**T2 weapons: recommendation is to wait for zone 2.** Reasons: D-29/D-39 make T2 a real milestone, D-30 gates it on region progress and tiered materials (a T2 recipe needs iron/refined material from a zone-2 site), and zone 1's power already grows through soldiers (6 -> 31), troop levels, quality and mastery (about x1.2 from quality, x25 from all sources combined, see risks). Zone 1 only **shows** the T2 blueprint after boss 7 as a goal ("kräver järn från Älvdalen") so the player sees the horizon. This keeps T1 as the whole of zone 1 and zone 2's first hour as a clear upgrade moment.
+**T2 weapons arrive at boss 20 (owner decision, D-59).** T1 fills levels 1-20 (the quick, learning part); T2 is the long-term backbone of levels 21-40. Rules:
+- **Iron** comes from Järngruvan (boss 15, see above); there is **no refining step** (refining moves to T3 in zone 2, §19.9).
+- **Boss 20 (Mossfrun)** unlocks Forge III and the unlock `tier:2`. A T2 recipe is craftable per weapon type once that type's **T1 mastery is level 2**. Mastery is per weapon type and tier (`masteryKey(type, tier)`, `masteryLevel` in `core/equipment.ts`): level 2 = `2² x itemsPerMasteryStep (20)` = **80 crafted T1 weapons of that type** (level 1 = 6). By boss 20 about 120 weapons are crafted in total, so one or two types qualify first and the player chooses which T2 weapon comes first; the others follow as their mastery grows.
+- **Recipes (guess)**, workPerItem 120 (T1 is 60): `sword_t2`, `cleaver_t2`, `axe_t2` = **6 iron + 3 ore**; `bow_t2` = **4 iron + 4 wood**. Power is x1.35 over T1 as in the data (`POWER_STEP`, `tiers`). A T2 weapon takes twice the smith work of a T1 and about 2.2-2.5 min of Järngruvan output (both workers), so T2 is slower and dearer than T1 without blocking the player; about 25-30 T2 weapons by boss 40 need about 150-180 iron (about 1-1.5 h of the site).
+- Zone 1 power budget with T2: about x1.30 average from T2 at boss 40 (85 % of armed soldiers x1.35).
 
 ### 19.6 Offline
 
@@ -861,22 +869,24 @@ Everything is deterministic: `advance` is event-driven and bosses are plain dps-
 - **Offline progress:** kills still count only at the highest level; auto-advance clears levels up to the next boss gate when they are `safe`, then the troops keep farming that level (xp, loot, and the other groups keep working). The boss is **never started offline** (D-36 stays), so an 8 h absence ends at "boss ready" at worst, with resources banked.
 - **Unsafe level:** if the level the troops stood on is not safe for the army at leave time (for example the player moved a soldier out), `secureForOffline` walks down to the highest safe level (up to 40 checks) and farms it; no clearing progress, but xp and loot. No safe level means retreat to camp, as today.
 - **Failure and farm-back:** both happen online only. After a failure the troops sit on level L-1 and, if the player leaves, that level is already safe, so offline farming continues from there.
-- **Offline cap (R-16, open question).** Today `OFFLINE_CAP_SEC` is 8 h. With one 8 h night per day the cap is just enough; a 10 h absence loses 2 h (about 5 % of a day). **Recommendation:** keep 8 h in M13, show the "capped, you were away 10 h, 8 h counted" notice, and measure with the `checkin` bot with a 9-10 h blackout before deciding on 12 h. Not decided.
+- **Offline cap (decided, D-59).** `OFFLINE_CAP_SEC` stays 8 h. With one 8 h night per day the cap is just enough; a 10 h absence loses 2 h (about 5 % of a day). Show the "capped, you were away 10 h, 8 h counted" notice. Bosses are never started offline. QA may measure a 9-10 h blackout with `checkin` and report, but changing the cap needs a new decision.
 
 ### 19.7 Engine changes (for the systems agent)
 
 1. **Multiple bosses per zone.** `ZoneDef.boss` -> `bosses: { level; enemyId; timeLimitSec }[]`. Rewards stay in objectives (`boss`, `boss2` ... `boss8`).
-2. **Enemy generator in content.** `world.ts` builds `enemies` and `zones.farmsteads.stages` (40 entries) with `makeEnemy(level, band, role)` from the tables in §19.1; levels 1-5 and Betarn are hand-written overrides. Names and bands are data; no generator code in `src/core`.
+2. **Enemy generator in content.** `world.ts` builds `enemies` and `zones.farmsteads.stages` (40 entries) with `makeEnemy(level, band, role)` from the tables in §19.1 (two-stage HP growth 1.065 / 1.12, per-band kill counts); levels 1-5 and Betarn are hand-written overrides. Names and bands are data; no generator code in `src/core`.
 3. **Combat state.** `bossDefeated: boolean` -> `bossesDefeated: number` (0-8). `unlockedStage` max is `5 x (bossesDefeated + 1) - 1` (0-based). `cleared` means "the boss-level stage is cleared and the next boss is ready". `boss: BossFight | null` gains `index`. New `autoAdvance: boolean` (default true). `startBoss` uses boss `bossesDefeated + 1`; `stageSafety(..., 'boss')` and `estimatedBossDamage` use the same.
 4. **Events.** `bossDefeated`, `bossFailed`, `bossAbandoned` carry `index`. New condition kinds `bossDefeated{index}` and (if not reusing `stageReached`) `levelReached`.
 5. **Boss fight rules.** Non-lethal (§19.2): no soldier loss during a boss fight, failure on timer or on wounds >= 50 %. Hidden on normal levels: unchanged.
-6. **Buildings and constants.** `repeatLevels` helper; Drill ground, Exercis II, Fältkök II, two sites; late recruit curve constants.
+6. **Buildings and constants.** `repeatLevels` helper; Drill ground, Exercis II, Fältkök II, two sites (Ekskogen, Järngruvan with a two-resource yield: check `WorkSiteDef.yield` handles iron + stone); late recruit curve constants.
+   - **Iron and T2:** new resource key `iron` (resource types, UI resource bar, `ResourceKey` lists, starting stock 0); `unlock: 'tier:2'` granted by boss 4 through the objective; four `*_t2` recipes (§19.5); a recipe field `requiresMastery: { level: 2 }` (checked against the same weapon type's T1 mastery in `canCraft`/recipe availability, UI shows "kräver mästerskap 2 i svärd"); the sim bot learns to staff Järngruvan and craft T2 once allowed.
 7. **Save 9 -> 10** (`SAVE_VERSION` 10):
    - `combat.bossDefeated: true` -> `bossesDefeated = 1`, `unlockedStage = max(unlockedStage, 5)` (level 6), `stageIndex` kept, `kills = 0`, `cleared = false`; the unlock `region:2` is removed;
    - `bossDefeated: false` -> `bossesDefeated = 0`, `cleared` and `unlockedStage` unchanged (boss 1 ready if `cleared`);
    - `stats.bossDefeatedAt` -> `stats.bossTimes: (number | null)[]` with the old value at index 0; `boss: BossFight` in flight gets `index = 0` (it is abandoned on load anyway);
+   - **new resource key `iron`:** `resources.iron = 0` is added to every v9 save (and to any per-resource maps such as caps/stats); sites list gains Järngruvan and Ekskogen as locked; `tier:2` is not granted by migration;
    - new objectives are not marked done; `boss` stays done for beaten saves; no free soldiers (as in 16.5).
-   - Tests: a v9 save with the boss beaten loads at level 6 with the same soldiers and resources; a v9 save at "cleared, boss not beaten" can still start boss 1; a pre-boss save keeps `stageIndex`.
+   - Tests: a v9 save with the boss beaten loads at level 6 with the same soldiers and resources (plus `iron` 0); a v9 save at "cleared, boss not beaten" can still start boss 1; a pre-boss save keeps `stageIndex`.
 8. **UI.**
    - Level picker for 40 levels: horizontal strip grouped by band of 5 with the band name above; chips show cleared / current / locked and a safety colour (safe / risky / deadly) from `stageSafety`; boss levels get a shield marker; tapping a chip calls `selectStage`.
    - Boss card: name, HP, timer, needed vs actual dps, reward preview, "Utmana" button; after a failure a "Gå tillbaka till nivå N-1" button.
@@ -887,18 +897,18 @@ Everything is deterministic: `advance` is event-driven and bosses are plain dps-
 
 ### 19.8 Pacing risks (summary in §19.10)
 
-The main danger is that all five conditions must hold at once: HP growth, recruit curve, building costs, kill counts and the check-in rhythm decide the clock. Knobs for QA, in order: (1) HP growth 1.09-1.11, (2) kills per level 20-50, (3) late recruit growth 1.10-1.15, (4) building cost growth 1.25-1.45, (5) boss timers 90-180 s. Power budget (guess) at boss 40 against level 5: fighting soldiers x5, troop level x2.1, armed x1.25, drills and Drill ground about x1.8, quality x1.1, feast x1.25 for the final boss = about x25-30 against HP x32 and armour 3 -> 15 (damage per hit efficiency x0.8). That is deliberately tight at the top: the final boss needs nearly everyone fighting plus the feast.
+The main danger is that all five conditions must hold at once: HP growth, recruit curve, building costs, kill counts and the check-in rhythm decide the clock. Knobs for QA, in order: (1) HP growth 1.09-1.11, (2) kills per level 20-50, (3) late recruit growth 1.10-1.15, (4) building cost growth 1.25-1.45, (5) boss timers 90-180 s. Power budget (guess) at boss 40 against level 5: fighting soldiers x5, troop level x2.1, armed x1.25, drills and Drill ground about x1.8, quality x1.1, **T2 about x1.3**, feast x1.25 for the final boss = about x32-38 against elite HP x28 and armour 3 -> 15 (damage per hit efficiency x0.8). That is deliberately tight at the top: the final boss needs nearly everyone fighting, mostly on T2, plus the feast.
 
 ### 19.9 Zone 2 outline (levels 41-100)
 
-Zone 2 continues the same pattern (generator, boss every 5 levels, formula building levels) with a wider army and tier 2: about 4-6 more days, soldiers about 30 -> 100, groups 5 -> 7, T2 unlocked in its first quarter and T3 hinted at the end. The final boss of zone 1 gives the key to the bridge. No numbers beyond these rough targets; a separate spec follows.
+Zone 2 continues the same pattern (generator, boss every 5 levels, formula building levels) with a wider army and **tier 3 plus the refining step** (T2 is already the zone-1 standard): about 4-6 more days, soldiers about 30 -> 100, groups 5 -> 7, T3 unlocked in its first quarter (refined iron/steel from a new site) and T4 hinted at the end. The final boss of zone 1 gives the key to the bridge. No numbers beyond these rough targets; a separate spec follows.
 
 | Levels | Working name | Theme | Rough targets |
 |---|---|---|---|
-| 41-55 | Älvdalen | River lands, ferrymen, wolves, first iron seams | T2 materials, soldiers 30-50 |
-| 56-70 | Bergspassen | Cold mountain pass, ogres, rock-slides | Barracks VI+, second forge line, T2 mastery |
+| 41-55 | Älvdalen | River lands, ferrymen, wolves, deep iron seams | Refining (smelter), T3 recipes, soldiers 30-50 |
+| 56-70 | Bergspassen | Cold mountain pass, ogres, rock-slides | Barracks VI+, second forge line, T3 mastery |
 | 71-85 | Svartskogen | Dark forest, spiders, cursed hunters | Troop size 20+, armour matters |
-| 86-100 | Askslätten | Burned plain, war camps, the real enemy | Final boss, T3 hint, soldiers about 100 |
+| 86-100 | Askslätten | Burned plain, war camps, the real enemy | Final boss, T4 hint, soldiers about 100 |
 
 ### 19.10 Risks and open questions
 
@@ -909,11 +919,10 @@ Risks:
 - **Non-lethal bosses** differ from D-34/D-35 for normal levels, so the rule is boss-only.
 - **Save migration** touches `combat`, `stats`, `unlocks`; migration tests are mandatory.
 - **UI crowding**: 40 chips on a phone; grouping by band mitigates it.
-- **Scope**: the two work sites go beyond "2-3 new buildings or upgrades" unless counted as boss rewards.
+- **Scope**: the two work sites (Ekskogen, Järngruvan) go beyond "2-3 new buildings or upgrades" unless counted as boss rewards (approved).
+- **Fast start, steep middle.** Levels 6-20 at 10-15 min each followed by about 33 min/level at 21-25 can feel like a cliff; T2 at boss 20 is the cushion. If the sim shows churn, soften by raising early growth from 1.065 to 1.075 (not by shrinking late kills).
+- **T2 gates the last bosses.** A player who ignores iron or mastery hits a wall at boss 25-30; the strip must say "behöver T2-vapen: bemanna Järngruvan", and `iron1`/`t2first` guide it. Iron competes with ore and stone for the two mining workers: a real trade-off, not a block.
+- **Per-type mastery gate** can stall a player who spreads 120 weapons over four types (none reaches 80); the first-T2 hint names the closest type and its missing count.
+- **Save impact**: only a new resource key and locked sites (§19.7 item 7).
 
-Open questions for the owner (max 5), each with a recommendation:
-1. **Does "1-2 days" mean about 32 h of game time with the check-in rhythm (window 24-40 h)?** Recommendation: yes; a faster active player at about 22 h is fine.
-2. **T2 weapons: zone 1 late levels or zone 2?** Recommendation: zone 2; zone 1 only shows the blueprint after boss 7.
-3. **May the recruit curve for soldiers 9+ be gentler (food x1.12 and time x1.06 per soldier)?** Recommendation: yes; without it 20+ soldiers cannot be reached.
-4. **Offline cap: keep 8 h or move to 12 h?** Recommendation: keep 8 h with a visible "capped" notice, revisit after the sim; do not auto-start bosses offline (D-36 stays).
-5. **Are boss fights non-lethal and are the two extra work sites (Ekskogen, Djupa brottet) acceptable?** Recommendation: yes to both; they solve stone/wood limits without new buildings.
+Open questions for the owner: none blocking. QA reports after the first sim pass: the early/late HP growth pair, iron yield versus T2 recipe cost (target 1-1.5 h of site output for the whole zone), and whether the per-type mastery gate delays the first T2 weapon beyond 30 min after boss 20.

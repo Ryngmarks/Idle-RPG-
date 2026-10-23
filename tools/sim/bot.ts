@@ -58,6 +58,9 @@ const WISHLIST: Wish[] = [
 /** The bot sends a group to food when the stock lasts less than this. */
 const FOOD_BUFFER_SEC = 180;
 
+/** The feast bot feasts when food covers the feast cost (50) plus a small buffer. */
+const FEAST_BUFFER_FOOD = Number(process.env.FT ?? 10);
+
 export interface LogEntry {
   t: number;
   text: string;
@@ -214,7 +217,6 @@ function decide(
   }
 
   // 1b. Feast whenever it is ready and there is food to spare.
-  if (strategy === 'feast' && state.resources.food > 100) exec({ type: 'startFeast' });
 
   // 2. Buy the next wish when affordable.
   const wish = WISHLIST.find((w) => !wishDone(w, state) && wishUnlocked(w, state) && !(w.kind === 'building' && state.construction));
@@ -233,6 +235,14 @@ function decide(
     refresh();
   } else if (blocker === null || blocker === 'food') {
     goal.food = (goal.food ?? 0) + trainFood;
+  }
+
+  // 3b. Feast: the balanced bot never does; the feast bot does it as soon as the cost plus a small buffer is in stock.
+  if (strategy === 'feast') {
+    const cost = content.constants.feast.cost;
+    if (state.resources.food >= (cost.food ?? 0) + FEAST_BUFFER_FOOD && state.resources.wood >= (cost.wood ?? 0)) {
+      if (exec({ type: 'startFeast' })) refresh();
+    }
   }
 
   // 4. Forge: weapons for unarmed soldiers only (racing to the boss, not grinding quality).
@@ -267,6 +277,7 @@ function decide(
     return site ? (site.yield[r] ?? 0) / site.cycleSec : 0;
   };
   missing.sort((a, b) => b.gap / Math.max(1e-6, perSec(b.r)) - a.gap / Math.max(1e-6, perSec(a.r)));
+  if (process.env.FF && blocker === 'food' && state.troops.length >= 2) missing.sort((a, b) => (b.r === 'food' ? 1 : 0) - (a.r === 'food' ? 1 : 0));
   type Job = { activity: ActivityKind; siteId?: string };
   const econ: Job[] = [];
   // Food watch (not for the careless player): send a group to food when it is empty or about to run out.

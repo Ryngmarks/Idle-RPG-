@@ -44,8 +44,8 @@ const WISHLIST: Wish[] = [
   { kind: 'building', id: 'trainingCamp', level: 1 },
   { kind: 'building', id: 'forge', level: 1 },
   { kind: 'building', id: 'tents', level: 2 },
-  { kind: 'building', id: 'farm', level: 1 },
   { kind: 'building', id: 'woodshed', level: 1 },
+  { kind: 'building', id: 'farm', level: 1 },
   { kind: 'building', id: 'forge', level: 2 },
   { kind: 'upgrade', id: 'sharpenedAxes2' },
   { kind: 'building', id: 'farm', level: 2 },
@@ -59,7 +59,7 @@ const WISHLIST: Wish[] = [
 const FOOD_BUFFER_SEC = 180;
 
 /** The feast bot feasts when food covers the feast cost (50) plus a small buffer. */
-const FEAST_BUFFER_FOOD = Number(process.env.FT ?? 10);
+const FEAST_BUFFER_FOOD = 20;
 
 export interface LogEntry {
   t: number;
@@ -277,7 +277,8 @@ function decide(
     return site ? (site.yield[r] ?? 0) / site.cycleSec : 0;
   };
   missing.sort((a, b) => b.gap / Math.max(1e-6, perSec(b.r)) - a.gap / Math.max(1e-6, perSec(a.r)));
-  if (process.env.FF && blocker === 'food' && state.troops.length >= 2) missing.sort((a, b) => (b.r === 'food' ? 1 : 0) - (a.r === 'food' ? 1 : 0));
+  // A recruit that waits only for food: foraging comes first (a player sees "needs 25 food" and sends a group).
+  if (blocker === 'food' && state.troops.length >= 2) missing.sort((a, b) => (b.r === 'food' ? 1 : 0) - (a.r === 'food' ? 1 : 0));
   type Job = { activity: ActivityKind; siteId?: string };
   const econ: Job[] = [];
   // Food watch (not for the careless player): send a group to food when it is empty or about to run out.

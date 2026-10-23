@@ -33,6 +33,15 @@ const runCareless = (raceId: string) =>
     snapshotEverySeconds: 300,
   });
 
+const runFeast = (raceId: string) =>
+  runBot(newGame(raceId, content), content, {
+    raceId,
+    strategy: 'feast',
+    maxSeconds: 90 * 60,
+    tickSeconds: 5,
+    snapshotEverySeconds: 300,
+  });
+
 const soldiersAt = (r: ReturnType<typeof run>, minute: number) => {
   const snap = r.snapshots.find((x) => x.t >= minute * 60 - 1e-6) ?? r.snapshots[r.snapshots.length - 1]!;
   return snap.troops.reduce((n, t) => n + t.size, 0);
@@ -45,6 +54,8 @@ describe('Gårdarna pacing, progression v2 (balanced bot, docs/PROGRESSION_V2.md
   const orcsEco = runEconomy('orcs');
   const humansCareless = runCareless('humans');
   const orcsCareless = runCareless('orcs');
+  const humansFeast = runFeast('humans');
+  const orcsFeast = runFeast('orcs');
 
   it('soldier 2 is rescued within 4–8 bot minutes', () => {
     for (const r of [humans, orcs]) {
@@ -96,10 +107,11 @@ describe('Gårdarna pacing, progression v2 (balanced bot, docs/PROGRESSION_V2.md
   });
 
   // Owner decision (M10b, D-53 follow-up): the gap guard applies to the careful (balanced) player;
-  // the economy bot barely fights and is a comparison, not a player. Orcs get 7 minutes.
-  it('M10b: no long gap between events in minutes 15–45 (balanced: Humans 4 min, Orcs 7 min)', () => {
+  // the economy bot barely fights and is a comparison, not a player. M12 (§18.2): the raid objectives
+  // close the Orcs' mid-game hole, so both races now get 4 minutes.
+  it('M12: no long gap between events in minutes 15–45 (balanced: Humans 4 min, Orcs 4 min)', () => {
     expect(humans.longestEventGap(15, 45) * 60, 'humans').toBeLessThanOrEqual(240);
-    expect(orcs.longestEventGap(15, 45) * 60, 'orcs').toBeLessThanOrEqual(420);
+    expect(orcs.longestEventGap(15, 45) * 60, 'orcs').toBeLessThanOrEqual(240);
   });
 
   // Measured when the boss fight starts: the boss's freed prisoners arrive unarmed afterwards.
@@ -123,7 +135,7 @@ describe('Gårdarna pacing, progression v2 (balanced bot, docs/PROGRESSION_V2.md
   // optional goals (ore10, farm2) never block (Orcs get their ore from loot and skip ore10).
   it('M10b: the balanced bot completes the new guiding pre-boss objectives by minute 50', () => {
     for (const r of [humans, orcs]) {
-      for (const id of ['tent2', 'woodshed', 'rescue2']) {
+      for (const id of ['tent2', 'woodshed', 'rescue2', 'raid1', 'raid2']) {
         const t = r.milestones[`objective:${id}`];
         expect(t, id).toBeDefined();
         expect(t, id).toBeLessThanOrEqual(50 * 60);
@@ -166,6 +178,20 @@ describe('Gårdarna pacing, progression v2 (balanced bot, docs/PROGRESSION_V2.md
     for (const [name, c, b] of [['humans', humansCareless, humans], ['orcs', orcsCareless, orcs]] as const) {
       expect(c.milestones['boss'], `${name} boss`).toBeDefined();
       expect(c.milestones['boss']!, name).toBeLessThanOrEqual(b.milestones['boss']! * 1.4);
+    }
+  });
+
+  // M12 (D-57, §18.3): the Feast is optional. The balanced bot never feasts, so its results do not depend on it.
+  it('M12: the balanced bot never feasts', () => {
+    for (const r of [humans, orcs, humansCareless, orcsCareless]) expect(r.finalState.feast).toEqual({ until: 0, readyAt: 0 });
+  });
+
+  it('M12: the feast bot does feast, and beats the boss 3–10 % faster than the balanced bot', () => {
+    for (const [name, f, b] of [['humans', humansFeast, humans], ['orcs', orcsFeast, orcs]] as const) {
+      expect(f.finalState.feast.readyAt, `${name} feasted`).toBeGreaterThan(0);
+      const gain = 1 - f.milestones['boss']! / b.milestones['boss']!;
+      expect(gain, `${name} gain ${(gain * 100).toFixed(1)} %`).toBeGreaterThanOrEqual(0.03);
+      expect(gain, `${name} gain ${(gain * 100).toFixed(1)} %`).toBeLessThanOrEqual(0.1);
     }
   });
 });

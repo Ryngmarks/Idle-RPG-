@@ -651,3 +651,13 @@ Status: **approved** with the recommendations (D-57): horde full at 5, Humans tr
 1. **Orc horde:** is full +50 % at five soldiers (instead of ten) right, even though it makes splitting an Orc army costly and the boss a few minutes faster?
 2. **Humans trait scope:** food and building only for troops of 3 or fewer (recommended, safe), or also a small work-speed bonus (stronger, may push the Humans boss toward the 40 min lower limit)?
 3. **Feast strength:** +15 % work and +10 % attack for 10 min, 20 min cooldown, 50 food + 15 wood. Milder, stronger, or should it scale its cost with army size?
+
+### 18.7 As built (balance pass 12, D-58)
+
+The (guess) numbers above were tuned with the simulator; these are the shipped values:
+- `raid1` 80 kills (was 60), `raid2` 130 kills (was 150). Rewards unchanged.
+- Feast: **+25 % work and +25 % attack** (was +15 % / +10 %). With the guessed values the feast saved only 0.2–1.4 % of boss time, because its food cost eats the gain; the spec's own target is 3–10 %. Cost, duration and cooldown unchanged.
+- The feast bot feasts when food ≥ 70 and wood ≥ 15 (was food > 100).
+- `tent2.requires` is `['train1']`.
+- Horde (+12.5 %/soldier, cap 50 %) and adaptable (+25 %, size ≤ 3) unchanged.
+- Bot fixes: forage first when a recruit waits only for food; woodshed before farm 1.

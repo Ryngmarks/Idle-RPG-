@@ -97,8 +97,8 @@ const migrations: Record<number, (s: Record<string, unknown>) => Record<string, 
   8: (s) => {
     const done = [...(s.objectivesCompleted as string[])];
     const kills = (s.stats as { totalKills?: number }).totalKills ?? 0;
-    if (done.includes('stage3') && !done.includes('raid1') && kills >= 60) done.push('raid1');
-    if (done.includes('raid1') && !done.includes('raid2') && kills >= 150) done.push('raid2');
+    if (done.includes('stage3') && !done.includes('raid1') && kills >= 80) done.push('raid1');
+    if (done.includes('raid1') && !done.includes('raid2') && kills >= 130) done.push('raid2');
     return { ...s, objectivesCompleted: done, feast: { until: 0, readyAt: 0 } };
   },
 };

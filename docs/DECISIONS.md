@@ -64,6 +64,7 @@
 | D-55 | **Food upkeep (M11):** every soldier but the first eats food per minute (Humans 0.5, Orcs 0.6); when food runs out and income is short, work slows to ×0.6 and attack to ×0.75 in proportion to the shortfall; food sites are exempt; nobody ever dies of hunger; offline uses the same rule. Feasts and rations later. Spec: PROGRESSION_V2 §17 | 2026-10-23 | Owner, M11 |
 | D-56 | Food floor in the balance guard is per race: Humans 4 %, Orcs 8 % (Humans farm efficiently, D-13; higher Human upkeep only slowed them) | 2026-10-23 | Lead, delegated by owner |
 | D-57 | **M12 gameplay polish** per PROGRESSION_V2 §18 with the recommendations: Orc horde +12.5 % attack per extra soldier, full +50 % at 5; Humans adaptable +25 % food and construction skill for troops of 3 or fewer; Orc raid objectives raid1/raid2; feast (after the Training Camp, 50 food + 15 wood, +15 % work / +10 % attack for 10 min, 20 min cooldown, never required); save v9. Also: install as app (PWA) without new dependencies | 2026-10-23 | Owner ("kör fullt ut"), M12 |
+| D-58 | M12 tuning (balance pass 12): raid1 80 kills, raid2 130 kills; feast +25 % work / +25 % attack (the guessed +15 %/+10 % saved under 1.5 % against the spec target of 3–10 %). Can be reverted to +15 %/+10 % if the owner prefers a milder feast | 2026-10-23 | Lead, within the approved spec target; flagged to owner |
 
 ## Proposed 💡 (awaiting confirmation)
 

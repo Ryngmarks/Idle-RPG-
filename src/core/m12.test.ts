@@ -62,16 +62,16 @@ describe('race traits (docs/PROGRESSION_V2.md §18.1)', () => {
 });
 
 describe('raid objectives (§18.2)', () => {
-  it('raid1 needs stage3 and 60 kills and pays wood and stone; raid2 follows with food and ore', () => {
+  it('raid1 needs stage3 and 80 kills and pays wood and stone; raid2 follows with food and ore', () => {
     const s = army(3, null);
     s.objectivesCompleted = s.objectivesCompleted.filter((o) => o !== 'raid1' && o !== 'raid2');
     s.resources = { food: 0, wood: 0, stone: 0, ore: 0 };
-    s.stats.totalKills = 61;
+    s.stats.totalKills = 81;
     let r = advance(s, 0, content);
     expect(r.state.objectivesCompleted).toContain('raid1');
     expect(r.state.objectivesCompleted).not.toContain('raid2');
     expect(r.state.resources).toEqual({ food: 0, wood: 45, stone: 25, ore: 0 });
-    r.state.stats.totalKills = 150;
+    r.state.stats.totalKills = 130;
     r = advance(r.state, 0, content);
     expect(r.state.objectivesCompleted).toContain('raid2');
     expect(r.state.resources).toEqual({ food: 40, wood: 45, stone: 25, ore: 6 });
@@ -110,13 +110,13 @@ describe('the Feast (§18.3)', () => {
     const s = feastOk(base);
     const on = computeRates(s, content);
     expect(on.feastActive).toBe(true);
-    expect(on.feastWorkMult).toBe(1.15);
-    expect(on.feastAttackMult).toBe(1.1);
+    expect(on.feastWorkMult).toBe(1.25);
+    expect(on.feastAttackMult).toBe(1.25);
     expect(on.killsPerSec).toBeGreaterThan(plain.killsPerSec);
 
     const wood = feastOk(army(3));
     const w0 = computeRates(army(3), content).siteCycles.birchGrove!;
-    expect(computeRates(wood, content).siteCycles.birchGrove! / w0).toBeCloseTo(1.15, 9);
+    expect(computeRates(wood, content).siteCycles.birchGrove! / w0).toBeCloseTo(1.25, 9);
 
     const over = advance(s, 600, content);
     expect(over.events.some((e) => e.type === 'feastEnded')).toBe(true);
@@ -129,11 +129,11 @@ describe('the Feast (§18.3)', () => {
     const r = computeRates(s, content);
     expect(r.hungry).toBe(true);
     expect(r.workMult).toBeCloseTo(0.6);
-    expect(r.feastWorkMult).toBe(1.15);
+    expect(r.feastWorkMult).toBe(1.25);
     const base = army(5);
     base.resources.food = 0;
     const b = computeRates(base, content);
-    expect(r.siteCycles.birchGrove! / b.siteCycles.birchGrove!).toBeCloseTo(1.15, 9);
+    expect(r.siteCycles.birchGrove! / b.siteCycles.birchGrove!).toBeCloseTo(1.25, 9);
   });
 
   it('one 8 h advance equals the same time stepped online', () => {

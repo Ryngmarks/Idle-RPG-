@@ -345,16 +345,16 @@ export const objectives: ObjectiveDef[] = [
   },
   {
     id: 'raid1',
-    text: 'Plundra gårdarna: besegra 60 fiender.',
+    text: 'Plundra gårdarna: besegra 80 fiender.',
     requires: ['stage3'],
-    condition: { kind: 'kills', amount: 60 },
+    condition: { kind: 'kills', amount: 80 },
     rewards: { resources: { wood: 45, stone: 25 } },
   },
   {
     id: 'raid2',
-    text: 'Hjordens byte: besegra 150 fiender.',
+    text: 'Krigsbyte: besegra 130 fiender.',
     requires: ['raid1'],
-    condition: { kind: 'kills', amount: 150 },
+    condition: { kind: 'kills', amount: 130 },
     rewards: { resources: { food: 40, ore: 6 } },
   },
   {

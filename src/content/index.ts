@@ -24,6 +24,6 @@ export const content: Content = {
     levelBonus: 0.1,
     startZoneId: 'farmsteads',
     startUnlocks: ['activity:woodcutting'],
-    feast: { cost: { food: Number(process.env.FC ?? 50), wood: Number(process.env.WC ?? 15) }, durationSec: 600, cooldownSec: 1200, workMult: Number(process.env.WM ?? 1.15), attackMult: Number(process.env.AM ?? 1.1), requiresBuilding: 'trainingCamp' },
+    feast: { cost: { food: 50, wood: 15 }, durationSec: 600, cooldownSec: 1200, workMult: 1.25, attackMult: 1.25, requiresBuilding: 'trainingCamp' },
   },
 };

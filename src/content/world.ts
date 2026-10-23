@@ -123,16 +123,16 @@ export const equipment: EquipmentContent = {
     { id: 'masterpiece', name: 'Mästerverk', powerMult: POWER_STEP },
   ],
   recipes: {
-    sword_t1: { id: 'sword_t1', weaponTypeId: 'sword', tier: 1, materials: { ore: 2, wood: 1 }, workPerItem: 15 },
-    cleaver_t1: { id: 'cleaver_t1', weaponTypeId: 'cleaver', tier: 1, materials: { ore: 2, wood: 1 }, workPerItem: 15 },
-    axe_t1: { id: 'axe_t1', weaponTypeId: 'axe', tier: 1, materials: { ore: 2, wood: 1 }, workPerItem: 15 },
+    sword_t1: { id: 'sword_t1', weaponTypeId: 'sword', tier: 1, materials: { ore: 2 }, workPerItem: 15 },
+    cleaver_t1: { id: 'cleaver_t1', weaponTypeId: 'cleaver', tier: 1, materials: { ore: 2 }, workPerItem: 15 },
+    axe_t1: { id: 'axe_t1', weaponTypeId: 'axe', tier: 1, materials: { ore: 2 }, workPerItem: 15 },
     bow_t1: { id: 'bow_t1', weaponTypeId: 'bow', tier: 1, materials: { wood: 3 }, workPerItem: 15 },
   },
   unarmedMult: 1,
   chancesAtMin: [0.85, 0.13, 0.02, 0, 0],
   chancesAtMax: [0.3, 0.33, 0.22, 0.11, 0.04],
   maxMastery: 10,
-  itemsPerMasteryStep: 8,
+  itemsPerMasteryStep: 20,
 };
 
 export const objectives: ObjectiveDef[] = [

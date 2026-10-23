@@ -198,3 +198,39 @@ orcs     economy        41%     16%     13%      1%     13%     16%      0%   93
 | Is smithing used? | Yes: 3 % (Humans) and 5 % (Orcs) of troop-time; 27 / 43 weapons by the boss, about the same as the self-running forge in pass 6 |
 | Guard change | The 5 % guard now compares the five start activities with each other (smithing only exists after the forge). Mining was 4.98 % of all time and 5.1 % of start-activity time; Humans end with ~490 spare ore, so mining is not useless. A new guard checks that smithing is used (> 1 %) and that more than 10 weapons get made. |
 
+## Pass 8: 2026-10-23, the forge matters before the boss (M8, D-43)
+
+Changes: T1 metal weapons cost 2 ore (no wood); `smithRate` 0.3; mastery step 20 weapons. Bot: it only orders weapons while soldiers are unarmed (a player racing to the boss arms the army and does not grind quality; without this rule the bot smithed 16–20 % of the time and starved recruitment).
+
+```
+Milestones (simulated time mm:ss, bot decides every 5s, limit 180 min)
+
+race     strategy       Combat    Recruit    Troop 2 Barracks 1      Forge    Stage 3 Barracks 2 Zone clear       Boss
+humans   balanced         4:10       5:10      11:20      18:52      24:41      13:18      28:03      28:50      33:56
+humans   economy          4:10       5:10      12:46      37:35      59:59     111:11     110:40     124:05     145:05
+orcs     balanced         6:00       7:30      13:58      20:03      26:50      15:33      31:26      32:34      41:30
+orcs     economy          6:00       7:30      28:00      41:57      47:10      44:03      58:33      68:05      84:45
+
+Forge at the end (weapons crafted · armed soldiers · avg weapon power · mastery · quality mix N/G/O/E/M)
+
+humans   balanced    105 crafted · 105/106 armed · ×1.27 · mastery 2 · 83/16/4/1/1
+humans   economy      67 crafted · 67/67 armed · ×1.27 · mastery 1 · 54/10/2/1/0
+orcs     balanced    236 crafted · 236/236 armed · ×1.28 · mastery 3 · 177/39/13/5/2
+orcs     economy     186 crafted · 186/186 armed · ×1.28 · mastery 3 · 143/30/9/3/1
+
+Share of troop-time per activity
+
+race     strategy    combat  mining    wood    food   build   smith    idle   soldiers@end
+humans   balanced       50%      5%     13%     20%      5%      7%      0%   53+53
+humans   economy        26%     23%     27%      5%     17%      3%      0%   34+33
+orcs     balanced       46%      7%     12%     17%      6%     12%      0%   118+118
+orcs     economy        44%     17%     13%      1%     14%     10%      0%   93+93
+```
+
+| Question | Answer |
+|---|---|
+| Boss pacing | 33:56 (Humans) / 41:30 (Orcs); Orcs +22 % (within ±25 %). About a minute faster than pass 7. |
+| Armed at the boss | Humans 105/106, Orcs 236/236 (was 27/139 and 43/311) |
+| Cost | Smaller armies (Humans 106 vs 139, Orcs 236 vs 311): troop-time moves from food to the forge, 7 % (Humans) and 12 % (Orcs) |
+| Long-term T1 | Maxing mastery now needs 2,000 weapons; at the boss the bot is at mastery 2–3 |
+

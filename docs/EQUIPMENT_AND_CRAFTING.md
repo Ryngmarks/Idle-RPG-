@@ -339,3 +339,15 @@ Today each troop has a single `gearTier: 0 | 1` (P0's Forge gives ×1.4 attack).
 | Save v4 → v5 | Every troop gets `autoEquip: true` |
 | Visuals | Quality-coloured count pills on the troop card, glowing bar segments, chips and soldier blades for Outstanding and better, a row of the latest weapons off the anvil, and a toast in the quality's colour for a rare weapon |
 
+## 13. M8: the forge matters before the boss (2026-10-23)
+
+By the boss only 27 of 139 Human soldiers were armed: wood, needed for everything, was the bottleneck, while ore piled up (~490 spare).
+
+| Change | Before → after |
+|---|---|
+| T1 sword / cleaver / axe | 2 ore + 1 wood → **2 ore** (bow unchanged: 3 wood) |
+| `smithRate` | 0.1 → **0.3** (20 Human smiths: one weapon every ~2.5 s) |
+| `itemsPerMasteryStep` | 8 → **20**: level = ⌊√(crafted / 20)⌋, max 10 at **2,000 weapons** (4,000 ore). Quality stays a long climb even with faster smiths. |
+
+Result: the whole army is armed by the boss (Humans ~105/106, Orcs ~236/236, weapon power ×1.27–1.28). Armies are smaller (Humans 53+53 instead of 70+69) because troop-time goes to the forge instead of food: a real choice between more soldiers and better-armed soldiers.
+

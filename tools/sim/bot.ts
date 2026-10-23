@@ -27,8 +27,9 @@ import {
 /**
  * `balanced`: a careful active player (also watches the food). `economy`: builds first and only fights when
  * nothing is missing. `careless`: like balanced but never reacts to hunger (proves hunger cannot lock the game).
+ * `feast`: balanced, plus a Feast whenever it is ready and food is above 100 (the balanced bot never feasts).
  */
-export type Strategy = 'balanced' | 'economy' | 'careless';
+export type Strategy = 'balanced' | 'economy' | 'careless' | 'feast';
 
 type Wish =
   | { kind: 'upgrade'; id: string }
@@ -211,6 +212,9 @@ function decide(
       return;
     }
   }
+
+  // 1b. Feast whenever it is ready and there is food to spare.
+  if (strategy === 'feast' && state.resources.food > 100) exec({ type: 'startFeast' });
 
   // 2. Buy the next wish when affordable.
   const wish = WISHLIST.find((w) => !wishDone(w, state) && wishUnlocked(w, state) && !(w.kind === 'building' && state.construction));

@@ -465,7 +465,7 @@ describe('save', () => {
     v6.buildings = { trainingCamp: 1 };
     v6.objectivesCompleted = ['sendWood', 'wood30', 'wood60', 'kill5', 'recruit1'];
     const s = deserialize(JSON.stringify(v6));
-    expect(s.version).toBe(8);
+    expect(s.version).toBe(9);
     expect(s.troops[0]).toMatchObject({ size: 40, siteId: 'oldQuarry' });
     expect(s.troopSlots).toBe(1);
     expect(s.objectivesCompleted).toContain('rescue');
@@ -491,7 +491,7 @@ describe('save', () => {
     v1.combat.stageIndex = 2;
     delete v1.combat.unlockedStage;
     const s = deserialize(JSON.stringify(v1));
-    expect(s.version).toBe(8);
+    expect(s.version).toBe(9);
     expect(s.troops[0]).toMatchObject({ siteId: null });
     expect(s.troopSlots).toBe(1);
     expect(s.stats).toMatchObject({ soldiersLost: 0, bossDefeatedAt: null, weaponsByQuality: { normal: 0, masterpiece: 0 } });
@@ -556,6 +556,7 @@ describe('M10b first hour (docs/PROGRESSION_V2.md §16)', () => {
 
   it('tent2 -> woodshed chain unlocks the building and Sharp axes II; ore10 unlocks Stone picks II', () => {
     let s = afterTwoTroops();
+    s.objectivesCompleted.push('train1', 'soldiers5');
     s.resources = { food: 0, wood: 0, stone: 0, ore: 0 };
     s.buildings.tents = 2;
     s = advance(s, 1, content).state;
@@ -630,7 +631,7 @@ describe('M10b first hour (docs/PROGRESSION_V2.md §16)', () => {
     v7.stats.gathered.ore = 12;
     v7.resources = { food: 11, wood: 22, stone: 33, ore: 4 };
     const s = deserialize(JSON.stringify(v7));
-    expect(s.version).toBe(8);
+    expect(s.version).toBe(9);
     expect(s.objectivesCompleted).toEqual(expect.arrayContaining(['tent2', 'ore10', 'rescue2']));
     expect(s.objectivesCompleted).not.toContain('woodshed');
     expect(s.unlocks).toEqual(expect.arrayContaining(['building:forge', 'building:woodshed', 'upgrade:stonePicks2']));

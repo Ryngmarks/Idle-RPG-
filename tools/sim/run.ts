@@ -1,7 +1,7 @@
 // Balance simulator CLI.
 //   npm run sim                         → all playable races × all strategies, summary
 //   npm run sim -- --race orcs --log    → one race, full milestone log and snapshots
-// Options: --race <id> --strategy balanced|economy|careless --minutes <n> --tick <sec> --log
+// Options: --race <id> --strategy balanced|economy|careless|feast --minutes <n> --tick <sec> --log
 
 import { content } from '../../src/content';
 import { averageWeaponPower, equippedCount, masteryLevel, newGame } from '../../src/core';
@@ -16,7 +16,7 @@ const showLog = args.includes('--log');
 const minutes = Number(opt('minutes') ?? 180);
 const tick = Number(opt('tick') ?? 5);
 const races = opt('race') ? [opt('race')!] : Object.values(content.races).filter((r) => r.playable).map((r) => r.id);
-const strategies: Strategy[] = opt('strategy') ? [opt('strategy') as Strategy] : ['balanced', 'economy', 'careless'];
+const strategies: Strategy[] = opt('strategy') ? [opt('strategy') as Strategy] : ['balanced', 'economy', 'careless', 'feast'];
 
 const mmss = (t: number | undefined) =>
   t === undefined ? '  —  ' : `${String(Math.floor(t / 60)).padStart(2, ' ')}:${String(Math.floor(t % 60)).padStart(2, '0')}`;

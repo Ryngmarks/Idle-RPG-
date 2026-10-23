@@ -5,6 +5,7 @@ import { Icon } from '../art/icons';
 import { ResIcon } from '../art/resources';
 import { fmtAmount, fmtClock, fmtDuration, fmtInt } from '../format';
 import { useStore } from '../game';
+import { buildLabel, checkForUpdate, reloadToLatest, type UpdateStatus } from '../update';
 import { RESOURCE_LABEL, eventText } from '../labels';
 
 function Modal({ title, children, onClose }: { title: string; children: ReactNode; onClose: () => void }) {
@@ -60,6 +61,7 @@ export function MenuModal({ state, storageOk, onClose }: { state: GameState; sto
   const [importText, setImportText] = useState('');
   const [message, setMessage] = useState<string | null>(null);
   const [confirmReset, setConfirmReset] = useState(false);
+  const [update, setUpdate] = useState<UpdateStatus | 'checking' | null>(null);
 
   return (
     <Modal title="Meny" onClose={onClose}>
@@ -103,6 +105,22 @@ export function MenuModal({ state, storageOk, onClose }: { state: GameState; sto
         >
           Importera
         </button>
+      </section>
+
+      <section className="menu-section">
+        <h3>Version</h3>
+        <p className="small muted">Byggd {buildLabel()}</p>
+        {update === 'new' && <p className="small warn">✨ En ny version finns. Spelet sparas innan det uppdateras.</p>}
+        {update === 'same' && <p className="small muted">Du har den senaste versionen.</p>}
+        {update === 'unknown' && <p className="small muted">Kunde inte kolla just nu. Du kan ändå ladda om.</p>}
+        <div className="row">
+          <button className="btn" disabled={update === 'checking'} onClick={() => { setUpdate('checking'); void checkForUpdate().then(setUpdate); }}>
+            {update === 'checking' ? 'Söker…' : 'Sök efter uppdatering'}
+          </button>
+          <button className={`btn ${update === 'new' ? 'btn--primary' : ''}`} onClick={() => { store.save(); reloadToLatest(); }}>
+            {update === 'new' ? 'Uppdatera nu' : 'Ladda om'}
+          </button>
+        </div>
       </section>
 
       <section className="menu-section">

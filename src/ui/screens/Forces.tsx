@@ -16,9 +16,9 @@ import {
   type ResourceId,
   type TroopState,
 } from '../../core';
-import { ActivityScene } from '../art';
+import { TroopScene } from '../army';
 import { Bar, CostList, Panel } from '../components/common';
-import { fmtRate } from '../format';
+import { fmtDuration, fmtRate } from '../format';
 import { useStore } from '../game';
 import { ACTIVITY_LABEL, RESOURCE_LABEL, objectiveProgress } from '../labels';
 
@@ -64,6 +64,17 @@ function outputText(troop: TroopState, rates: Rates, state: GameState): string {
   }
 }
 
+function LifeStatus({ troop, rates, hpPerSoldier }: { troop: TroopState; rates: Rates; hpPerSoldier: number }) {
+  const net = rates.woundsPerSec[troop.id] ?? 0;
+  if (net > 0) {
+    const secs = Math.max(0, hpPerSoldier - troop.wounds) / net;
+    const text = troop.size > 1 ? `nästa soldat faller om ${fmtDuration(secs)}` : `retirerar om ${fmtDuration(secs)}`;
+    return <span className="life-status life-status--danger">⚠️ Tar skada: {text}</span>;
+  }
+  if (net < 0) return <span className="life-status life-status--healing">✚ Läker</span>;
+  return null;
+}
+
 function TroopCard({ troop, state, rates }: { troop: TroopState; state: GameState; rates: Rates }) {
   const store = useStore();
   const [error, setError] = useState<string | null>(null);
@@ -87,7 +98,7 @@ function TroopCard({ troop, state, rates }: { troop: TroopState; state: GameStat
 
   return (
     <article className="troop">
-      <ActivityScene activity={troop.activity} />
+      <TroopScene race={state.raceId} size={troop.size} activity={troop.activity} />
       <header className="troop__head">
         {editing ? (
           <form
@@ -116,6 +127,11 @@ function TroopCard({ troop, state, rates }: { troop: TroopState; state: GameStat
         <Bar value={troop.size} max={cap} tone="steel" label="Soldater" />
       </div>
       <Bar value={troop.xp - lvlFrom} max={lvlTo - lvlFrom} tone="xp" label="Erfarenhet" />
+      <div className="troop__life">
+        <span className="small">❤️ Liv {fmtRate(stats.maxHp - troop.wounds)} / {fmtRate(stats.maxHp)}</span>
+        <Bar value={stats.maxHp - troop.wounds} max={stats.maxHp} tone="life" label="Liv" />
+        <LifeStatus troop={troop} rates={rates} hpPerSoldier={stats.hp} />
+      </div>
 
       <dl className="troop__stats">
         <div><dt>Styrka</dt><dd>{fmtRate(stats.strength)} DPS</dd></div>

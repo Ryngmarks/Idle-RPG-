@@ -11,6 +11,7 @@ import {
   gearUpgradeCost,
   maxRecruitable,
   recruitCost,
+  stageSafety,
   troopStats,
   type ActivityKind,
   type Command,
@@ -165,12 +166,18 @@ function decide(
   }
 
   // 5. Assign troops.
-  // With no wish left, the goal is growth: the next batch of recruits for the smallest troop.
+  // Growth goal: the next batch of recruits for the smallest troop. It comes first while that
+  // troop is below half its cap (a tiny troop gathers too slowly to be worth saving with),
+  // and otherwise once the wishlist is done.
   let goalCost: Cost = wish ? wishCost(wish, state, content) : {};
-  if (!wish && strategy === 'balanced' && state.troops.length >= 2 && state.unlocks.includes('recruit')) {
+  if (strategy === 'balanced' && state.unlocks.includes('recruit')) {
+    const cap = currentCap(state, content);
     const smallest = [...state.troops].sort((a, b) => a.size - b.size)[0]!;
-    const room = currentCap(state, content) - smallest.size;
-    if (room > 0) goalCost = recruitCost(state, smallest.id, Math.min(10, room), content);
+    const room = cap - smallest.size;
+    const growFirst = smallest.size < cap / 2;
+    if (room > 0 && (growFirst || (!wish && state.troops.length >= 2))) {
+      goalCost = recruitCost(state, smallest.id, Math.min(growFirst ? 3 : 10, room), content);
+    }
   }
   const missing = missingFor(goalCost, state);
   const free = [...state.troops];
@@ -205,6 +212,16 @@ function decide(
     } else {
       assign(t.id, 'woodcutting');
     }
+  }
+
+  // 6. Fight at the highest stage that costs no soldiers (a careful player).
+  refresh();
+  if (state.troops.some((t) => t.activity === 'combat') && !state.combat.boss) {
+    let best = 0;
+    for (let i = 0; i <= state.combat.unlockedStage; i++) {
+      if (stageSafety(state, content, { stageIndex: i }).risk === 'safe') best = i;
+    }
+    if (best !== state.combat.stageIndex) exec({ type: 'selectStage', stageIndex: best });
   }
 }
 
@@ -309,6 +326,10 @@ function describeEvent(e: GameEvent, state: GameState, content: Content): { text
       return { text: '👑 Boss defeated', milestone: 'boss' };
     case 'bossFailed':
       return { text: '✖ Boss attempt failed' };
+    case 'soldierLost':
+      return { text: `☠ ${state.troops.find((x) => x.id === e.troopId)?.name ?? e.troopId} lost a soldier`, milestone: 'firstLoss' };
+    case 'troopRetreated':
+      return { text: `↩ ${state.troops.find((x) => x.id === e.troopId)?.name ?? e.troopId} retreated (${e.reason})` };
     default:
       return undefined;
   }

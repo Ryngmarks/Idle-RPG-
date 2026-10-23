@@ -24,7 +24,7 @@ export function conditionMet(state: GameState, c: ObjectiveCondition): boolean {
       return state.troops.some((t) => t.size >= c.size);
     case 'stageReached':
       // stage is 1-based; reaching stage N means stages 1..N-1 are cleared.
-      return state.combat.cleared || state.combat.stageIndex + 1 >= c.stage;
+      return state.combat.cleared || state.combat.unlockedStage + 1 >= c.stage;
     case 'zoneCleared':
       return state.combat.cleared;
     case 'bossDefeated':

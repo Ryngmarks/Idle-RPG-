@@ -4,12 +4,12 @@
 import type { BuildingDef, EnemyDef, GearTierDef, ObjectiveDef, UpgradeDef, ZoneDef } from '../core/types';
 
 export const enemies: Record<string, EnemyDef> = {
-  wildChicken: { id: 'wildChicken', name: 'Vild kyckling', hp: 30, armour: 0, xp: 2, loot: { food: 1 } },
-  angryRooster: { id: 'angryRooster', name: 'Arg tupp', hp: 45, armour: 0, xp: 3, loot: { food: 1.5 } },
-  ratSwarm: { id: 'ratSwarm', name: 'Råttsvärm', hp: 1, armour: 0, xp: 0.05, loot: { food: 0.01 } },
-  wildBoar: { id: 'wildBoar', name: 'Vildsvin', hp: 150, armour: 2, xp: 10, loot: { food: 3, ore: 2 } },
-  oldBoar: { id: 'oldBoar', name: 'Gammal galt', hp: 300, armour: 3, xp: 15, loot: { food: 4, ore: 3 } },
-  oldTusker: { id: 'oldTusker', name: 'Gamle Betarn', hp: 7000, armour: 3, xp: 0, loot: {} },
+  wildChicken: { id: 'wildChicken', name: 'Vild kyckling', hp: 15, armour: 0, attack: 0.12, xp: 2, loot: { food: 1 } },
+  angryRooster: { id: 'angryRooster', name: 'Arg tupp', hp: 30, armour: 0, attack: 0.5, xp: 3, loot: { food: 1.5 } },
+  ratSwarm: { id: 'ratSwarm', name: 'Råttsvärm', hp: 1, armour: 0, attack: 1.5, xp: 0.05, loot: { food: 0.01 } },
+  wildBoar: { id: 'wildBoar', name: 'Vildsvin', hp: 150, armour: 2, attack: 4, xp: 10, loot: { food: 3, ore: 2 } },
+  oldBoar: { id: 'oldBoar', name: 'Gammal galt', hp: 300, armour: 3, attack: 7, xp: 15, loot: { food: 4, ore: 3 } },
+  oldTusker: { id: 'oldTusker', name: 'Gamle Betarn', hp: 7000, armour: 3, attack: 12, xp: 0, loot: {} },
 };
 
 export const zones: Record<string, ZoneDef> = {
@@ -31,7 +31,7 @@ export const buildings: Record<string, BuildingDef> = {
   trainingCamp: {
     id: 'trainingCamp',
     name: 'Träningsläger',
-    levels: [{ cost: { wood: 50, stone: 30, food: 25 }, work: 500, effects: [{ kind: 'capLevel', level: 1 }, { kind: 'troopSlot' }] }],
+    levels: [{ cost: { wood: 40, stone: 20, food: 20 }, work: 400, effects: [{ kind: 'capLevel', level: 1 }, { kind: 'troopSlot' }] }],
   },
   barracks: {
     id: 'barracks',
@@ -63,7 +63,7 @@ export const upgrades: Record<string, UpgradeDef> = {
   sharpenedAxes: {
     id: 'sharpenedAxes',
     name: 'Vassa yxor',
-    cost: { wood: 30 },
+    cost: { wood: 15 },
     modifiers: [{ stat: 'skill.woodcutting', op: 'mult', value: 0.5, source: 'upgrade:sharpenedAxes' }],
   },
   drillPractice: {
@@ -100,31 +100,31 @@ export const gearTiers: GearTierDef[] = [
 export const objectives: ObjectiveDef[] = [
   {
     id: 'sendWood',
-    text: 'Din trupp väntar på order. Skicka den för att samla ved.',
+    text: 'Din soldat väntar på order. Skicka den för att samla ved.',
     requires: [],
     condition: { kind: 'troopAssigned', activity: 'woodcutting' },
     rewards: {},
   },
   {
     id: 'wood30',
-    text: 'Samla 30 ved.',
+    text: 'Samla 15 ved.',
     requires: ['sendWood'],
-    condition: { kind: 'totalGathered', resource: 'wood', amount: 30 },
+    condition: { kind: 'totalGathered', resource: 'wood', amount: 15 },
     rewards: { unlocks: ['tab:upgrades', 'upgrade:sharpenedAxes'] },
   },
   {
     id: 'wood60',
-    text: 'Samla 60 ved totalt.',
+    text: 'Samla 30 ved totalt.',
     requires: ['wood30'],
-    condition: { kind: 'totalGathered', resource: 'wood', amount: 60 },
+    condition: { kind: 'totalGathered', resource: 'wood', amount: 30 },
     rewards: { unlocks: ['activity:combat', 'tab:battle'] },
   },
   {
     id: 'kill5',
-    text: 'Kycklingar har setts vid den gamla gården. Besegra 5.',
+    text: 'Kycklingar har setts vid den gamla gården. Besegra 3.',
     requires: ['wood60'],
-    condition: { kind: 'kills', amount: 5 },
-    rewards: { unlocks: ['recruit', 'upgrade:drillPractice'] },
+    condition: { kind: 'kills', amount: 3 },
+    rewards: { unlocks: ['recruit', 'activity:food', 'upgrade:drillPractice'] },
   },
   {
     id: 'recruit1',
@@ -132,7 +132,7 @@ export const objectives: ObjectiveDef[] = [
     requires: ['kill5'],
     condition: { kind: 'recruited', amount: 1 },
     rewards: {
-      unlocks: ['activity:mining', 'activity:food', 'activity:construction', 'tab:settlement', 'building:trainingCamp'],
+      unlocks: ['activity:mining', 'activity:construction', 'tab:settlement', 'building:trainingCamp'],
     },
   },
   {
@@ -145,7 +145,7 @@ export const objectives: ObjectiveDef[] = [
   {
     id: 'food10',
     text: 'Producera mat på fälten.',
-    requires: ['recruit1'],
+    requires: ['kill5'],
     condition: { kind: 'totalGathered', resource: 'food', amount: 10 },
     rewards: { unlocks: ['upgrade:fieldKitchens'] },
   },

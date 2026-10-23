@@ -3,7 +3,7 @@
 import { evaluateObjectives } from './objectives';
 import type { Content, GameEvent, GameState } from './types';
 
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;
 
 /** State is plain JSON, so a JSON round-trip is a correct deep copy. */
 export function cloneState(state: GameState): GameState {
@@ -27,12 +27,14 @@ export function newGame(raceId: string, content: Content): GameState {
         xp: 0,
         gearTier: 0,
         activity: null,
+        wounds: 0,
+        engagedSize: race.population.startSize,
       },
     ],
     buildings: {},
     construction: null,
     upgrades: {},
-    combat: { zoneId: content.constants.startZoneId, stageIndex: 0, kills: 0, cleared: false, bossDefeated: false, boss: null },
+    combat: { zoneId: content.constants.startZoneId, stageIndex: 0, unlockedStage: 0, kills: 0, cleared: false, bossDefeated: false, boss: null },
     unlocks: [...content.constants.startUnlocks],
     objectivesCompleted: [],
     stats: { totalKills: 0, recruited: 0, gathered: { food: 0, wood: 0, stone: 0, ore: 0 } },

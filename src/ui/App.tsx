@@ -41,7 +41,7 @@ function ResourceBar({ state, rates }: { state: GameState; rates: Rates }) {
   );
 }
 
-const TOAST_TYPES = new Set<GameEvent['type']>(['objectiveCompleted', 'troopFormed', 'constructionCompleted', 'stageCleared', 'zoneCleared', 'bossDefeated', 'bossFailed']);
+const TOAST_TYPES = new Set<GameEvent['type']>(['objectiveCompleted', 'troopFormed', 'constructionCompleted', 'stageCleared', 'zoneCleared', 'bossDefeated', 'bossFailed', 'troopRetreated']);
 
 function useToast(log: GameEvent[], state: GameState | null): string | null {
   const [toast, setToast] = useState<string | null>(null);

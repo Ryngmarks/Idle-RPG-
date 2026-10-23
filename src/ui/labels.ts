@@ -36,6 +36,8 @@ const STAT_LABEL: Record<Modifier['stat'], string> = {
   foodPerSoldier: 'Rekryteringskostnad',
   'loot.food': 'Mat från strid',
   'loot.ore': 'Malm från strid',
+  hp: 'Liv',
+  regen: 'Läkning',
 };
 
 export function modifierText(m: Modifier): string {
@@ -95,6 +97,16 @@ export function eventText(e: GameEvent, state: GameState): string | null {
       return '👑 Gamle Betarn är besegrad!';
     case 'bossFailed':
       return '✖ Bossen överlevde. Bli starkare och försök igen.';
+    case 'bossAbandoned':
+      return '↩ Bossstriden avbröts när du lämnade spelet.';
+    case 'soldierLost':
+      return `☠️ ${state.troops.find((t) => t.id === e.troopId)?.name ?? ''} förlorade en soldat`;
+    case 'troopRetreated':
+      return e.reason === 'losses'
+        ? `↩ ${state.troops.find((t) => t.id === e.troopId)?.name ?? ''} retirerade till lägret efter tunga förluster`
+        : `↩ ${state.troops.find((t) => t.id === e.troopId)?.name ?? ''} drog sig tillbaka när du lämnade spelet (inget steg var säkert)`;
+    case 'stageChanged':
+      return `↩ Trupperna drog sig tillbaka till steg ${e.stage}, det högsta säkra steget, medan du var borta`;
   }
 }
 

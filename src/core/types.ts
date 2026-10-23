@@ -22,7 +22,9 @@ export type Stat =
   | 'skill.construction'
   | 'foodPerSoldier'
   | 'loot.food'
-  | 'loot.ore';
+  | 'loot.ore'
+  | 'hp'
+  | 'regen';
 
 export interface Modifier {
   stat: Stat;
@@ -47,11 +49,17 @@ export interface RaceDef {
     /** Soldiers a newly formed troop starts with (e.g. Troop 2 from the Training Camp). */
     newTroopSize: number;
     foodPerSoldier: number;
+    /** Troop size at which recruitment cost starts escalating (cost × (size/scale)^exp). */
+    recruitScaleSize: number;
   };
   soldier: {
     attack: number;
     work: number;
     armourPen: number;
+    /** Hit points per soldier. Damage beyond a soldier's HP kills one soldier. */
+    hp: number;
+    /** HP healed per second per soldier (in and out of combat). */
+    regen: number;
     skills: Record<LabourActivity, number>;
   };
   modifiers: Modifier[];
@@ -65,6 +73,8 @@ export interface EnemyDef {
   name: string;
   hp: number;
   armour: number;
+  /** Damage per second dealt to the player's fighting troops while they fight this enemy. */
+  attack: number;
   xp: number;
   loot: Cost;
 }
@@ -167,6 +177,10 @@ export interface TroopState {
   xp: number;
   gearTier: number;
   activity: ActivityKind | null;
+  /** Damage taken but not yet healed (0 … hp per soldier). */
+  wounds: number;
+  /** Size when the troop last went into combat; it retreats after losing half of it. */
+  engagedSize: number;
 }
 
 export interface BossFight {
@@ -186,7 +200,10 @@ export interface GameState {
   upgrades: Record<string, number>;
   combat: {
     zoneId: string;
+    /** The stage the combat troops are fighting (0-based); any stage up to unlockedStage. */
     stageIndex: number;
+    /** Highest stage the player has reached; kills there count towards clearing it. */
+    unlockedStage: number;
     kills: number;
     cleared: boolean;
     bossDefeated: boolean;
@@ -209,4 +226,8 @@ export type GameEvent =
   | { type: 'troopLevelUp'; at: number; troopId: string; level: number }
   | { type: 'bossDefeated'; at: number; zoneId: string }
   | { type: 'bossFailed'; at: number; zoneId: string }
+  | { type: 'soldierLost'; at: number; troopId: string }
+  | { type: 'troopRetreated'; at: number; troopId: string; reason: 'losses' | 'offlineSafety' }
+  | { type: 'stageChanged'; at: number; stage: number; reason: 'offlineSafety' }
+  | { type: 'bossAbandoned'; at: number; zoneId: string }
   | { type: 'objectiveCompleted'; at: number; objectiveId: string };

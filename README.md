@@ -17,6 +17,7 @@ A fantasy idle army RPG for mobile and desktop. Your **troops** (groups of soldi
 | [Balance Log](docs/BALANCE_LOG.md) | Simulator results and every tuning pass |
 | [Deploy](docs/DEPLOY.md) | Free hosting for phone testing |
 | [Decisions](docs/DECISIONS.md) | Confirmed, proposed and open decisions |
+| [Idle research](docs/IDLE_RESEARCH.md) | How other idle games handle progression, and proposals for Utposten (nothing decided) |
 | [CLAUDE.md](CLAUDE.md) | How we work: the lead agent, the specialised agents in `.claude/agents/`, plan → approval → PR |
 | [Concept v0.1 (archive)](docs/archive/FANTASY_IDLE_RPG_CONCEPT_V0.1.md) | Original discovery document |
 

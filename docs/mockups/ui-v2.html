@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="sv"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Utposten UI v2 mockups</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0f0d10;--bg2:#17141a;--panel:#1d1a20;--panel2:#26212a;--line:#3b3226;--text:#ece2cc;--muted:#a99d86;--gold:#c9a24a;--gold2:#e3c06a;--blood:#a8402f;--steel:#7c94a8;--xp:#8a6bbf;--ok:#7f9e55;--danger:#c0533f;
+--q0:#b8b2a6;--q1:#6fbf5a;--q2:#4f9be0;--q3:#b07ce8;--q4:#f0a63a;--head:'Cinzel',Georgia,serif;--body:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}
+*{box-sizing:border-box}body{margin:0;background:#08070a;color:var(--text);font:15px/1.4 var(--body)}
+h1{font:700 1.3rem var(--head);color:var(--gold2);text-align:center;margin:20px 0 4px;letter-spacing:.06em}
+.lead{text-align:center;color:var(--muted);font-size:.85rem;margin:0 16px 18px}
+.wrap{display:flex;flex-wrap:wrap;gap:28px;justify-content:center;padding:0 16px 40px}
+.col{width:390px;max-width:100%}
+.cap{font:700 .8rem var(--head);color:var(--gold);letter-spacing:.12em;margin:0 0 8px;text-transform:uppercase}
+.notes{margin:12px 0 0;padding-left:18px;color:var(--muted);font-size:.82rem}.notes li{margin:3px 0}
+.phone{width:390px;max-width:100%;height:844px;border:1px solid var(--line);border-radius:28px;overflow:hidden;position:relative;display:flex;flex-direction:column;
+background:radial-gradient(500px 300px at 50% -80px,#2a1f18,transparent 70%),var(--bg);box-shadow:0 10px 40px #000}
+.top{display:flex;align-items:center;gap:10px;padding:14px 16px 8px}
+.logo{font:700 1.05rem var(--head);color:var(--gold2);letter-spacing:.08em;flex:1}.logo small{display:block;font:.6rem var(--body);letter-spacing:.2em;color:var(--muted)}
+.res{display:flex;gap:6px;padding:0 16px 10px;border-bottom:1px solid var(--line)}
+.chip{flex:1;background:#14111a;border:1px solid #2d2720;border-radius:10px;padding:5px 8px}
+.chip b{display:block;font-size:.95rem}.chip i{font-style:normal;font-size:.68rem;color:var(--ok)}
+.chip.full b{color:var(--danger)}.chip.full i{color:var(--danger)}
+.body{flex:1;overflow:hidden;padding:12px 16px;display:flex;flex-direction:column;gap:10px}
+.tabbar{display:flex;border-top:1px solid var(--line);background:#120f14;padding:6px 6px 14px}
+.tabbar span{flex:1;text-align:center;font-size:.68rem;color:var(--muted);padding:5px 0;border-radius:8px;position:relative}
+.tabbar span em{display:block;font-style:normal;font-size:1.15rem}
+.tabbar .on{background:#241e17;color:var(--gold2);box-shadow:inset 0 2px 0 var(--gold)}
+.tabbar .dot:after{content:"";position:absolute;top:4px;right:28%;width:8px;height:8px;border-radius:50%;background:var(--danger)}
+.card{background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:12px;padding:12px;box-shadow:0 6px 18px #0008,inset 0 1px 0 #ffffff08}
+.h{font:700 .78rem var(--head);letter-spacing:.14em;color:var(--gold);text-transform:uppercase;margin:0 0 6px}
+.row{display:flex;align-items:center;gap:8px}.sp{flex:1}
+.muted{color:var(--muted)}.small{font-size:.78rem}
+.bar{height:8px;border-radius:99px;background:#0c0a0d;border:1px solid #2a241d;overflow:hidden}
+.bar>i{display:block;height:100%;border-radius:inherit}
+.g>i{background:linear-gradient(90deg,#8a6a2a,var(--gold2))}.b>i{background:linear-gradient(90deg,#6e2219,var(--blood))}
+.x>i{background:linear-gradient(90deg,#4f3a78,var(--xp))}.l>i{background:linear-gradient(90deg,#4f6b2a,#8fb85a)}.s>i{background:linear-gradient(90deg,#4c6273,var(--steel))}
+.big{height:20px;border-radius:99px;position:relative}.big>i{box-shadow:0 0 12px #c9a24a66}
+.big span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:700;color:#fff;text-shadow:0 1px 2px #000}
+.pill{display:inline-flex;align-items:center;gap:4px;font-size:.72rem;padding:3px 9px;border-radius:99px;border:1px solid var(--line);background:#241e17;color:var(--gold2);white-space:nowrap}
+.pill.warn{border-color:var(--danger);color:#ff9b85;background:#2a1511}.pill.ok{border-color:#4f6b2a;color:#b5d98a;background:#1a2012}
+.q{--q:var(--q0);color:#141116;background:var(--q);font-weight:700;border-color:transparent}
+.q1{--q:var(--q1)}.q2{--q:var(--q2)}.q3{--q:var(--q3)}.q4{--q:var(--q4)}
+.rare{box-shadow:0 0 10px color-mix(in srgb,var(--q) 70%,transparent)}
+.btn{min-height:44px;border-radius:9px;border:1px solid var(--line);background:linear-gradient(#2c2630,#221d26);display:flex;align-items:center;justify-content:center;gap:6px;font-size:.85rem;flex:1}
+.btn.on{border-color:var(--gold);background:linear-gradient(#5a4219,#3d2c10);color:#fbe9bd;font-weight:700;box-shadow:0 0 14px #c9a24a33}
+.scene{height:92px;border-radius:10px;background:linear-gradient(#1b2a1f,#10170f 70%,#1a130e 70%);position:relative;overflow:hidden;border:1px solid #2d2720}
+.scene svg{position:absolute;inset:0;width:100%;height:100%}
+.slots{display:flex;gap:4px}.slots i{width:22px;height:22px;border-radius:6px;border:1px solid var(--line);background:#14111a;display:grid;place-items:center;font-style:normal;font-size:.7rem}.slots i.f{background:#3d2c10;border-color:var(--gold)}
+.limit{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:10px;border:1px solid var(--line);background:#14111a}
+.limit .ic{font-size:1.3rem}.limit.bad{border-color:var(--danger);background:linear-gradient(90deg,#2a1511,#14111a)}
+.limit.warn{border-color:#8a6a2a}
+.tag{font:700 .62rem var(--body);letter-spacing:.14em;text-transform:uppercase}
+.path{display:flex;align-items:center}.path i{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;border:2px solid var(--line);background:#14111a;font-style:normal;font-size:.8rem;flex:none}
+.path u{flex:1;height:3px;background:var(--line)}.path .done{border-color:var(--ok);color:var(--ok)}.path .cur{border-color:var(--gold2);box-shadow:0 0 12px #c9a24a88;color:var(--gold2)}.path .boss{border-color:var(--blood);color:var(--blood)}
+.hex{width:44px;height:44px;border-radius:10px;border:1.5px solid var(--q);background:radial-gradient(#2a2430,#14111a);display:grid;place-items:center;font-size:1.3rem;flex:none}
+</style></head><body>
+<h1>Utposten – UI v2 mockups</h1>
+<p class="lead">Static proposals, not wired to game code. Palette and quality colours are the game's real tokens.</p>
+<div class="wrap">
+
+<!-- A -->
+<div class="col"><p class="cap">A · Styrkor</p>
+<div class="phone">
+ <div class="top"><div class="logo"><small>MÄNNISKOR</small>UTPOSTEN</div><span class="pill">☰ Meny</span></div>
+ <div class="res"><div class="chip"><b>🪵 215</b><i>+12/min</i></div><div class="chip"><b>🪨 48</b><i>+4/min</i></div><div class="chip"><b>🌾 31</b><i>+6/min</i></div><div class="chip full"><b>⛓ 20/20</b><i>fullt (förslag)</i></div></div>
+ <div class="body">
+  <div class="card" style="border-color:#8a6a2a">
+   <div class="row"><div><div class="h" style="margin:0">Norra Väktarna ✎</div><span class="muted small">Nv 3 · 3 soldater</span></div><span class="sp"></span><span class="pill ok">✚ Frisk</span></div>
+   <div class="scene" style="margin:10px 0">
+    <svg viewBox="0 0 360 92" preserveAspectRatio="xMidYMid slice"><g fill="#173020"><path d="M30 70 l14-44 14 44z"/><path d="M290 70 l16-52 16 52z"/><path d="M330 70 l10-30 10 30z"/></g>
+    <g transform="translate(150 40)"><circle cx="0" cy="0" r="7" fill="#9aa0a8"/><rect x="-7" y="6" width="14" height="22" rx="4" fill="#2f4f86"/><circle cx="-10" cy="16" r="7" fill="none" stroke="#c9a24a" stroke-width="2"/></g>
+    <g transform="translate(205 42)"><circle r="6.5" fill="#9aa0a8"/><rect x="-6.5" y="6" width="13" height="21" rx="4" fill="#2f4f86"/></g>
+    <rect y="70" width="360" height="22" fill="#1a130e"/></svg></div>
+   <div class="row small"><b>🪓 Björkdungen</b><span class="sp"></span><span class="muted">2 av 3 platser</span><span class="slots"><i class="f">👤</i><i class="f">👤</i><i>·</i></span></div>
+   <div class="bar g big" style="margin:8px 0 4px"><i style="width:60%"></i><span>Träd faller · 12 s</span></div>
+   <div class="row"><span style="font-size:1.05rem;font-weight:700;color:var(--gold2)">nästa 🪵 5 om 12 s</span><span class="sp"></span><span class="muted small">+12 ved/min</span></div>
+  </div>
+  <div><div class="tag muted" style="margin-bottom:5px">Aktivitet</div>
+   <div class="row"><div class="btn">⚔️ Strid</div><div class="btn">⛏ Gruva</div><div class="btn on">🪓 Ved</div><div class="btn">🍓 Mat</div></div></div>
+  <div class="card"><div class="row"><div class="sp"><div class="tag muted">Träning</div><div class="small" style="margin:3px 0">Ny soldat · 🌾 40 · 1:30</div><div class="bar x"><i style="width:38%"></i></div></div>
+   <span class="pill warn" style="margin-left:6px">🛏 3/3 – bygg säng</span></div></div>
+  <div class="card"><div class="tag muted" style="margin-bottom:6px">Utrustning · Svärd</div>
+   <div class="row" style="flex-wrap:wrap"><span class="pill q">Normal ×1</span><span class="pill q q1">God ×1</span><span class="pill q q2 rare">Utmärkt ×1</span><span class="pill q q4 rare">Mästerverk ×1</span></div></div>
+ </div>
+ <div class="tabbar"><span class="on"><em>🛡️</em>Styrkor</span><span class="dot"><em>⚔️</em>Strid</span><span><em>🏕</em>Bosättning</span><span><em>🔨</em>Smedja</span><span class="dot"><em>📜</em>Förbättra</span></div>
+</div>
+<ul class="notes"><li>Cycle progress is the hero: a 20 px bar with the time inside, plus one big gold sentence "nästa 🪵 5 om 12 s".</li><li>Site room shown as slots (2/3) next to the site name, so "why not faster?" is answered at a glance.</li><li>Scene shrunk to 92 px so the key info sits above the fold on a phone.</li><li>Activity picker is one compact row with a single glowing active state.</li><li>Full bed count becomes an actionable warning pill; quality pills are sorted by rarity with glow only on rare tiers.</li></ul></div>
+
+<!-- B -->
+<div class="col"><p class="cap">B · Lägret / översikt</p>
+<div class="phone">
+ <div class="top"><div class="logo"><small>MÄNNISKOR</small>UTPOSTEN</div><span class="pill">☰ Meny</span></div>
+ <div class="res"><div class="chip"><b>🪵 215</b><i>+12/min</i></div><div class="chip"><b>🪨 48</b><i>+4/min</i></div><div class="chip"><b>🌾 31</b><i>+6/min</i></div><div class="chip"><b>⛓ 20</b><i>+0/min</i></div></div>
+ <div class="body">
+  <div class="tag muted">Det som begränsar dig nu</div>
+  <div class="limit bad"><span class="ic">🛏</span><div class="sp"><b>Sängar 3/3</b><div class="small muted">Ingen ny soldat utan fler sängar</div></div><span class="pill warn">Bygg · 🪵 40</span></div>
+  <div class="limit warn"><span class="ic">🌲</span><div class="sp"><b>Björkdungen full</b><div class="small muted">3 platser · 1 soldat väntar</div></div><span class="pill">Ny plats</span></div>
+  <div class="limit"><span class="ic">🪨</span><div class="sp"><b>Malm 0</b><div class="small muted">Smidet saknar 🪨 12 för Järnsvärd</div></div><span class="pill">Till Gruva</span></div>
+  <div class="limit"><span class="ic">🔨</span><div class="sp"><b>Städ ledigt</b><div class="small muted">Kön är tom</div></div><span class="pill ok">OK</span></div>
+  <div class="tag muted" style="margin-top:6px">Mål</div>
+  <div class="card" style="border-color:#8a6a2a"><div class="row"><span style="font-size:1.4rem">🎯</span><div class="sp"><b>Samla 30 ved totalt</b><div class="bar g" style="margin-top:6px"><i style="width:72%"></i></div></div><b class="small">22/30</b></div><div class="small muted" style="margin-top:6px">Belöning: 🪵 20 · öppnar Bygge</div></div>
+  <div class="card"><div class="row"><span style="font-size:1.4rem">🎯</span><div class="sp"><b>Besegra 3 kycklingar</b><div class="bar g" style="margin-top:6px"><i style="width:33%"></i></div></div><b class="small">1/3</b></div></div>
+ </div>
+ <div class="tabbar"><span><em>🛡️</em>Styrkor</span><span><em>⚔️</em>Strid</span><span class="on"><em>🏕</em>Bosättning</span><span><em>🔨</em>Smedja</span><span class="dot"><em>📜</em>Förbättra</span></div>
+</div>
+<ul class="notes"><li>New top strip answers "what is holding me back?" in priority order, red = blocking, amber = slowing, green = fine.</li><li>Every row has one action pill that jumps to the fix (needs the core to name the limiter).</li><li>Objectives become cards with a reward line and a bigger icon instead of a single text panel.</li><li>Resource chips replace the single wide resource row; a full store turns red.</li></ul></div>
+
+<!-- C -->
+<div class="col"><p class="cap">C · Strid</p>
+<div class="phone">
+ <div class="top"><div class="logo"><small>MÄNNISKOR</small>UTPOSTEN</div><span class="pill">☰ Meny</span></div>
+ <div class="res"><div class="chip"><b>🪵 215</b><i>+12/min</i></div><div class="chip"><b>🪨 48</b><i>+4/min</i></div><div class="chip"><b>🌾 31</b><i>+6/min</i></div><div class="chip"><b>⛓ 20</b><i>+0/min</i></div></div>
+ <div class="body">
+  <div class="row"><div class="sp"><div class="h" style="margin:0">Gårdarna</div><span class="muted small">Steg 3 av 5</span></div><span class="pill ok">Låg risk</span></div>
+  <div class="path"><i class="done">✓</i><u></u><i class="done">✓</i><u></u><i class="cur">3</i><u></u><i>🔒</i><u></u><i>🔒</i><u></u><i class="boss">👑</i></div>
+  <div class="card" style="border-color:#6e2219">
+   <div class="scene" style="height:120px;background:radial-gradient(#3a2b20,#120e12)"><svg viewBox="0 0 360 120"><ellipse cx="180" cy="100" rx="90" ry="9" fill="#0b090c"/><ellipse cx="180" cy="72" rx="34" ry="28" fill="#efe4c8"/><circle cx="206" cy="46" r="15" fill="#efe4c8"/><path d="M198 33q3-12 8-3q4-10 8 0q5-6 4 4z" fill="#c0533f"/><path d="M219 47l12 4-12 4z" fill="#e0a030"/><circle cx="210" cy="44" r="2.4" fill="#141016"/></svg></div>
+   <div class="row" style="margin:10px 0 6px"><b style="font:700 1.05rem var(--head)">Vild kyckling</b><span class="sp"></span><span class="small muted">🛡 Rustning 0</span></div>
+   <div class="bar b big"><i style="width:64%"></i><span>HP 8 / 12</span></div>
+   <div class="row small muted" style="margin-top:8px"><span>Ger 🪶 1 · ✨ 2 XP</span><span class="sp"></span><span>Faller om ~4 s</span></div></div>
+  <div class="card"><div class="row"><div class="sp"><div class="tag muted">Gruppens liv · 3 soldater</div><div class="bar l big" style="margin:5px 0 0"><i style="width:82%"></i><span>31 / 36</span></div></div></div>
+   <div class="small muted" style="margin-top:6px">Skada mot er 0,4/s · läker mellan strider</div></div>
+  <div class="card" style="border-color:#6e2219;background:linear-gradient(90deg,#2a1511,var(--panel))"><div class="row"><span style="font-size:1.6rem">🐗</span><div class="sp"><div class="h" style="margin:0;color:var(--danger)">Boss: Gamle Betarn</div><div class="small muted">HP 500 · Tidsgräns 90 s</div></div><span class="pill warn">Hög risk</span></div>
+   <div class="small muted" style="margin-top:6px">🔒 Rensa steg 4 och 5 först</div></div>
+ </div>
+ <div class="tabbar"><span><em>🛡️</em>Styrkor</span><span class="on"><em>⚔️</em>Strid</span><span><em>🏕</em>Bosättning</span><span><em>🔨</em>Smedja</span><span class="dot"><em>📜</em>Förbättra</span></div>
+</div>
+<ul class="notes"><li>Stage path is compact and sits first: done = green check, current = glowing gold, locked = dim.</li><li>One enemy card with a large HP bar and a time-to-kill hint instead of loose stat text.</li><li>Group HP is separated from enemy HP: red = theirs, green = yours, never mixed.</li><li>Risk is a badge (Låg/Hög) that the core should compute from DPS vs enemy.</li><li>Boss card is visually distinct (blood tint) and states its unlock condition.</li></ul></div>
+
+<!-- D -->
+<div class="col"><p class="cap">D · Smedja</p>
+<div class="phone">
+ <div class="top"><div class="logo"><small>MÄNNISKOR</small>UTPOSTEN</div><span class="pill">☰ Meny</span></div>
+ <div class="res"><div class="chip"><b>🪵 215</b><i>+12/min</i></div><div class="chip"><b>🪨 48</b><i>+4/min</i></div><div class="chip"><b>🌾 31</b><i>+6/min</i></div><div class="chip"><b>⛓ 20</b><i>+0/min</i></div></div>
+ <div class="body">
+  <div class="card" style="border-color:#8a6a2a">
+   <div class="row"><div class="sp"><div class="h" style="margin:0">Städet</div><span class="muted small">1 smed arbetar</span></div><span class="pill">Kö 2/3</span></div>
+   <div class="row" style="margin:10px 0"><div class="hex" style="--q:var(--q2)">🗡</div><div class="sp"><b>Järnsvärd</b><div class="bar g big" style="margin-top:6px"><i style="width:45%"></i><span>Smider · 24 s</span></div></div></div>
+   <div class="row small muted"><span class="hex" style="width:34px;height:34px;font-size:1rem;--q:var(--line)">🗡</span><span class="sp">Näst: Järnsvärd · 🪨 12 · 🪵 4</span><span>–</span></div></div>
+  <div class="card"><div class="tag muted" style="margin-bottom:6px">Kvalitetschans</div>
+   <div style="display:flex;height:16px;border-radius:99px;overflow:hidden;border:1px solid #2a241d">
+    <i style="width:58%;background:var(--q0)"></i><i style="width:26%;background:var(--q1)"></i><i style="width:11%;background:var(--q2)"></i><i style="width:4%;background:var(--q3)"></i><i style="width:1%;background:var(--q4);box-shadow:0 0 8px var(--q4)"></i></div>
+   <div class="row small" style="margin-top:6px;flex-wrap:wrap;gap:8px"><span style="color:var(--q0)">● Normal 58%</span><span style="color:var(--q1)">● God 26%</span><span style="color:var(--q2)">● Utmärkt 11%</span><span style="color:var(--q3)">● Exceptionell 4%</span><span style="color:var(--q4)">● Mästerverk 1%</span></div></div>
+  <div class="tag muted">Nyss smitt</div>
+  <div class="row" style="gap:10px">
+   <div class="card sp" style="padding:8px;text-align:center"><div class="hex" style="--q:var(--q0);margin:0 auto 4px">🗡</div><span class="pill q" style="font-size:.62rem">Normal</span></div>
+   <div class="card sp" style="padding:8px;text-align:center"><div class="hex rare" style="--q:var(--q1);margin:0 auto 4px">🗡</div><span class="pill q q1" style="font-size:.62rem">Bra</span></div>
+   <div class="card sp" style="padding:8px;text-align:center;border-color:var(--q3);box-shadow:0 0 16px #b07ce855"><div class="hex rare" style="--q:var(--q3);margin:0 auto 4px;box-shadow:0 0 14px var(--q3)">🗡</div><span class="pill q q3 rare" style="font-size:.62rem">Exceptionell</span></div>
+   <div class="card sp" style="padding:8px;text-align:center;border-color:var(--q4);box-shadow:0 0 20px #f0a63a88"><div class="hex rare" style="--q:var(--q4);margin:0 auto 4px;box-shadow:0 0 18px var(--q4)">⚔</div><span class="pill q q4 rare" style="font-size:.62rem">Mästerverk</span></div></div>
+  <div class="btn on" style="flex:none">+ Beställ Järnsvärd · 🪨 12 · 🪵 4</div>
+ </div>
+ <div class="tabbar"><span><em>🛡️</em>Styrkor</span><span><em>⚔️</em>Strid</span><span><em>🏕</em>Bosättning</span><span class="on"><em>🔨</em>Smedja</span><span class="dot"><em>📜</em>Förbättra</span></div>
+</div>
+<ul class="notes"><li>Queue is one live row (current item with big progress) plus a dimmed next item.</li><li>Quality chances as a single stacked bar with the real five colours and a legend – readable at a glance.</li><li>Recently forged: glow scales with rarity (none, faint, strong), so a masterpiece feels like an event.</li><li>One primary button at the bottom, within thumb reach, with the cost spelled out.</li></ul></div>
+
+</div></body></html>

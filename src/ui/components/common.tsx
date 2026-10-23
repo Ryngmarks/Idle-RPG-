@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import type { Cost, GameState, ResourceId } from '../../core';
 import { fmtCost } from '../format';
+import { ResIcon } from '../art/resources';
 import { RESOURCE_LABEL } from '../labels';
 
 /** `inside` makes it a big hero bar with text on top of the fill. */
@@ -52,7 +53,7 @@ export function CostList({ cost, state }: { cost: Cost; state: GameState }) {
     <span className="cost">
       {entries.map(([r, v]) => (
         <span key={r} className={state.resources[r] + 1e-9 >= v ? 'cost__item' : 'cost__item cost__item--short'}>
-          {RESOURCE_LABEL[r].icon} {fmtCost(v)}
+          <ResIcon id={r} size={18} /> {fmtCost(v)}<span className="sr-only"> {RESOURCE_LABEL[r].name}</span>
         </span>
       ))}
     </span>

@@ -1,13 +1,13 @@
 // Soldier figures and army formations. Presentation only: the number of figures follows the
 // troop's real size, the pose follows its real activity.
 
-import type { ReactElement } from 'react';
 import type { ActivityKind, EquipmentBucket } from '../core';
 import { ENEMY_ART, SCENES } from './art';
+import { INK, PAL } from './art/kit';
+import { SoldierArt, type Tool } from './art/soldier';
 import { QUALITY_COLOR } from './labels';
 
 type Pose = 'idle' | 'work' | 'fight';
-type Tool = 'weapon' | 'axe' | 'pick' | 'sickle' | 'hammer';
 
 const TOOL_FOR: Record<ActivityKind, Tool> = {
   combat: 'weapon',
@@ -18,96 +18,14 @@ const TOOL_FOR: Record<ActivityKind, Tool> = {
   smithing: 'hammer',
 };
 
-const WOOD = '#8a6a44';
-const STEEL = '#c9ccd4';
+const WOOD = PAL.wood;
 
-/** Rare qualities glow on the soldiers, so a well-armed army is visible at a glance. */
+/** Rare qualities glow on the soldiers' weapons, so a well-armed army is visible at a glance. */
 const GLOWING = new Set([QUALITY_COLOR.outstanding, QUALITY_COLOR.excellent, QUALITY_COLOR.masterpiece]);
 
-/** `edge` is the weapon's quality colour, or null for an unarmed soldier (a wooden club). */
-function ToolArt({ tool, race, edge }: { tool: Tool; race: string; edge: string | null }): ReactElement {
-  switch (tool) {
-    case 'axe':
-      return (
-        <g>
-          <path d="M5 -10 L9 -28" stroke={WOOD} strokeWidth="1.6" strokeLinecap="round" />
-          <path d="M8 -28 q5 -1 5 4 q-4 0 -6 -1 Z" fill={STEEL} />
-        </g>
-      );
-    case 'pick':
-      return (
-        <g>
-          <path d="M5 -10 L8 -28" stroke={WOOD} strokeWidth="1.6" strokeLinecap="round" />
-          <path d="M2 -27 Q8 -32 14 -26" stroke={STEEL} strokeWidth="1.8" fill="none" strokeLinecap="round" />
-        </g>
-      );
-    case 'sickle':
-      return (
-        <g>
-          <path d="M5 -12 L6 -20" stroke={WOOD} strokeWidth="1.6" strokeLinecap="round" />
-          <path d="M6 -20 q7 -2 6 -9 q-1 5 -6 6" fill={STEEL} />
-        </g>
-      );
-    case 'hammer':
-      return (
-        <g>
-          <path d="M5 -10 L7 -25" stroke={WOOD} strokeWidth="1.6" strokeLinecap="round" />
-          <rect x="3.5" y="-29" width="7" height="4" rx="1" fill="#837a73" />
-        </g>
-      );
-    case 'weapon':
-      if (!edge) {
-        return <path d="M5 -10 L9 -27" stroke="#6a4a2a" strokeWidth="3" strokeLinecap="round" />;
-      }
-      return race === 'orcs' ? (
-        <g className={GLOWING.has(edge) ? 'blade--rare' : undefined} style={{ ['--q' as string]: edge }}>
-          <path d="M5 -8 L8 -26" stroke={WOOD} strokeWidth="1.8" strokeLinecap="round" />
-          <path d="M7 -27 q8 0 8 7 q-5 1 -8 -1 Z" fill="#a8a29a" stroke={edge} strokeWidth="1.2" />
-        </g>
-      ) : (
-        <g className={GLOWING.has(edge) ? 'blade--rare' : undefined} style={{ ['--q' as string]: edge }}>
-          <path d="M6 -14 L6 -36" stroke={STEEL} strokeWidth="2" strokeLinecap="round" />
-          <path d="M6 -36 L6 -38" stroke={edge} strokeWidth="2" strokeLinecap="round" />
-          <path d="M3 -14 H9" stroke={edge} strokeWidth="1.6" strokeLinecap="round" />
-          <path d="M6 -14 V-10" stroke={WOOD} strokeWidth="1.6" strokeLinecap="round" />
-        </g>
-      );
-  }
-}
-
-/** One soldier, feet at (0,0), about 36 units tall, facing right. */
+/** One soldier, feet at (0,0), about 36 units tall, facing right. `edge` null = unarmed (a club). */
 export function Soldier({ race, tool, edge = '#b8b2a6' }: { race: string; tool: Tool; edge?: string | null }) {
-  const orc = race === 'orcs';
-  return orc ? (
-    <g>
-      <path d="M-5 -12 v11 h3 v-11 M2 -12 v11 h3 v-11" fill="#2b1d16" stroke="#2b1d16" strokeWidth="2" />
-      <path d="M-8 -26 Q0 -30 8 -26 L8 -11 L-8 -11 Z" fill="#4a2f22" />
-      <path d="M-8 -15 h16" stroke="#8a2a1e" strokeWidth="2" />
-      <path d="M-10 -25 q-3 6 -1 12" stroke="#6f8a3a" strokeWidth="3.5" strokeLinecap="round" fill="none" />
-      <circle cx="1" cy="-31" r="5.5" fill="#6f8a3a" />
-      <path d="M-1 -37 q1 -5 3 0" fill="#1a1210" />
-      <circle cx="3.5" cy="-32" r="0.9" fill="#ff4a2a" />
-      <path d="M3 -27.5 l1 -2 M5.5 -27.5 l0.5 -2" stroke="#efe4c8" strokeWidth="1" strokeLinecap="round" />
-      <g className="tool">
-        <path d="M8 -24 q0 6 -2 10" stroke="#6f8a3a" strokeWidth="3.5" strokeLinecap="round" fill="none" />
-        <ToolArt tool={tool} race={race} edge={edge} />
-      </g>
-    </g>
-  ) : (
-    <g>
-      <path d="M-3.5 -11 v10 M2.5 -11 v10" stroke="#3a2a20" strokeWidth="2.6" strokeLinecap="round" />
-      <path d="M-6 -24 L6 -24 L7 -10 L-7 -10 Z" fill="#2c4a6e" />
-      <path d="M-7 -14 h14" stroke="#c9a24a" strokeWidth="1" />
-      <circle cx="0" cy="-28.5" r="4.3" fill="#e0b48a" />
-      <path d="M-4.8 -29 a4.8 4.8 0 0 1 9.6 0 Z" fill="#9aa4ae" />
-      <rect x="1.6" y="-30" width="1.2" height="4" fill="#9aa4ae" />
-      <circle cx="-6" cy="-17" r="5" fill="#22344a" stroke="#c9a24a" strokeWidth="1.1" />
-      <circle cx="-6" cy="-17" r="1.2" fill="#c9a24a" />
-      <g className="tool">
-        <ToolArt tool={tool} race={race} edge={edge} />
-      </g>
-    </g>
-  );
+  return <SoldierArt race={race} tool={tool} edge={edge} glow={edge !== null && GLOWING.has(edge)} />;
 }
 
 interface Placed {
@@ -162,8 +80,9 @@ export function ArmyFigures({
     <g>
       {banner && (
         <g className="fig fig--idle">
-          <path d={`M${cx - width / 2 - 4} ${front - 4} V${front - 58}`} stroke={WOOD} strokeWidth="2" />
-          <path d={`M${cx - width / 2 - 4} ${front - 58} h18 l-4 6 l4 6 h-18 Z`} fill={race === 'orcs' ? '#7a1f16' : '#22344a'} stroke="#c9a24a" strokeWidth="1" />
+          <path d={`M${cx - width / 2 - 4} ${front - 4} V${front - 58}`} stroke={INK} strokeWidth="4" strokeLinecap="round" />
+          <path d={`M${cx - width / 2 - 4} ${front - 4} V${front - 58}`} stroke={WOOD} strokeWidth="2" strokeLinecap="round" />
+          <path d={`M${cx - width / 2 - 4} ${front - 58} h18 l-4 6 l4 6 h-18 Z`} fill={race === 'orcs' ? '#a8402f' : '#2f5486'} stroke={INK} strokeWidth="1.6" strokeLinejoin="round" />
         </g>
       )}
       {placed.map((p) => (

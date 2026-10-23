@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { content } from '../content';
 import { computeRates, RESOURCES, type GameEvent, type GameState, type Rates } from '../core';
 import { RaceEmblem } from './art';
+import { ResIcon } from './art/resources';
 import { fmtAmount, fmtRate } from './format';
 import { useSnapshot, useStore } from './game';
 import { QUALITY_COLOR, RESOURCE_LABEL, eventText, qualityName } from './labels';
@@ -34,7 +35,7 @@ function ResourceBar({ state, rates }: { state: GameState; rates: Rates }) {
     <div className="resources" aria-label="Resurser">
       {shown.map((r) => (
         <div key={r} className="resource">
-          <span className="resource__icon" aria-hidden>{RESOURCE_LABEL[r].icon}</span>
+          <span className="resource__icon" aria-hidden><ResIcon id={r} size={30} /></span>
           <span className="resource__amount">{fmtAmount(state.resources[r])}</span>
           <span className="resource__rate">{rates.income[r] > 0 ? `+${fmtRate(rates.income[r] * 60)}/min` : ''}</span>
           <span className="sr-only">{RESOURCE_LABEL[r].name}</span>

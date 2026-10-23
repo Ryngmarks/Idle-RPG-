@@ -503,3 +503,8 @@ button.chip.limit__go:hover { border-color: var(--gold); }
   .recent__item { animation: none; }
   .bar__fill { transition: none; }
 }
+
+/* ------------------------------------------------------------ art kit */
+.res-icon { flex: none; vertical-align: -0.25em; }
+.resource__icon { display: inline-flex; font-size: 0; }
+.cost__item { display: inline-flex; align-items: center; gap: 3px; }

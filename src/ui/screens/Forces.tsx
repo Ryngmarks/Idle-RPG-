@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { content } from '../../content';
 import {
   ACTIVITIES,
@@ -22,6 +22,7 @@ import {
   type TroopState,
 } from '../../core';
 import { TroopScene } from '../army';
+import { ResIcon } from '../art/resources';
 import { Bar, Chip, CostList, Panel, Slots } from '../components/common';
 import { EquipmentBar, Switch } from '../components/equipment';
 import { fmtDuration, fmtInt, fmtRate } from '../format';
@@ -72,15 +73,15 @@ export function Objectives({ state }: { state: GameState }) {
 
 type GoTab = Limiter['tab'];
 
-function limiterView(l: Limiter, state: GameState): { icon: string; title: string; hint: string; action: string } {
+function limiterView(l: Limiter, state: GameState): { icon: ReactNode; title: string; hint: string; action: string } {
   const troop = state.troops.find((t) => t.id === l.troopId);
   const site = l.siteId ? content.sites[l.siteId] : undefined;
   switch (l.kind) {
     case 'idleTroop': return { icon: '💤', title: `${troop?.name ?? 'Trupp'} saknar order`, hint: 'Ge en aktivitet', action: 'Ge order' };
     case 'noBuilder': return { icon: '🔨', title: 'Ingen bygger', hint: 'Bygget står still', action: 'Bygg' };
     case 'noSmith': return { icon: '⚒️', title: 'Ingen smed', hint: 'Kön står still', action: 'Smedjan' };
-    case 'beds': return { icon: '🛏', title: `Sängar ${l.current ?? 0}/${l.max ?? 0}`, hint: 'Ingen ny soldat utan fler sängar', action: 'Bygg säng' };
-    case 'trainingFood': return { icon: '🌾', title: 'Mat saknas', hint: `${Math.floor(l.current ?? 0)} av ${Math.ceil(l.max ?? 0)} till utbildning`, action: 'Samla mat' };
+    case 'beds': return { icon: <ResIcon id="bed" size={22} />, title: `Sängar ${l.current ?? 0}/${l.max ?? 0}`, hint: 'Ingen ny soldat utan fler sängar', action: 'Bygg säng' };
+    case 'trainingFood': return { icon: <ResIcon id="food" size={22} />, title: 'Mat saknas', hint: `${Math.floor(l.current ?? 0)} av ${Math.ceil(l.max ?? 0)} till utbildning`, action: 'Samla mat' };
     case 'siteFull': return { icon: '🌲', title: `${site?.name ?? 'Platsen'} full`, hint: `${l.current ?? 0} av ${l.max ?? 0} får plats`, action: 'Byt plats' };
     case 'crewFull': return { icon: l.target === 'smithing' ? '⚒️' : '🔨', title: l.target === 'smithing' ? 'Smedjan full' : 'Bygget fullt', hint: `${l.current ?? 0} av ${l.max ?? 0} får arbeta`, action: l.target === 'smithing' ? 'Till Smedjan' : 'Till Bosättning' };
     case 'training': return { icon: '⏳', title: 'Rekryt utbildas', hint: l.secondsLeft !== undefined ? `klar om ${fmtDuration(l.secondsLeft)}` : '', action: '' };
@@ -285,7 +286,7 @@ function TroopCard({ troop, state, rates, hero }: { troop: TroopState; state: Ga
               </button>
             )}
           </div>
-          <Chip tone={blocker === 'noBed' ? 'warn' : 'ok'} title="Soldater / sängar i lägret">🛏 {soldierCount(state)}/{beds(state, content)}{blocker === 'noBed' ? ' – bygg säng' : ''}</Chip>
+          <Chip tone={blocker === 'noBed' ? 'warn' : 'ok'} title="Soldater / sängar i lägret"><ResIcon id="bed" size={16} /> {soldierCount(state)}/{beds(state, content)}{blocker === 'noBed' ? ' – bygg säng' : ''}</Chip>
         </div>
       )}
 

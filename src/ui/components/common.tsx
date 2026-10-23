@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import type { Cost, GameState, ResourceId } from '../../core';
 import { fmtCost } from '../format';
+import { Icon, type UiIconName } from '../art/icons';
 import { ResIcon } from '../art/resources';
 import { RESOURCE_LABEL } from '../labels';
 
@@ -21,22 +22,22 @@ export function Chip({ tone, children, title }: { tone?: 'ok' | 'warn' | 'slow' 
 }
 
 /** Limited places as dots: filled = used. */
-export function Slots({ used, total, icon = '👤', label }: { used: number; total: number; icon?: string; label: string }) {
+export function Slots({ used, total, label }: { used: number; total: number; label: string }) {
   const n = Math.max(0, Math.min(12, Math.round(total)));
   return (
     <span className="slots" role="img" aria-label={label}>
-      {Array.from({ length: n }, (_, i) => <i key={i} className={i < used ? 'slots__f' : ''}>{i < used ? icon : '·'}</i>)}
+      {Array.from({ length: n }, (_, i) => <i key={i} className={i < used ? 'slots__f' : ''}>{i < used ? <Icon name="soldier" size={15} /> : '·'}</i>)}
     </span>
   );
 }
 
 /** `hero` = the one primary card of a screen (gold edge); other panels stay secondary. */
-export function Panel({ title, children, className = '', aside, hero }: { title?: ReactNode; children: ReactNode; className?: string; aside?: ReactNode; hero?: boolean }) {
+export function Panel({ title, children, className = '', aside, hero, icon }: { title?: ReactNode; children: ReactNode; className?: string; aside?: ReactNode; hero?: boolean; icon?: UiIconName }) {
   return (
     <section className={`panel ${hero ? 'panel--hero' : ''} ${className}`}>
       {title !== undefined && (
         <header className="panel__head">
-          <h2 className="panel__title">{title}</h2>
+          <h2 className="panel__title">{icon && <Icon name={icon} size={22} />}<span>{title}</span></h2>
           {aside}
         </header>
       )}
@@ -58,4 +59,9 @@ export function CostList({ cost, state }: { cost: Cost; state: GameState }) {
       ))}
     </span>
   );
+}
+
+/** Resource icon followed by an amount (inline, e.g. loot and rewards). */
+export function ResAmount({ r, v }: { r: ResourceId; v: ReactNode }) {
+  return <span className="amount"><ResIcon id={r} size={16} />{v}<span className="sr-only"> {RESOURCE_LABEL[r].name}</span></span>;
 }

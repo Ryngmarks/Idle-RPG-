@@ -22,24 +22,26 @@ import {
   type TroopState,
 } from '../../core';
 import { TroopScene } from '../army';
+import { Icon } from '../art/icons';
 import { ResIcon } from '../art/resources';
-import { Bar, Chip, CostList, Panel, Slots } from '../components/common';
+import { Bar, Chip, CostList, ResAmount, Slots } from '../components/common';
 import { EquipmentBar, Switch } from '../components/equipment';
 import { fmtDuration, fmtInt, fmtRate } from '../format';
+import { useRise, useWrap } from '../fx';
 import { useStore } from '../game';
 import { ACTIVITY_LABEL, RESOURCE_LABEL, effectText, objectiveProgress } from '../labels';
 
-function rewardText(o: ObjectiveDef): string {
+function rewardText(o: ObjectiveDef): ReactNode {
   const r = o.rewards;
-  const parts: string[] = [];
-  for (const [res, v] of Object.entries(r.resources ?? {})) if ((v ?? 0) > 0) parts.push(`${RESOURCE_LABEL[res as ResourceId].icon} ${v}`);
-  if (r.soldiers) parts.push(`👤 +${r.soldiers}`);
-  if (r.troopSlots) parts.push(`🛡️ +${r.troopSlots} grupp`);
+  const parts: ReactNode[] = [];
+  for (const [res, v] of Object.entries(r.resources ?? {})) if ((v ?? 0) > 0) parts.push(<ResAmount key={res} r={res as ResourceId} v={v} />);
+  if (r.soldiers) parts.push(<span key="sol" className="amount"><Icon name="soldier" size={16} />+{r.soldiers}<span className="sr-only"> soldater</span></span>);
+  if (r.troopSlots) parts.push(<span key="slot" className="amount"><Icon name="shield" size={16} />+{r.troopSlots} grupp</span>);
   for (const u of r.unlocks ?? []) {
     const t = effectText({ type: 'unlock', unlock: u } as never);
-    if (t) parts.push(t.toLowerCase());
+    if (t) parts.push(<span key={u}>{t.toLowerCase()}</span>);
   }
-  return parts.join(' · ');
+  return parts.length ? parts.map((p, i) => <span key={i} className="rw">{p}</span>) : null;
 }
 
 export function Objectives({ state }: { state: GameState }) {
@@ -55,7 +57,7 @@ export function Objectives({ state }: { state: GameState }) {
           return (
             <div key={o.id} className="goal">
               <div className="goal__row">
-                <span className="goal__icon" aria-hidden>🎯</span>
+                <span className="goal__icon" aria-hidden><Icon name="target" size={30} /></span>
                 <div className="goal__body">
                   <b>{o.text}</b>
                   {p && <Bar value={p.current} max={p.target} tone="gold" label={o.text} />}
@@ -77,14 +79,14 @@ function limiterView(l: Limiter, state: GameState): { icon: ReactNode; title: st
   const troop = state.troops.find((t) => t.id === l.troopId);
   const site = l.siteId ? content.sites[l.siteId] : undefined;
   switch (l.kind) {
-    case 'idleTroop': return { icon: '💤', title: `${troop?.name ?? 'Trupp'} saknar order`, hint: 'Ge en aktivitet', action: 'Ge order' };
-    case 'noBuilder': return { icon: '🔨', title: 'Ingen bygger', hint: 'Bygget står still', action: 'Bygg' };
-    case 'noSmith': return { icon: '⚒️', title: 'Ingen smed', hint: 'Kön står still', action: 'Smedjan' };
-    case 'beds': return { icon: <ResIcon id="bed" size={22} />, title: `Sängar ${l.current ?? 0}/${l.max ?? 0}`, hint: 'Ingen ny soldat utan fler sängar', action: 'Bygg säng' };
-    case 'trainingFood': return { icon: <ResIcon id="food" size={22} />, title: 'Mat saknas', hint: `${Math.floor(l.current ?? 0)} av ${Math.ceil(l.max ?? 0)} till utbildning`, action: 'Samla mat' };
-    case 'siteFull': return { icon: '🌲', title: `${site?.name ?? 'Platsen'} full`, hint: `${l.current ?? 0} av ${l.max ?? 0} får plats`, action: 'Byt plats' };
-    case 'crewFull': return { icon: l.target === 'smithing' ? '⚒️' : '🔨', title: l.target === 'smithing' ? 'Smedjan full' : 'Bygget fullt', hint: `${l.current ?? 0} av ${l.max ?? 0} får arbeta`, action: l.target === 'smithing' ? 'Till Smedjan' : 'Till Bosättning' };
-    case 'training': return { icon: '⏳', title: 'Rekryt utbildas', hint: l.secondsLeft !== undefined ? `klar om ${fmtDuration(l.secondsLeft)}` : '', action: '' };
+    case 'idleTroop': return { icon: <Icon name="zzz" size={26} />, title: `${troop?.name ?? 'Trupp'} saknar order`, hint: 'Ge en aktivitet', action: 'Ge order' };
+    case 'noBuilder': return { icon: <Icon name="hammer" size={26} />, title: 'Ingen bygger', hint: 'Bygget står still', action: 'Bygg' };
+    case 'noSmith': return { icon: <Icon name="anvil" size={26} />, title: 'Ingen smed', hint: 'Kön står still', action: 'Smedjan' };
+    case 'beds': return { icon: <ResIcon id="bed" size={28} />, title: `Sängar ${l.current ?? 0}/${l.max ?? 0}`, hint: 'Ingen ny soldat utan fler sängar', action: 'Bygg säng' };
+    case 'trainingFood': return { icon: <ResIcon id="food" size={28} />, title: 'Mat saknas', hint: `${Math.floor(l.current ?? 0)} av ${Math.ceil(l.max ?? 0)} till utbildning`, action: 'Samla mat' };
+    case 'siteFull': return { icon: <Icon name="tree" size={26} />, title: `${site?.name ?? 'Platsen'} full`, hint: `${l.current ?? 0} av ${l.max ?? 0} får plats`, action: 'Byt plats' };
+    case 'crewFull': return { icon: <Icon name={l.target === 'smithing' ? 'anvil' : 'hammer'} size={26} />, title: l.target === 'smithing' ? 'Smedjan full' : 'Bygget fullt', hint: `${l.current ?? 0} av ${l.max ?? 0} får arbeta`, action: l.target === 'smithing' ? 'Till Smedjan' : 'Till Bosättning' };
+    case 'training': return { icon: <Icon name="hourglass" size={26} />, title: 'Rekryt utbildas', hint: l.secondsLeft !== undefined ? `klar om ${fmtDuration(l.secondsLeft)}` : '', action: '' };
   }
 }
 
@@ -139,7 +141,7 @@ function CycleHero({ troop, state, rates }: { troop: TroopState; state: GameStat
   const site = troop.siteId ? content.sites[troop.siteId] : undefined;
   const cycles = site ? (rates.siteCycles[site.id] ?? 0) : 0;
   if (!site || cycles <= 0) return <p className="troop__output">{outputText(troop, rates, state)}</p>;
-  const reward = Object.entries(site.yield).map(([r, v]) => `${RESOURCE_LABEL[r as ResourceId].icon} ${v}`).join(' ');
+  const reward = Object.entries(site.yield).map(([r, v]) => <ResAmount key={r} r={r as ResourceId} v={v} />);
   const left = secondsToNextCycle(state, content, site.id) ?? 0;
   const cap = capacity(state, content, site.id);
   const working = rates.perTroop[troop.id]?.working ?? 0;
@@ -155,10 +157,27 @@ function CycleHero({ troop, state, rates }: { troop: TroopState; state: GameStat
         <span className="small muted">{working} av {cap} {cap === 1 ? 'plats' : 'platser'}</span>
         <Slots used={Math.min(working, cap)} total={cap} label={`${working} av ${cap} platser`} />
       </div>
-      <Bar value={state.siteProgress[site.id] ?? 0} max={1} tone="gold" label={`${site.name}: arbetscykel`} inside={fmtDuration(left)} />
+      <CycleBar key={site.id} progress={state.siteProgress[site.id] ?? 0} site={site} left={left} />
       <div className="hero-cycle__next">
-        <strong>nästa {reward} om {fmtDuration(left)}</strong>
+        <strong className="hero-cycle__reward">nästa {reward} om {fmtDuration(left)}</strong>
         <span className="small muted">{perMin}</span>
+      </div>
+    </div>
+  );
+}
+
+/** The cycle bar: pulses when a cycle completes and floats the reward up from it. */
+function CycleBar({ progress, site, left }: { progress: number; site: { id: string; name: string; yield: Partial<Record<ResourceId, number>> }; left: number }) {
+  const n = useWrap(progress);
+  return (
+    <div className={`cycle-wrap ${n > 0 ? 'cycle-wrap--done' : ''}`}>
+      {n > 0 && (
+        <span key={n} className="cycle-pop" aria-hidden>
+          {Object.entries(site.yield).filter(([, v]) => (v ?? 0) > 0).map(([r, v]) => <ResAmount key={r} r={r as ResourceId} v={`+${fmtInt(v ?? 0)}`} />)}
+        </span>
+      )}
+      <div key={n} className={n > 0 ? 'cycle-pulse' : undefined}>
+        <Bar value={progress} max={1} tone="gold" label={`${site.name}: arbetscykel`} inside={fmtDuration(left)} />
       </div>
     </div>
   );
@@ -169,17 +188,17 @@ function LifeStatus({ troop, rates, hpPerSoldier }: { troop: TroopState; rates: 
   if (net > 0) {
     const secs = Math.max(0, hpPerSoldier - troop.wounds) / net;
     const text = troop.size > 1 ? `nästa soldat faller om ${fmtDuration(secs)}` : `retirerar om ${fmtDuration(secs)}`;
-    return <span className="life-status life-status--danger">⚠️ Tar skada: {text}</span>;
+    return <span className="life-status life-status--danger"><Icon name="warning" size={16} /> Tar skada: {text}</span>;
   }
-  if (net < 0) return <span className="life-status life-status--healing">✚ Läker</span>;
+  if (net < 0) return <span className="life-status life-status--healing"><Icon name="heal" size={14} /> Läker</span>;
   return null;
 }
 
 function LifeChip({ troop, rates, hpPerSoldier }: { troop: TroopState; rates: Rates; hpPerSoldier: number }) {
   const net = rates.woundsPerSec[troop.id] ?? 0;
-  if (net > 0) return <Chip tone="warn">⚠️ Skadas</Chip>;
-  if (net < 0) return <Chip tone="ok">✚ Läker</Chip>;
-  return <Chip tone="ok">✚ Frisk</Chip>;
+  if (net > 0) return <Chip tone="warn"><Icon name="warning" size={14} /> Skadas</Chip>;
+  if (net < 0) return <Chip tone="ok"><Icon name="heal" size={13} /> Läker</Chip>;
+  return <Chip tone="ok"><Icon name="heal" size={13} /> Frisk</Chip>;
 }
 
 function TroopCard({ troop, state, rates, hero }: { troop: TroopState; state: GameState; rates: Rates; hero: boolean }) {
@@ -191,6 +210,7 @@ function TroopCard({ troop, state, rates, hero }: { troop: TroopState; state: Ga
   const c = content.constants;
   const lvlFrom = xpForLevel(stats.level, c.xpBase, c.xpExponent);
   const lvlTo = xpForLevel(stats.level + 1, c.xpBase, c.xpExponent);
+  const lvlUps = useRise(stats.level);
   const unlocked = ACTIVITIES.filter((a) => state.unlocks.includes(`activity:${a}`));
   const canRecruit = state.unlocks.includes('recruit');
   const blocker = trainBlocker(state, content);
@@ -210,7 +230,7 @@ function TroopCard({ troop, state, rates, hero }: { troop: TroopState; state: Ga
 
   return (
     <article className={`troop ${hero ? 'troop--hero' : ''}`}>
-      <TroopScene race={state.raceId} size={troop.size} activity={troop.activity} equipment={troop.equipment} />
+      <TroopScene race={state.raceId} size={troop.size} activity={troop.activity} equipment={troop.equipment} cycleSec={troop.siteId && (rates.siteCycles[troop.siteId] ?? 0) > 0 ? 1 / rates.siteCycles[troop.siteId]! : undefined} />
       <header className="troop__head">
         {editing ? (
           <form
@@ -226,15 +246,17 @@ function TroopCard({ troop, state, rates, hero }: { troop: TroopState; state: Ga
           </form>
         ) : (
           <button className="troop__name" onClick={() => { setName(troop.name); setEditing(true); }} title="Byt namn">
-            {troop.name} <span className="troop__edit">✎</span>
+            {troop.name} <span className="troop__edit" aria-hidden><Icon name="pencil" size={15} /></span>
           </button>
         )}
-        <span className="badge" title={`${Math.floor(troop.xp)} / ${lvlTo} XP`}>Nv {stats.level}</span>
+        <span key={lvlUps} className={`badge badge--lvl ${lvlUps > 0 ? 'badge--flare' : ''}`} title={`${Math.floor(troop.xp)} / ${lvlTo} XP`}><Icon name="star" size={13} /> Nv {stats.level}</span>
         <LifeChip troop={troop} rates={rates} hpPerSoldier={stats.hp} />
       </header>
       <div className="troop__mini">
-        <span><strong>{troop.size}</strong> {troop.size === 1 ? 'soldat' : 'soldater'} · {fmtRate(stats.strength)} DPS · arbete {fmtRate(stats.workTotal)}</span>
-        <span>❤️ {fmtRate(stats.maxHp - troop.wounds)}/{fmtRate(stats.maxHp)}</span>
+        <span className="stat"><Icon name="soldier" size={18} /><strong>{troop.size}</strong><span className="sr-only">{troop.size === 1 ? 'soldat' : 'soldater'}</span></span>
+        <span className="stat" title="Styrka (skada per sekund)"><Icon name="strength" size={18} />{fmtRate(stats.strength)}<span className="sr-only"> styrka</span></span>
+        <span className="stat" title="Arbete"><Icon name="work" size={18} />{fmtRate(stats.workTotal)}<span className="sr-only"> arbete</span></span>
+        <span className="stat" title="Liv"><Icon name="heart" size={18} />{fmtRate(stats.maxHp - troop.wounds)}/{fmtRate(stats.maxHp)}<span className="sr-only"> liv</span></span>
       </div>
       <Bar value={stats.maxHp - troop.wounds} max={stats.maxHp} tone="life" label="Liv" />
       <Bar value={troop.xp - lvlFrom} max={lvlTo - lvlFrom} tone="xp" label="Erfarenhet" />
@@ -250,7 +272,7 @@ function TroopCard({ troop, state, rates, hero }: { troop: TroopState; state: Ga
             aria-pressed={troop.activity === a}
             onClick={() => assign(a)}
           >
-            <span className="activity__icon" aria-hidden>{ACTIVITY_LABEL[a].icon}</span>
+            <span className="activity__icon" aria-hidden><Icon name={ACTIVITY_LABEL[a].icon} size={22} /></span>
             <span className="activity__name">{ACTIVITY_LABEL[a].name}</span>
           </button>
         ))}
@@ -265,7 +287,7 @@ function TroopCard({ troop, state, rates, hero }: { troop: TroopState; state: Ga
               aria-pressed={troop.siteId === site.id}
               onClick={() => run(() => store.command({ type: 'assignTroop', troopId: troop.id, activity: troop.activity, siteId: site.id }))}
             >
-              {site.name} · {Object.entries(site.yield).map(([r, v]) => `${RESOURCE_LABEL[r as ResourceId].icon}${v}`).join(' ')} · {capacity(state, content, site.id)} pl.
+              {site.name} · {Object.entries(site.yield).map(([r, v]) => <ResAmount key={r} r={r as ResourceId} v={v} />)} · {capacity(state, content, site.id)} pl.
             </button>
           ))}
         </div>
@@ -274,7 +296,7 @@ function TroopCard({ troop, state, rates, hero }: { troop: TroopState; state: Ga
       {canRecruit && (
         <div className="train">
           <div className="train__main">
-            <span className="tag">Träning</span>
+            <span className="tag"><Icon name="hourglass" size={14} /> Träning</span>
             {trainingHere ? (
               <>
                 <span className="small">Ny soldat · klar om {fmtDuration(trainingHere.secLeft)}</span>
@@ -295,9 +317,9 @@ function TroopCard({ troop, state, rates, hero }: { troop: TroopState; state: Ga
           <span className="recruit__label">Flytta en soldat</span>
           <div className="recruit__buttons">
             {others.map((o) => (
-              <button key={o.id} className="btn btn--small btn--ghost" onClick={() => move(o.id)}>→ {o.name}</button>
+              <button key={o.id} className="btn btn--small btn--ghost" onClick={() => move(o.id)}><Icon name="arrow" size={14} /> {o.name}</button>
             ))}
-            {openSlot && <button className="btn btn--small" onClick={() => move(null)}>→ Ny grupp</button>}
+            {openSlot && <button className="btn btn--small" onClick={() => move(null)}><Icon name="arrow" size={14} /> Ny grupp</button>}
           </div>
         </div>
       )}

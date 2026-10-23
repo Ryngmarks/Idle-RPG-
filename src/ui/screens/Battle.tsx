@@ -2,13 +2,14 @@ import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { content } from '../../content';
 import { currentEnemy, enemy, estimatedBossDamage, normalizeBuckets, secondsPerKill, stageSafety, troopStats, zone, type GameState, type Rates, type StageSafety } from '../../core';
 import { EnemyPortrait } from '../art';
+import { Icon } from '../art/icons';
 import { Battlefield } from '../army';
-import { Bar, Chip, Panel } from '../components/common';
+import { Bar, Chip, Panel, ResAmount } from '../components/common';
 import { fmtDuration, fmtInt, fmtRate } from '../format';
 import { useStore } from '../game';
 import { RESOURCE_LABEL } from '../labels';
 
-const RISK_ICON = { safe: '🟢', risky: '🟡', deadly: '🔴' } as const;
+const RISK_ICON = { safe: 'dotSafe', risky: 'dotRisky', deadly: 'dotDeadly' } as const;
 const RISK_BADGE = { safe: { text: 'Låg risk', tone: 'ok' }, risky: { text: 'Risk', tone: 'slow' }, deadly: { text: 'Hög risk', tone: 'warn' } } as const;
 
 function RiskBadge({ risk }: { risk: StageSafety['risk'] }) {
@@ -70,7 +71,8 @@ export function Battle({ state, rates }: { state: GameState; rates: Rates }) {
 
   return (
     <div className="screen">
-      <Panel hero title={z.name} aside={<span className="battle-head"><span className="muted small">Steg {c.stageIndex + 1} av {z.stages.length}</span><RiskBadge risk={here.risk} /></span>}>
+      <Panel hero icon="swords" title={z.name} aside={<span className="battle-head"><span className="muted small">Steg {c.stageIndex + 1} av {z.stages.length}</span><RiskBadge risk={here.risk} /></span>}>
+        {justOpened !== null && <div key={justOpened} className="stage-banner" role="status"><Icon name="flag" size={18} /> Steg {justOpened} klart!</div>}
         <ol className="path" aria-label="Välj steg">
           {z.stages.map((s, i) => {
             const open = i <= c.unlockedStage;
@@ -89,10 +91,10 @@ export function Battle({ state, rates }: { state: GameState; rates: Rates }) {
                   onClick={() => select(i)}
                 >
                   <span className="node__ring" />
-                  <span className="node__face">{open ? <EnemyPortrait enemyId={s.enemyId} size={40} /> : '🔒'}</span>
-                  {i === c.stageIndex && <span className="node__flag" aria-hidden>🚩</span>}
-                  {cleared && <span className="node__badge" aria-hidden>✓</span>}
-                  {risk && !cleared && <span className="node__risk" aria-hidden>{RISK_ICON[risk]}</span>}
+                  <span className="node__face">{open ? <EnemyPortrait enemyId={s.enemyId} size={40} /> : <Icon name="lock" size={20} />}</span>
+                  {i === c.stageIndex && <span className="node__flag" aria-hidden><Icon name="flag" size={20} /></span>}
+                  {cleared && <span className="node__badge" aria-hidden><Icon name="check" size={11} /></span>}
+                  {risk && !cleared && <span className="node__risk" aria-hidden><Icon name={RISK_ICON[risk]} size={14} /></span>}
                 </button>
                 <span className="path__label">{i + 1}</span>
               </li>
@@ -100,8 +102,8 @@ export function Battle({ state, rates }: { state: GameState; rates: Rates }) {
           })}
           <li className="path__step">
             <span className={`node node--boss ${c.cleared ? '' : 'node--locked'} ${c.bossDefeated ? 'node--cleared' : ''}`} aria-label={boss.name}>
-              <span className="node__face">{c.cleared ? <EnemyPortrait enemyId={boss.id} size={46} /> : '👑'}</span>
-              {c.bossDefeated && <span className="node__badge" aria-hidden>✓</span>}
+              <span className="node__face">{c.cleared ? <EnemyPortrait enemyId={boss.id} size={46} /> : <Icon name="crown" size={26} />}</span>
+              {c.bossDefeated && <span className="node__badge" aria-hidden><Icon name="check" size={11} /></span>}
             </span>
             <span className="path__label">Boss</span>
           </li>
@@ -115,7 +117,7 @@ export function Battle({ state, rates }: { state: GameState; rates: Rates }) {
           <div className="row">
             <p className="small muted">Här samlar du mat och erfarenhet i lugn takt. Steg {c.unlockedStage + 1} är öppet.</p>
             <button className="btn btn--small" disabled={!!c.boss} onClick={() => select(c.unlockedStage)}>
-              Gå till steg {c.unlockedStage + 1} {RISK_ICON[safetyAt(c.unlockedStage).risk]}
+              Gå till steg {c.unlockedStage + 1} <Icon name={RISK_ICON[safetyAt(c.unlockedStage).risk]} size={14} />
             </button>
           </div>
         ) : (
@@ -124,15 +126,17 @@ export function Battle({ state, rates }: { state: GameState; rates: Rates }) {
       </Panel>
 
       {fighters.length === 0 && (
-        <div className="cta" role="status">⚠️ <span>Ingen trupp strider. Ge en trupp ordern <b>Strid</b> under Styrkor.</span></div>
+        <div className="cta" role="status"><Icon name="warning" size={22} /> <span>Ingen trupp strider. Ge en trupp ordern <b>Strid</b> under Styrkor.</span></div>
       )}
 
-      <Panel className="enemy enemy-card" title={c.boss ? boss.name : foe.name} aside={<span className="small muted">🛡 Rustning {foe.armour}</span>}>
+      <Panel className="enemy enemy-card" title={c.boss ? boss.name : foe.name} aside={<span className="small muted stat"><Icon name="shield" size={16} /> Rustning {foe.armour}</span>}>
         <Battlefield
           race={state.raceId}
           size={soldiers}
           enemyId={c.boss ? boss.id : foe.id}
           hitKey={Math.floor(state.stats.totalKills)}
+          strikeSec={rates.killsPerSec > 0 ? Math.max(0.5, Math.min(1.4, 1 / rates.killsPerSec)) : undefined}
+          dmg={rates.killsPerSec < 1 ? `-${fmtRate(c.boss ? rates.bossDps : totalDps)}/s` : undefined}
           fighting={fighters.length > 0}
           boss={!!c.boss}
           equipment={normalizeBuckets(fighters.flatMap((t) => t.equipment), content)}
@@ -143,14 +147,14 @@ export function Battle({ state, rates }: { state: GameState; rates: Rates }) {
           <Bar value={foe.hp} max={foe.hp} tone="blood" label="Fiendens HP" inside={rates.killsPerSec >= 2 ? `${fmtRate(rates.killsPerSec)} fiender/s` : `HP ${foe.hp}`} />
         ))}
         <div className="kv">
-          <span>Ger {Object.entries(foe.loot).map(([r, v]) => `${RESOURCE_LABEL[r as keyof typeof RESOURCE_LABEL].icon} ${fmtRate(v ?? 0)}`).join(' ')} · ⭐ {fmtRate(foe.xp)} XP</span>
+          <span className="kv__loot">Ger {Object.entries(foe.loot).map(([r, v]) => <ResAmount key={r} r={r as keyof typeof RESOURCE_LABEL} v={fmtRate(v ?? 0)} />)} <span className="amount"><Icon name="xp" size={16} />{fmtRate(foe.xp)} XP</span></span>
           <span className="sp" style={{ flex: 1 }} />
           {spk !== null && <b>{spk < 1 ? 'Faller på under 1 s' : `Faller om ~${fmtRate(spk)} s`}</b>}
         </div>
         {fighters.length > 0 && <p className="small muted">{fighters.map((t) => t.name).join(', ')} · {fmtRate(totalDps)} DPS</p>}
       </Panel>
 
-      {fighters.length > 0 && <Panel title={`Gruppens liv${soldiers > 0 ? ` · ${soldiers} ${soldiers === 1 ? 'soldat' : 'soldater'}` : ''}`}>
+      {fighters.length > 0 && <Panel icon="heart" title={`Gruppens liv${soldiers > 0 ? ` · ${soldiers} ${soldiers === 1 ? 'soldat' : 'soldater'}` : ''}`}>
         <Bar value={groupNow} max={groupMax} tone="life" label="Gruppens liv" inside={`${fmtInt(groupNow)} / ${fmtInt(groupMax)}`} />
         <p className="small muted">
           {incoming > 0 ? `Skada mot er ${fmtRate(incoming)}/s` : healing ? 'Läker mellan strider' : 'Ingen skada just nu'}
@@ -158,12 +162,12 @@ export function Battle({ state, rates }: { state: GameState; rates: Rates }) {
         </p>
       </Panel>}
 
-      <Panel title={`Boss: ${boss.name}`} className="boss" aside={bossUnlocked && !c.bossDefeated ? <RiskBadge risk={bossSafety.risk} /> : undefined}>
+      <Panel icon="crown" title={`Boss: ${boss.name}`} className="boss" aside={bossUnlocked && !c.bossDefeated ? <RiskBadge risk={bossSafety.risk} /> : undefined}>
         <div className="boss__art">
           <EnemyPortrait enemyId={boss.id} size={72} />
         </div>
         {c.bossDefeated ? (
-          <p>👑 Gamle Betarn är besegrad. Gårdarna är säkra. <span className="muted">Nästa region kommer i en senare version.</span></p>
+          <p><Icon name="crown" size={20} /> Gamle Betarn är besegrad. Gårdarna är säkra. <span className="muted">Nästa region kommer i en senare version.</span></p>
         ) : c.boss ? (
           <>
             <span className="small">HP {fmtInt(c.boss.hpLeft)} / {fmtInt(boss.hp)}</span>
@@ -187,7 +191,7 @@ export function Battle({ state, rates }: { state: GameState; rates: Rates }) {
                 </button>
               </>
             ) : (
-              <p className="muted small">🔒 Rensa alla fem stegen för att utmana bossen.</p>
+              <p className="muted small"><Icon name="lock" size={16} /> Rensa alla fem stegen för att utmana bossen.</p>
             )}
           </>
         )}

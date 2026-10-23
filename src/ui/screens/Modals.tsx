@@ -1,6 +1,8 @@
 import { useState, type ReactNode } from 'react';
 import type { AwayReport } from '../../app/store';
 import { RESOURCES, type GameState } from '../../core';
+import { Icon } from '../art/icons';
+import { ResIcon } from '../art/resources';
 import { fmtAmount, fmtClock, fmtDuration, fmtInt } from '../format';
 import { useStore } from '../game';
 import { buildLabel, checkForUpdate, reloadToLatest, type UpdateStatus } from '../update';
@@ -12,7 +14,7 @@ function Modal({ title, children, onClose }: { title: string; children: ReactNod
       <div className="modal__box panel" onClick={(e) => e.stopPropagation()}>
         <header className="panel__head">
           <h2 className="panel__title">{title}</h2>
-          <button className="btn btn--small" onClick={onClose} aria-label="Stäng">✕</button>
+          <button className="btn btn--small" onClick={onClose} aria-label="Stäng"><Icon name="close" size={16} /></button>
         </header>
         {children}
       </div>
@@ -34,11 +36,11 @@ export function AwayReportModal({ report, state, onClose }: { report: AwayReport
       {gained.length > 0 || crafted > 0 ? (
         <ul className="report-list">
           {gained.map((r) => (
-            <li key={r}>{RESOURCE_LABEL[r].icon} +{fmtAmount(report.resources[r])} {RESOURCE_LABEL[r].name.toLowerCase()}</li>
+            <li key={r}><ResIcon id={r} size={20} /> +{fmtAmount(report.resources[r])} {RESOURCE_LABEL[r].name.toLowerCase()}</li>
           ))}
-          {report.kills >= 1 && <li>⚔️ {fmtInt(Math.floor(report.kills))} fiender besegrade</li>}
-          {levelUps > 0 && <li>⭐ {levelUps} nivåhöjningar</li>}
-          {crafted > 0 && <li>⚒️ {crafted} vapen smidda</li>}
+          {report.kills >= 1 && <li><Icon name="swords" size={20} /> {fmtInt(Math.floor(report.kills))} fiender besegrade</li>}
+          {levelUps > 0 && <li><Icon name="star" size={20} /> {levelUps} nivåhöjningar</li>}
+          {crafted > 0 && <li><Icon name="anvil" size={20} /> {crafted} vapen smidda</li>}
         </ul>
       ) : (
         <p className="muted">Dina trupper hade inga order, så inget samlades in.</p>
@@ -68,7 +70,7 @@ export function MenuModal({ state, storageOk, onClose }: { state: GameState; sto
         <p className="small muted">
           {storageOk
             ? 'Spelet sparas automatiskt i den här webbläsaren var tionde sekund och när du stänger appen.'
-            : '⚠️ Webbläsaren tillåter inte sparning (t.ex. privat läge). Använd export för att inte förlora framsteg.'}
+            : <><Icon name="warning" size={15} /> Webbläsaren tillåter inte sparning (t.ex. privat läge). Använd export för att inte förlora framsteg.</>}
         </p>
         <p className="small muted">Speltid: {fmtClock(state.clock)}</p>
         <div className="row">

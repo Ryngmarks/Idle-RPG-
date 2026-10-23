@@ -1,11 +1,13 @@
 import { useState } from 'react';
+import { useRise } from '../fx';
 import { content } from '../../content';
 import { canAfford, race, type BuildingDef, type GameState, type Rates } from '../../core';
-import { SettlementScene } from '../art';
+import { Icon } from '../art/icons';
+import { VillageScene } from '../art/village';
 import { Bar, CostList, Panel } from '../components/common';
 import { fmtDuration, fmtInt } from '../format';
 import { useStore } from '../game';
-import { effectText, settlementStage } from '../labels';
+import { BUILDING_ICON, effectText, settlementStage } from '../labels';
 
 const PLOTS = 6;
 const MAX_EMPTY_SHOWN = 2;
@@ -15,16 +17,25 @@ function BuildingPlot({ def, state, rates }: { def: BuildingDef; state: GameStat
   const [error, setError] = useState<string | null>(null);
   const level = state.buildings[def.id] ?? 0;
   const next = def.levels[level];
+  const built = useRise(level);
   const building = state.construction?.buildingId === def.id ? state.construction : null;
   const busy = state.construction !== null && !building;
   const r = race(state, content);
   const builders = state.troops.filter((t) => t.activity === 'construction');
 
   return (
-    <article className={`plot ${level > 0 ? 'plot--built' : ''}`}>
+    <article className={`plot ${!next && !building ? 'plot--done' : ''} ${level > 0 ? 'plot--built' : ''}`}>
       <header className="plot__head">
-        <h3 className="plot__name">{def.name}</h3>
-        <span className="badge">{level > 0 ? `Nivå ${level}/${def.levels.length}` : 'Ej byggd'}</span>
+        <span className="plot__icon" aria-hidden><Icon name={BUILDING_ICON[def.id] ?? 'castle'} size={34} /></span>
+        <div className="plot__title">
+          <h3 className="plot__name">{def.name}</h3>
+          <span className="pips" role="img" aria-label={`Nivå ${level} av ${def.levels.length}`}>
+            {def.levels.map((_, i) => (
+              <i key={i} className={`pip ${i < level ? 'pip--on' : building && i === level ? 'pip--build' : ''}`} />
+            ))}
+          </span>
+        </div>
+        <span className="badge plot__level">{level > 0 ? `Nivå ${level}/${def.levels.length}` : 'Ej byggd'}</span>
       </header>
       {building ? (
         <div className="plot__progress">
@@ -38,7 +49,7 @@ function BuildingPlot({ def, state, rates }: { def: BuildingDef; state: GameStat
                 <span className="small">
                   {rate > 0
                     ? `${builders.map((t) => t.name).join(', ')} bygger · klart om ${fmtDuration((work - building.progress) / rate)}`
-                    : '⚠️ Ingen trupp bygger. Ge en trupp ordern Bygge.'}
+                    : <><Icon name="warning" size={15} /> Ingen trupp bygger. Ge en trupp ordern Bygge.</>}
                 </span>
               </>
             );
@@ -46,6 +57,7 @@ function BuildingPlot({ def, state, rates }: { def: BuildingDef; state: GameStat
         </div>
       ) : next ? (
         <>
+          <p className="plot__next small">{level > 0 ? `Nivå ${level + 1} ger` : 'Ger'}</p>
           <ul className="plot__effects">
             {next.effects.map((e) => effectText(e, r.population.bedMult)).filter(Boolean).map((t, i) => <li key={i}>{t}</li>)}
           </ul>
@@ -61,9 +73,10 @@ function BuildingPlot({ def, state, rates }: { def: BuildingDef; state: GameStat
           </button>
         </>
       ) : (
-        <p className="muted small">Fullt utbyggd.</p>
+        <p className="plot__done"><Icon name="check" size={18} /> Färdig <span className="muted small">Fullt utbyggd</span></p>
       )}
       {error && <p className="error" role="alert">{error}</p>}
+      {built > 0 && <span key={built} className="plot__shine" aria-hidden />}
     </article>
   );
 }
@@ -74,15 +87,15 @@ export function Settlement({ state, rates }: { state: GameState; rates: Rates })
   const stage = settlementStage(built);
   return (
     <div className="screen">
-      <Panel title={stage.name} className="settlement-head">
-        <SettlementScene buildings={state.buildings} />
+      <Panel icon="castle" title={stage.name} className="settlement-head">
+        <VillageScene buildings={state.buildings} construction={state.construction} unlocks={state.unlocks} />
         <p className="muted">{stage.text}</p>
       </Panel>
       <div className="plots">
         {visible.map((b) => <BuildingPlot key={b.id} def={b} state={state} rates={rates} />)}
         {Array.from({ length: Math.min(MAX_EMPTY_SHOWN, Math.max(0, PLOTS - visible.length)) }, (_, i) => (
           <article key={`empty${i}`} className="plot plot--empty">
-            <h3 className="plot__name">Tom tomt</h3>
+            <h3 className="plot__name"><Icon name="lock" size={18} /> Tom tomt</h3>
             <p className="muted small">Låses upp när bosättningen växer.</p>
           </article>
         ))}

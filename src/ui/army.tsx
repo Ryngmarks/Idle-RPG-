@@ -1,6 +1,8 @@
 // Soldier figures and army formations. Presentation only: the number of figures follows the
 // troop's real size, the pose follows its real activity.
 
+import { useState, type CSSProperties } from 'react';
+import { swingSeconds } from './fx';
 import type { ActivityKind, EquipmentBucket } from '../core';
 import { ENEMY_ART, SCENES } from './art';
 import { INK, PAL } from './art/kit';
@@ -68,8 +70,8 @@ function edgeFor(i: number, drawn: number, size: number, equipment: EquipmentBuc
 }
 
 export function ArmyFigures({
-  race, size, activity, cx, baseline, width, flip = false, equipment = [],
-}: { race: string; size: number; activity: ActivityKind | null; cx: number; baseline: number; width: number; flip?: boolean; equipment?: EquipmentBucket[] }) {
+  race, size, activity, cx, baseline, width, flip = false, equipment = [], freshFrom = null,
+}: { race: string; size: number; activity: ActivityKind | null; cx: number; baseline: number; width: number; flip?: boolean; equipment?: EquipmentBucket[]; freshFrom?: number | null }) {
   const drawn = Math.min(size, MAX_DRAWN);
   const pose: Pose = activity === 'combat' ? 'fight' : activity ? 'work' : 'idle';
   const tool: Tool = activity ? TOOL_FOR[activity] : 'weapon';
@@ -87,8 +89,10 @@ export function ArmyFigures({
       )}
       {placed.map((p) => (
         <g key={p.i} transform={`translate(${p.x} ${p.y}) scale(${flip ? -p.s : p.s} ${p.s})`} opacity={1 - (front - p.y) / 60}>
-          <g className={`fig fig--${pose}`} style={{ animationDelay: `${(p.i * 137) % 900}ms` }}>
-            <Soldier race={race} tool={tool} edge={edgeFor(p.i, drawn, size, equipment)} />
+          <g className={freshFrom !== null && p.i >= freshFrom ? 'fig-in' : undefined}>
+            <g className={`fig fig--${pose}`} style={{ animationDelay: `${(p.i * 137) % 900}ms` }}>
+              <Soldier race={race} tool={tool} edge={edgeFor(p.i, drawn, size, equipment)} />
+            </g>
           </g>
         </g>
       ))}
@@ -97,11 +101,19 @@ export function ArmyFigures({
 }
 
 /** The troop card banner: the activity's scene with the troop's soldiers in front of it. */
-export function TroopScene({ race, size, activity, equipment }: { race: string; size: number; activity: ActivityKind | null; equipment: EquipmentBucket[] }) {
+/** Soldiers beyond the previously drawn count fade in when the troop grows (rescued or trained). */
+function useFreshFrom(size: number): number | null {
+  const [s, setS] = useState<{ size: number; from: number | null }>({ size, from: null });
+  if (s.size !== size) setS({ size, from: size > s.size ? Math.min(s.size, MAX_DRAWN) : null });
+  return s.from;
+}
+
+export function TroopScene({ race, size, activity, equipment, cycleSec }: { race: string; size: number; activity: ActivityKind | null; equipment: EquipmentBucket[]; cycleSec?: number }) {
+  const freshFrom = useFreshFrom(size);
   const scene = SCENES[activity ?? 'idle'];
   const id = `tsky-${activity ?? 'idle'}`;
   return (
-    <svg className="troop-scene" viewBox="0 0 320 96" preserveAspectRatio="xMidYMax slice" role="img" aria-label={`${size} soldater`}>
+    <svg className="troop-scene" style={cycleSec ? ({ '--swing': `${swingSeconds(cycleSec).toFixed(2)}s` } as CSSProperties) : undefined} viewBox="0 0 320 96" preserveAspectRatio="xMidYMax slice" role="img" aria-label={`${size} soldater`}>
       <defs>
         <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor={scene.sky[0]} />
@@ -111,7 +123,7 @@ export function TroopScene({ race, size, activity, equipment }: { race: string; 
       <rect width="320" height="96" fill={`url(#${id})`} />
       <g transform="translate(0 30)" opacity="0.75">{scene.art}</g>
       <rect y="86" width="320" height="10" fill="#1a130f" />
-      <ArmyFigures race={race} size={size} activity={activity} cx={170} baseline={92} width={220} equipment={equipment} />
+      <ArmyFigures race={race} size={size} activity={activity} cx={170} baseline={92} width={220} equipment={equipment} freshFrom={freshFrom} />
       {size > MAX_DRAWN && (
         <g>
           <rect x="262" y="6" width="52" height="18" rx="9" fill="#120e12" stroke="#c9a24a" strokeWidth="1" />
@@ -124,11 +136,17 @@ export function TroopScene({ race, size, activity, equipment }: { race: string; 
 
 /** The battle: your fighting soldiers on the left, the current enemy on the right. */
 export function Battlefield({
-  race, size, enemyId, hitKey, fighting, boss, equipment = [],
-}: { race: string; size: number; enemyId: string; hitKey: string | number; fighting: boolean; boss: boolean; equipment?: EquipmentBucket[] }) {
+  race, size, enemyId, hitKey, fighting, boss, equipment = [], strikeSec, dmg,
+}: { race: string; size: number; enemyId: string; hitKey: number; fighting: boolean; boss: boolean; equipment?: EquipmentBucket[]; strikeSec?: number; dmg?: string }) {
   const Enemy = ENEMY_ART[enemyId];
+  const freshFrom = useFreshFrom(size);
+  // The foe that just fell is drawn once more, falling and fading, while the next one steps in.
+  const [seen, setSeen] = useState<{ key: number; enemyId: string; fallen: { id: string; n: number } | null }>({ key: hitKey, enemyId, fallen: null });
+  if (seen.key !== hitKey) setSeen({ key: hitKey, enemyId, fallen: hitKey > seen.key && fighting ? { id: seen.enemyId, n: (seen.fallen?.n ?? 0) + 1 } : null });
+  else if (seen.enemyId !== enemyId) setSeen({ ...seen, enemyId });
+  const Fallen = seen.fallen ? ENEMY_ART[seen.fallen.id] : undefined;
   return (
-    <svg className="battlefield" viewBox="0 0 320 130" preserveAspectRatio="xMidYMax slice" role="img" aria-label="Slagfältet">
+    <svg className="battlefield" style={strikeSec ? ({ '--strike': `${strikeSec.toFixed(2)}s` } as CSSProperties) : undefined} viewBox="0 0 320 130" preserveAspectRatio="xMidYMax slice" role="img" aria-label="Slagfältet">
       <defs>
         <linearGradient id="bf-sky" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor={boss ? '#2a0f12' : '#1c1622'} />
@@ -139,21 +157,24 @@ export function Battlefield({
       <path d="M0 104 Q80 96 160 102 T320 98 V130 H0 Z" fill="#231a14" />
       <path d="M0 116 Q100 110 200 116 T320 112 V130 H0 Z" fill="#1a130f" />
       {size > 0 ? (
-        <ArmyFigures race={race} size={size} activity={fighting ? 'combat' : null} cx={84} baseline={122} width={140} equipment={equipment} />
+        <ArmyFigures race={race} size={size} activity={fighting ? 'combat' : null} cx={84} baseline={122} width={140} equipment={equipment} freshFrom={freshFrom} />
       ) : (
         <text x="84" y="90" textAnchor="middle" fill="#a99d86" fontSize="11">Ingen trupp strider</text>
       )}
       <g transform={`translate(${boss ? 168 : 190} ${boss ? -6 : 14}) scale(${boss ? 1.25 : 1})`}>
-        <g key={hitKey} className={fighting ? 'foe foe--hit' : 'foe'}>
-          {Enemy ? <Enemy /> : null}
+        {Fallen && seen.fallen && <g key={`dead-${seen.fallen.n}`} className="foe foe--dead"><Fallen /></g>}
+        <g key={hitKey} className={fighting ? 'foe foe--in' : 'foe'}>
+          <g className={fighting ? 'foe--flinch' : undefined}>
+            {Enemy ? <Enemy /> : null}
+          </g>
         </g>
       </g>
       {fighting && size > 0 && (
         <g key={`spark-${hitKey}`} className="spark">
           <path d="M168 78 l4 -10 l2 8 l8 -4 l-6 8 l8 4 l-10 0 l-2 8 l-2 -8 Z" fill="#f0c060" />
-          <text x="214" y="40" className="float-num" fill="#ffd27a" fontSize="12" fontWeight="700">⚔</text>
         </g>
       )}
+      {fighting && size > 0 && dmg && <text x={boss ? 236 : 226} y={boss ? 40 : 52} textAnchor="middle" className="dmg-num" fill="#ffd27a" stroke="#1a0f08" strokeWidth="2.5" paintOrder="stroke" fontSize="11" fontWeight="700">{dmg}</text>}
     </svg>
   );
 }

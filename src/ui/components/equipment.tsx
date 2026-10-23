@@ -2,6 +2,7 @@
 
 import { content } from '../../content';
 import { averageWeaponPower, equippedCount, QUALITY_IDS, type QualityId, type TroopState } from '../../core';
+import { Icon } from '../art/icons';
 import { fmtInt, fmtRate } from '../format';
 import { QUALITY_COLOR, UNARMED_COLOR, qualityName } from '../labels';
 
@@ -73,7 +74,7 @@ export function EquipmentBar({ troop }: { troop: TroopState }) {
             </span>
           ))}
         </span>
-        <span className="equip__power" title="Genomsnittlig vapenkraft">⚔ ×{fmtRate(power)}</span>
+        <span className="equip__power" title="Genomsnittlig vapenkraft"><Icon name="strength" size={15} /> ×{fmtRate(power)}</span>
       </div>
       <div className="equip__bar" role="img" aria-label={byQuality.map(({ q, n }) => `${qualityName(q)} ${n}`).join(', ') + (unarmed > 0 ? `, obeväpnade ${unarmed}` : '')}>
         {byQuality.map(({ q, n }) => (

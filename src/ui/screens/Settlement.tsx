@@ -8,7 +8,7 @@ import { FeastPanel } from '../components/Feast';
 import { Bar, CostList, Panel } from '../components/common';
 import { fmtDuration, fmtInt } from '../format';
 import { useStore } from '../game';
-import { BUILDING_ICON, effectText, settlementStage } from '../labels';
+import { BUILDING_ICON, effectText, settlementStage, unlockReason } from '../labels';
 
 const PLOTS = 6;
 const MAX_EMPTY_SHOWN = 2;
@@ -22,6 +22,7 @@ function BuildingPlot({ def, state, rates }: { def: BuildingDef; state: GameStat
   const building = state.construction?.buildingId === def.id ? state.construction : null;
   const busy = state.construction !== null && !building;
   const r = race(state, content);
+  const locked = next?.requires !== undefined && !state.unlocks.includes(next.requires);
   const builders = state.troops.filter((t) => t.activity === 'construction');
 
   return (
@@ -65,9 +66,10 @@ function BuildingPlot({ def, state, rates }: { def: BuildingDef; state: GameStat
           <p className="small">
             Kostnad: <CostList cost={next.cost} state={state} /> · {fmtInt(next.work)} arbete
           </p>
+          {locked && <p className="lock-reason small"><Icon name="lock" size={16} /> {unlockReason(next.requires!)}</p>}
           <button
             className="btn btn--primary btn--block"
-            disabled={busy || !canAfford(state, next.cost)}
+            disabled={locked || busy || !canAfford(state, next.cost)}
             onClick={() => setError(store.command({ type: 'startConstruction', buildingId: def.id }))}
           >
             {busy ? 'Ett annat bygge pågår' : level > 0 ? `Bygg ut till nivå ${level + 1}` : 'Bygg'}

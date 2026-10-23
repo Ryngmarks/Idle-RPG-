@@ -3,7 +3,7 @@
 import type { ReactElement } from 'react';
 import { GroundShadow, Ln, PAL, Rim, Sh, ellipse, rect } from './kit';
 
-export type IconId = 'wood' | 'stone' | 'ore' | 'food' | 'bed';
+export type IconId = 'wood' | 'stone' | 'ore' | 'iron' | 'food' | 'bed';
 
 function Log({ x, y }: { x: number; y: number }): ReactElement {
   return (
@@ -40,6 +40,15 @@ const SHAPES: Record<IconId, () => ReactElement> = {
       <Sh d="M17 18 L23 30 L14 34 L9 27Z" fill="#8fb0d0" sw={1.6} hi />
       <Sh d="M29 17 L38 25 L31 33 L24 27Z" fill="#c8d6e6" sw={1.6} hi />
       <Sh d="M30 34 L38 33 L36 40 L28 40Z" fill="#e0b04a" sw={1.6} hi />
+    </>
+  ),
+  iron: () => (
+    <>
+      <GroundShadow cx={24} cy={43} rx={20} ry={3} />
+      <Sh d="M6 40 L9 31 H27 L30 40 Z" fill="#7d8798" hi />
+      <Sh d="M22 40 L25 31 H43 L46 40 Z" fill="#8f9bad" hi />
+      <Sh d="M13 30 L16 21 H34 L37 30 Z" fill="#a7b3c6" hi />
+      <path d="M12 35 H25 M29 35 H41 M19 26 H31" stroke="#dce4f0" strokeWidth="1.4" strokeLinecap="round" opacity=".75" />
     </>
   ),
   food: () => (

@@ -9,7 +9,7 @@ import { ellipse, GroundShadow, INK, Ln, PAL, rect, Sh } from './kit';
 type Construction = { buildingId: string; level: number; progress: number } | null;
 
 const W = 360;
-const H = 178;
+const H = 218;
 
 // ------------------------------------------------------------------ building pieces (local origin = ground centre-left, y up is negative)
 
@@ -55,6 +55,37 @@ function TrainingCamp() {
       <Ln d="M2 -5 H16 M62 -5 H76" color={PAL.wood} w={1.8} />
       <Ln d="M90 0 V-44" color={PAL.wood} w={2.4} />
       <path className="v-flag" d="M90 -44 l16 4 l-4 4 l4 4 l-16 -2Z" fill={PAL.red} stroke={INK} strokeWidth="1.2" strokeLinejoin="round" />
+    </g>
+  );
+}
+
+/** Övningsplan: a fenced yard with a target and a spear rack; gains a banner from level 3. */
+function DrillGround({ level }: { level: number }) {
+  return (
+    <g>
+      <path d="M2 2 H118" stroke="#1a130d" strokeWidth="5" strokeLinecap="round" opacity=".35" />
+      <Ln d="M2 -9 V2 M32 -9 V2 M62 -9 V2 M92 -9 V2 M118 -9 V2" color={PAL.woodD} w={2.2} />
+      <Ln d="M0 -6 H120" color={PAL.wood} w={1.8} />
+      {/* target */}
+      <Ln d="M96 0 L90 -30 M96 0 L102 -30" color={PAL.wood} w={2.2} />
+      <Sh d={ellipse(96, -32, 11, 11)} fill={PAL.bone} sw={1.5} />
+      <circle cx="96" cy="-32" r="7" fill={PAL.red} stroke={INK} strokeWidth="1" />
+      <circle cx="96" cy="-32" r="3" fill={PAL.bone} stroke={INK} strokeWidth="0.8" />
+      <Ln d="M92 -35 l9 4" color={PAL.leather} w={1.4} ink={false} />
+      {/* spear rack */}
+      <Ln d="M14 0 V-14 M44 0 V-14 M14 -10 H44" color={PAL.woodD} w={2.2} />
+      {[18, 26, 34, 42].map((x) => (
+        <g key={x}>
+          <Ln d={`M${x} -10 L${x + 3} -34`} color={PAL.wood} w={1.6} />
+          <path d={`M${x + 3} -39 l-2 6 h4Z`} fill={PAL.steel} stroke={INK} strokeWidth="0.8" strokeLinejoin="round" />
+        </g>
+      ))}
+      {level >= 3 && (
+        <>
+          <Ln d="M60 0 V-44" color={PAL.wood} w={2.4} />
+          <path className="v-flag" d="M60 -44 l16 4 l-4 4 l4 4 l-16 -2Z" fill={PAL.gold} stroke={INK} strokeWidth="1.2" strokeLinejoin="round" />
+        </>
+      )}
     </g>
   );
 }
@@ -193,6 +224,7 @@ const PLOTS: Plot[] = [
   { id: 'forge', x: 244, y: 128, w: 100, h: 50, draw: (l) => <Forge level={l} /> },
   { id: 'trainingCamp', x: 4, y: 170, w: 100, h: 40, draw: () => <TrainingCamp /> },
   { id: 'woodshed', x: 172, y: 170, w: 76, h: 34, draw: () => <Woodshed /> },
+  { id: 'drillGround', x: 120, y: 212, w: 122, h: 40, draw: (l) => <DrillGround level={l} /> },
   { id: 'farm', x: 256, y: 170, w: 102, h: 40, draw: (l) => <Farm level={l} /> },
 ];
 

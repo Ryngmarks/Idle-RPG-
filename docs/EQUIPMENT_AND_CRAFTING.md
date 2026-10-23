@@ -329,3 +329,13 @@ Today each troop has a single `gearTier: 0 | 1` (P0's Forge gives ×1.4 attack).
 | Save v3 → v4 | Saves that already have a forge get `activity:smithing` |
 | Offline | Smithing is a normal piecewise-constant rate, so offline crafting equals online crafting |
 
+## 12. M7: auto-equip and quality colours (2026-10-23)
+
+| Rule | Implementation |
+|---|---|
+| Auto-equip | `troop.autoEquip` (default on). `autoEquipAll()` pools the weapons of every Auto troop with the armoury, then arms fighting troops first, the rest in troop order. |
+| When it runs | After every command (`dispatch`) and after every finished weapon (`advance`), so offline crafting arms troops exactly like online play |
+| Manual control | `setAutoEquip`; `unequipTroop` ("Töm") also turns Auto off so the weapons stay in the armoury |
+| Save v4 → v5 | Every troop gets `autoEquip: true` |
+| Visuals | Quality-coloured count pills on the troop card, glowing bar segments, chips and soldier blades for Outstanding and better, a row of the latest weapons off the anvil, and a toast in the quality's colour for a rare weapon |
+

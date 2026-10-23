@@ -30,7 +30,7 @@ export function formTroop(state: GameState, content: Content, size: number, even
   const r = race(state, content);
   const n = state.troops.length + 1;
   const id = `troop${n}`;
-  state.troops.push({ id, name: r.troopNames[n - 1] ?? `Troop ${n}`, size, xp: 0, weaponTypeId: r.weaponTypeId, equipment: [], activity: null, wounds: 0, engagedSize: size });
+  state.troops.push({ id, name: r.troopNames[n - 1] ?? `Troop ${n}`, size, xp: 0, weaponTypeId: r.weaponTypeId, equipment: [], activity: null, wounds: 0, engagedSize: size, autoEquip: true });
   events.push({ type: 'troopFormed', at: state.clock, troopId: id });
 }
 

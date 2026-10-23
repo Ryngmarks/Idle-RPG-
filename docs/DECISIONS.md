@@ -48,6 +48,7 @@
 | D-39 | **Only T1** with five qualities for now; T2–T8 exist in the data model and plan but are not unlockable | 2026-10-23 | Owner, M5 |
 | D-40 | Combat uses each troop's actual equipment; the ×1.4 placeholder is removed; T1 quality must take a long time to max out | 2026-10-23 | Owner, M5 |
 | D-41 | **Troops do the smithing:** a sixth activity *Smithing* (unlocked by the forge). The forge only works while a troop smiths and an order is queued; speed = soldiers × work × race smithing skill × 0.1. Humans skill 1, Orcs 0.4 (Dwarves 3 later). | 2026-10-23 | Owner, M6 |
+| D-42 | **Auto-equip per troop** (on by default): troops with Auto pool their weapons with the armoury and the fighting troops get the best first. Emptying a troop by hand turns Auto off. Runs after every command and every finished weapon, so offline equals online. | 2026-10-23 | Owner, M7 |
 
 ## Proposed 💡 (awaiting confirmation)
 

@@ -332,7 +332,8 @@ describe('save', () => {
     v1.combat.stageIndex = 2;
     delete v1.combat.unlockedStage;
     const s = deserialize(JSON.stringify(v1));
-    expect(s.version).toBe(4);
+    expect(s.version).toBe(5);
+    expect(s.troops[0]!.autoEquip).toBe(true);
     expect(s.troops[0]).toMatchObject({ wounds: 0, engagedSize: 12, weaponTypeId: 'cleaver' });
     expect(s.troops[0]!.equipment).toEqual([{ tier: 1, quality: 'normal', count: 12 }]);
     expect(s.troops[0]).not.toHaveProperty('gearTier');

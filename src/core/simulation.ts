@@ -2,7 +2,7 @@
 // Rates are constant between events, so a long Δt costs one step per event, not per second.
 // See docs/ARCHITECTURE.md §4.
 
-import { itemKey, masteryKey, masteryLevel, pickQuality, qualityChances, trimEquipment } from './equipment';
+import { autoEquipAll, itemKey, masteryKey, masteryLevel, pickQuality, qualityChances, trimEquipment } from './equipment';
 import { xpForLevel } from './formulas';
 import { applyEffects } from './mutations';
 import { evaluateObjectives } from './objectives';
@@ -183,6 +183,7 @@ function processEvents(state: GameState, content: Content, levelsBefore: Map<str
     events.push({ type: 'weaponCrafted', at: state.clock, recipeId: recipe.id, quality: pick.quality });
     const newLevel = masteryLevel(crafted + 1, content);
     if (newLevel > level) events.push({ type: 'masteryLevelUp', at: state.clock, weaponTypeId: recipe.weaponTypeId, tier: recipe.tier, level: newLevel });
+    autoEquipAll(state, content);
     order.remaining -= 1;
     if (order.remaining <= 0) {
       state.crafting.queue.shift();

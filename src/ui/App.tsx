@@ -4,7 +4,8 @@ import { computeRates, RESOURCES, type GameEvent, type GameState, type Rates } f
 import { RaceEmblem } from './art';
 import { fmtAmount, fmtRate } from './format';
 import { useSnapshot, useStore } from './game';
-import { RESOURCE_LABEL, eventText } from './labels';
+import { QUALITY_COLOR, RESOURCE_LABEL, eventText, qualityName } from './labels';
+import { RARE } from './components/equipment';
 import { Battle } from './screens/Battle';
 import { Chronicle } from './screens/Chronicle';
 import { Forces } from './screens/Forces';
@@ -45,8 +46,10 @@ function ResourceBar({ state, rates }: { state: GameState; rates: Rates }) {
 
 const TOAST_TYPES = new Set<GameEvent['type']>(['objectiveCompleted', 'troopFormed', 'constructionCompleted', 'stageCleared', 'zoneCleared', 'bossDefeated', 'bossFailed', 'troopRetreated', 'craftOrderCompleted', 'masteryLevelUp']);
 
-function useToast(log: GameEvent[], state: GameState | null): string | null {
-  const [toast, setToast] = useState<string | null>(null);
+interface Toast { text: string; color?: string }
+
+function useToast(log: GameEvent[], state: GameState | null): Toast | null {
+  const [toast, setToast] = useState<Toast | null>(null);
   const last = useRef<GameEvent | undefined>(log[0]);
   useEffect(() => {
     const newest = log[0];
@@ -58,8 +61,13 @@ function useToast(log: GameEvent[], state: GameState | null): string | null {
     }
     last.current = newest;
     const important = fresh.find((e) => TOAST_TYPES.has(e.type));
-    if (!important) return;
-    setToast(eventText(important, state));
+    // A rare weapon from the forge is worth a moment of its own, in its quality's colour.
+    const rare = fresh.find((e): e is Extract<GameEvent, { type: 'weaponCrafted' }> => e.type === 'weaponCrafted' && RARE.has(e.quality));
+    if (important) setToast({ text: eventText(important, state) ?? '' });
+    else if (rare) {
+      const weapon = content.equipment.weaponTypes[content.equipment.recipes[rare.recipeId]?.weaponTypeId ?? '']?.name.toLowerCase() ?? '';
+      setToast({ text: `✨ ${qualityName(rare.quality)} ${weapon} smitt!`, color: QUALITY_COLOR[rare.quality] });
+    } else return;
     const id = setTimeout(() => setToast(null), 3500);
     return () => clearTimeout(id);
   }, [log, state]);
@@ -106,7 +114,7 @@ export function App() {
           {active === 'forces' && <Forces state={state} rates={rates} />}
           {active === 'battle' && <Battle state={state} rates={rates} />}
           {active === 'settlement' && <Settlement state={state} rates={rates} />}
-          {active === 'forge' && <Forge state={state} rates={rates} />}
+          {active === 'forge' && <Forge state={state} rates={rates} log={snap.log} />}
           {active === 'upgrades' && <Upgrades state={state} />}
           {active === 'chronicle' && <Chronicle state={state} log={snap.log} />}
         </main>
@@ -125,7 +133,11 @@ export function App() {
         ))}
       </nav>
 
-      {toast && <div className="toast" role="status">{toast}</div>}
+      {toast && (
+        <div className={`toast ${toast.color ? 'toast--quality' : ''}`} role="status" style={toast.color ? { ['--q' as string]: toast.color } : undefined}>
+          {toast.text}
+        </div>
+      )}
       {snap.report && <AwayReportModal report={snap.report} state={state} onClose={() => store.dismissReport()} />}
       {menuOpen && <MenuModal state={state} storageOk={snap.storageOk} onClose={() => setMenuOpen(false)} />}
     </div>

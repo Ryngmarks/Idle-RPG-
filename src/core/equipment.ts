@@ -1,7 +1,7 @@
 // Aggregated equipment: weapons are counts per (type, tier, quality), never objects per soldier.
 // See docs/EQUIPMENT_AND_CRAFTING.md.
 
-import { QUALITY_IDS, type Content, type EquipmentBucket, type QualityId, type TroopState } from './types';
+import { QUALITY_IDS, type Content, type EquipmentBucket, type GameState, type QualityId, type TroopState } from './types';
 
 export function itemKey(weaponTypeId: string, tier: number, quality: QualityId): string {
   return `${weaponTypeId}:t${tier}:${quality}`;
@@ -83,6 +83,20 @@ export function equipBest(troop: TroopState, armoury: Record<string, number>, co
     else delete armoury[r.k];
   }
   troop.equipment = normalizeBuckets(equipment, content);
+}
+
+/**
+ * Troops with autoEquip share their weapons and the armoury: everything is pooled and the
+ * fighting troops get the best first, then the rest in order. Called after every command and
+ * every finished weapon, so the result never depends on who happened to arm first.
+ */
+export function autoEquipAll(state: GameState, content: Content): void {
+  const auto = state.troops.filter((t) => t.autoEquip);
+  if (auto.length === 0) return;
+  if (!Object.values(state.armoury).some((n) => n > 0) && auto.length === 1) return;
+  for (const t of auto) unequipAll(t, state.armoury);
+  const ordered = [...auto.filter((t) => t.activity === 'combat'), ...auto.filter((t) => t.activity !== 'combat')];
+  for (const t of ordered) equipBest(t, state.armoury, content);
 }
 
 /** Put all of a troop's weapons back in the armoury. */

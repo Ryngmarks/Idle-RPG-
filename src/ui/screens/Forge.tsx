@@ -15,16 +15,17 @@ import {
   smithingWork,
   troopStats,
   weaponPower,
+  type GameEvent,
   type GameState,
   type Rates,
 } from '../../core';
 import { Bar, CostList, Panel } from '../components/common';
-import { QualityChip, WeaponIcon } from '../components/equipment';
+import { QualityChip, RARE, WeaponIcon } from '../components/equipment';
 import { fmtDuration, fmtInt, fmtRate } from '../format';
 import { useStore } from '../game';
 import { QUALITY_COLOR, qualityName } from '../labels';
 
-export function Forge({ state, rates }: { state: GameState; rates: Rates }) {
+export function Forge({ state, rates, log }: { state: GameState; rates: Rates; log: GameEvent[] }) {
   const store = useStore();
   const [error, setError] = useState<string | null>(null);
   const weaponTypeId = race(state, content).weaponTypeId;
@@ -46,6 +47,11 @@ export function Forge({ state, rates }: { state: GameState; rates: Rates }) {
   const queued = queue.reduce((n, o) => n + o.remaining, 0);
   const maxN = maxCraftable(state, recipe.id, content);
   const armoury = QUALITY_IDS.map((q) => ({ q, n: state.armoury[`${weaponTypeId}:t1:${q}`] ?? 0 }));
+  // The latest weapons off the anvil, oldest first so new ones appear at the end of the row.
+  const recent = log
+    .filter((e): e is Extract<GameEvent, { type: 'weaponCrafted' }> => e.type === 'weaponCrafted')
+    .slice(0, 11)
+    .reverse();
   const order = (n: number) => setError(store.command({ type: 'queueCraft', recipeId: recipe.id, count: n }));
 
   return (
@@ -56,7 +62,7 @@ export function Forge({ state, rates }: { state: GameState; rates: Rates }) {
           <div className="recipe__info">
             <h3 className="recipe__name">T1 {weapon.name}</h3>
             <p className="small muted">
-              Per vapen: <CostList cost={recipe.materials} state={state} /> · {fmtInt(recipe.workPerItem)} arbete · ⚔ ×{fmtRate(weaponPower(1, 'normal', content))} (Normal)
+              <CostList cost={recipe.materials} state={state} /> · {fmtInt(recipe.workPerItem)} arbete · ⚔ ×{fmtRate(weaponPower(1, 'normal', content))}
             </p>
           </div>
         </div>
@@ -91,11 +97,20 @@ export function Forge({ state, rates }: { state: GameState; rates: Rates }) {
             ))}
           </div>
         )}
+        {recent.length > 0 && (
+          <div className="anvil-row" aria-label="Senast smidda vapen">
+            {recent.map((e) => (
+              <span key={`${e.at}-${e.quality}`} className={`anvil-row__item ${RARE.has(e.quality) ? 'anvil-row__item--rare' : ''}`} style={{ ['--q' as string]: QUALITY_COLOR[e.quality] }} title={qualityName(e.quality)}>
+                <WeaponIcon weaponTypeId={content.equipment.recipes[e.recipeId]?.weaponTypeId ?? weaponTypeId} quality={e.quality} size={24} />
+              </span>
+            ))}
+          </div>
+        )}
         {error && <p className="error" role="alert">{error}</p>}
       </Panel>
 
       <Panel title="Smideskunskap" aside={<span className="badge">Nivå {level}/{max}</span>}>
-        <p className="small muted">Ju fler {weapon.name.toLowerCase()} du smider, desto bättre blir kvaliteten. {fmtInt(crafted)} smidda totalt.</p>
+        <p className="small muted">{fmtInt(crafted)} smidda. Mer smide ger bättre kvalitet.</p>
         {level < max ? (
           <>
             <span className="small">Till nivå {level + 1}: {fmtInt(crafted - from)} / {fmtInt(to - from)}</span>
@@ -117,7 +132,7 @@ export function Forge({ state, rates }: { state: GameState; rates: Rates }) {
 
       <Panel title="Förrådet">
         {armoury.every((a) => a.n === 0) ? (
-          <p className="muted small">Inga vapen i förrådet. Färdiga vapen hamnar här; utrusta dem från truppkorten.</p>
+          <p className="muted small">Tomt. Trupper med Auto tar nya vapen direkt.</p>
         ) : (
           <div className="qchips">
             {armoury.filter((a) => a.n > 0).reverse().map((a) => <QualityChip key={a.q} quality={a.q} count={a.n} weaponTypeId={weaponTypeId} />)}
@@ -138,7 +153,7 @@ export function Forge({ state, rates }: { state: GameState; rates: Rates }) {
             </li>
           ))}
         </ol>
-        <p className="small muted">T2–T8 låses upp senare genom nya regioner, bättre smedjor, nya material och skicklighet. Ett Mästerverk i en nivå är lika starkt som Normal i nästa.</p>
+        <p className="small muted">T2–T8 låses upp i nya regioner. Mästerverk ≈ Normal i nästa nivå.</p>
       </Panel>
     </div>
   );

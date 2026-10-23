@@ -124,7 +124,4 @@ flowchart TD
 
 ## 4. Working method (owner on mobile)
 
-- **Documentation and planning:** Claude commits and pushes directly (as agreed).
-- **Code, from M1 onward:** 💡 suggestion: work on a branch per milestone and open a pull request that the owner can review and merge from the phone. ❓ To be confirmed.
-- **Decisions** are recorded in [DECISIONS.md](DECISIONS.md) so nothing gets lost between sessions.
-- **No new dependencies or large implementations** without explicit approval. ✅
+The working method (plan → owner approval → specialised agents → verify → PR) is defined in [CLAUDE.md](../CLAUDE.md), with the agents in `.claude/agents/`. Decisions are recorded in [DECISIONS.md](DECISIONS.md) so nothing gets lost between sessions.

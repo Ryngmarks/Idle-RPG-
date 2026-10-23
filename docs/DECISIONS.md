@@ -51,6 +51,7 @@
 | D-42 | **Auto-equip per troop** (on by default): troops with Auto pool their weapons with the armoury and the fighting troops get the best first. Emptying a troop by hand turns Auto off. Runs after every command and every finished weapon, so offline equals online. | 2026-10-23 | Owner, M7 |
 | D-43 | **The forge matters before the boss:** T1 metal weapons cost ore only (2 ore, no wood); `smithRate` 0.1 → 0.3; mastery steps 8 → 20 weapons, so maxing T1 quality still takes ~2,000 weapons | 2026-10-23 | Owner, M8 |
 | D-44 | **Chronicle statistics:** play time, boss time, kills, soldiers, recruited, fallen and weapons per quality. Stored in `state.stats` (save v6); losses and qualities count from v6 on. | 2026-10-23 | Owner, M9 |
+| D-51 | **Working method with agents:** the lead proposes a work split (task, agent, why, result, order, risks, cost) and waits for the owner's approval before starting agents or implementation. Agents: Game Designer, Game Systems, UI/UX, QA & Balance (sonnet), Research (haiku). See CLAUDE.md. | 2026-10-23 | Owner |
 
 ## Proposed 💡 (awaiting confirmation)
 

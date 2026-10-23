@@ -147,7 +147,7 @@ export interface RunResult {
   bossStarts: BossStart[];
   /** Game clock (s) when boss i+1 fell. */
   bossTimes: (number | null)[];
-  /** Game clock (s) when the troops first reached level L (1-based; index L). */
+  /** Game clock (s) when level L first opened for the troops (1-based; index L); a boss level counts until its boss falls. */
   levelTimes: Record<number, number>;
   finalState: GameState;
 }
@@ -159,6 +159,8 @@ export interface BossStart {
   groups: number;
   armed: number;
   t2Armed: number;
+  /** Highest troop level in the army when the fight starts. */
+  troopLevel: number;
   failed: boolean;
 }
 
@@ -186,7 +188,7 @@ export function runBot(start: GameState, content: Content, opts: RunOptions): Ru
   let hungryRun = 0;
   let armedAtBoss: { armed: number; soldiers: number } | null = null;
   const bossStarts: BossStart[] = [];
-  const levelTimes: Record<number, number> = {};
+  const levelTimes: Record<number, number> = { 1: 0 };
   const memory: Memory = { failedAtDps: 0 };
   let lastReward = 0;
   let longestQuietGapEarly = 0;
@@ -198,7 +200,13 @@ export function runBot(start: GameState, content: Content, opts: RunOptions): Ru
   const note = (events: GameEvent[]) => {
     for (const e of events) {
       if (EVENT_TYPES.has(e.type as string)) eventTimes.push(e.at);
-      if (e.type === 'bossDefeated') milestones[`boss:${e.index + 1}`] = e.at;
+      if (e.type === 'bossDefeated') {
+        milestones[`boss:${e.index + 1}`] = e.at;
+        // The level after the boss opens (event times, so the check-in grid does not blur them).
+        const lvl = content.zones[state.combat.zoneId]?.bosses[e.index]?.level;
+        if (lvl !== undefined && levelTimes[lvl + 1] === undefined) levelTimes[lvl + 1] = e.at;
+      }
+      if (e.type === 'stageCleared' && e.stage % 5 !== 0 && levelTimes[e.stage + 1] === undefined) levelTimes[e.stage + 1] = e.at;
       if (e.type === 'bossFailed') {
         const last = bossStarts[bossStarts.length - 1];
         if (last) last.failed = true;
@@ -225,6 +233,7 @@ export function runBot(start: GameState, content: Content, opts: RunOptions): Ru
         groups: state.troops.length,
         armed,
         t2Armed: state.troops.reduce((n, t) => n + t.equipment.filter((b) => b.tier >= 2).reduce((m, b) => m + b.count, 0), 0),
+        troopLevel: Math.max(...state.troops.map((t) => troopStats(state, t, content).level)),
         failed: false,
       });
       memory.lastDps = estimatedBossDamage(before, content, before.troops.map((t) => t.id)).dps;
@@ -277,8 +286,6 @@ export function runBot(start: GameState, content: Content, opts: RunOptions): Ru
       snapshots.push(snapshot(state, content));
       nextSnapshot += opts.snapshotEverySeconds;
     }
-    const level = state.combat.unlockedStage + 1;
-    if (levelTimes[level] === undefined) levelTimes[level] = state.clock;
     if (!checkin || state.clock < CHECKIN_START_SEC - 1e-3) {
       act();
       stepTo(Math.min(opts.tickSeconds, checkin ? CHECKIN_START_SEC - state.clock : Infinity));
@@ -531,14 +538,32 @@ function decide(
     }
   });
 
-  // 7. Fight at the highest stage that costs no soldiers (a careful player).
+  // 7. Fight at the highest stage that costs no soldiers (a careful player). A group that is too weak for the
+  // stage the strong groups can hold (the new group at level 1) goes back to work instead of dragging everyone
+  // down to a low level: the army fights with the strongest groups that reach the highest safe stage.
   refresh();
   if (state.troops.some((t) => t.activity === 'combat') && !state.combat.boss) {
-    let best = 0;
-    for (let i = 0; i <= state.combat.unlockedStage; i++) {
-      if (stageSafety(state, content, { stageIndex: i }).risk === 'safe') best = i;
+    const fighters = state.troops.filter((t) => t.activity === 'combat');
+    const byLevel = [...fighters].sort((a, b) => troopStats(state, b, content).level - troopStats(state, a, content).level || b.size - a.size);
+    const bestFor = (ids: string[]): number => {
+      let best = 0;
+      for (let i = 0; i <= state.combat.unlockedStage; i++) {
+        if (stageSafety(state, content, { stageIndex: i }, ids).risk === 'safe') best = i;
+      }
+      return best;
+    };
+    let chosen = byLevel.length;
+    let chosenBest = bestFor(byLevel.map((t) => t.id));
+    for (let k = byLevel.length - 1; k >= 1; k--) {
+      const b = bestFor(byLevel.slice(0, k).map((t) => t.id));
+      if (b > chosenBest) {
+        chosen = k;
+        chosenBest = b;
+      }
     }
-    if (best !== state.combat.stageIndex) exec({ type: 'selectStage', stageIndex: best });
+    const economyFallback: Job = (gatherJob(state, content, 'food') && can('food') ? gatherJob(state, content, 'food')! : { activity: 'woodcutting' });
+    for (const t of byLevel.slice(chosen)) exec({ type: 'assignTroop', troopId: t.id, activity: economyFallback.activity, siteId: economyFallback.siteId });
+    if (chosenBest !== state.combat.stageIndex) exec({ type: 'selectStage', stageIndex: chosenBest });
   }
 
   // 8. Check-in player: the boss comes last, with everyone fighting.

@@ -67,9 +67,15 @@ function sig3(x: number): number {
 }
 
 /** HP growth: gentle up to level 20 (fast early tempo), steeper after (the tempo knob, §19.1). */
+const E = (k: string, d: number) => Number(process.env[k] ?? d);
+const G1 = E('G1', 1.065), G2 = E('G2', 1.12), HPA = E('HPA', 1), BOSSM = E('BOSSM', 1);
 function hpGrowth(level: number): number {
-  return level <= 20 ? Math.pow(1.065, level - 5) : Math.pow(1.065, 15) * Math.pow(1.12, level - 20);
+  return HPA * (level <= 20 ? Math.pow(G1, level - 5) : Math.pow(G1, 15) * Math.pow(G2, level - 20));
 }
+
+/** XP of generated enemies (M13 tuning): scale on the anchor and growth per level; keeps troop levels readable (about 20-50 at level 40). */
+const XP_SCALE = Number(process.env.XP_SCALE ?? 0.1);
+const XP_GROWTH = Number(process.env.XP_GROWTH ?? 1.06);
 
 /** The generated enemy of a level (6-40) in a band of five; anchored on the old boar at level 5. */
 export function makeEnemy(level: number, name: string): EnemyDef {
@@ -81,7 +87,7 @@ export function makeEnemy(level: number, name: string): EnemyDef {
     hp: sig3(130 * hpGrowth(level) * role.hp),
     armour: roundHalfEven(3 + 0.3 * d) + role.armour,
     attack: round(1.1 * Math.pow(1.07, d) * role.attack, 2),
-    xp: round(18 * Math.pow(1.06, d) * role.xp, 1),
+    xp: round(18 * XP_SCALE * Math.pow(XP_GROWTH, d) * role.xp, 2),
     loot: { food: round(3 * Math.pow(1.04, d), 2), ore: round(2.5 * Math.pow(1.03, d), 2) },
   };
 }
@@ -102,6 +108,7 @@ const bossTable: { id: string; level: number; name: string; hp: number; armour: 
 
 export const enemies: Record<string, EnemyDef> = { ...handWritten };
 const stages: ZoneDef['stages'] = [];
+const KMULT = (process.env.KMULT ?? '1,1,1,1,1,1,1,1').split(',').map(Number);
 for (let level = 1; level <= 40; level++) {
   const band = Math.floor((level - 1) / 5);
   const kills = KILLS[band]!;
@@ -114,9 +121,10 @@ for (let level = 1; level <= 40; level++) {
     enemyId = e.id;
   }
   // Levels 1-5 keep today's kills (12, 12, 12, 12, 8), which equal the first band of the table.
-  stages.push({ enemyId, killsToClear: isBossLevel ? kills.boss : kills.normal });
+  const km = KMULT[band] ?? 1;
+  stages.push({ enemyId, killsToClear: Math.round((isBossLevel ? kills.boss : kills.normal) * km) });
 }
-for (const b of bossTable) enemies[b.id] = { id: b.id, name: b.name, hp: b.hp, armour: b.armour, attack: b.attack, xp: 0, loot: {} };
+for (const b of bossTable) enemies[b.id] = { id: b.id, name: b.name, hp: b.hp * BOSSM, armour: b.armour, attack: b.attack, xp: 0, loot: {} };
 
 export const zones: Record<string, ZoneDef> = {
   farmsteads: {
@@ -141,7 +149,7 @@ export const sites: Record<string, WorkSiteDef> = {
   fields: { id: 'fields', name: 'Åkrarna', activity: 'food', capacity: 3, cycleSec: 60, yield: { food: 9 }, unlock: 'site:fields' },
   // Boss rewards (docs/PROGRESSION_V2.md §19.5): Ekskogen after boss 2, Järngruvan (the only source of iron) after boss 3.
   ekskogen: { id: 'ekskogen', name: 'Ekskogen', activity: 'woodcutting', capacity: 4, cycleSec: 40, yield: { wood: 8 }, unlock: 'site:ekskogen' },
-  jarngruvan: { id: 'jarngruvan', name: 'Järngruvan', activity: 'mining', capacity: 2, cycleSec: 90, yield: { iron: 2, stone: 6 }, unlock: 'site:jarngruvan' },
+  jarngruvan: { id: 'jarngruvan', name: 'Järngruvan', activity: 'mining', capacity: 2, cycleSec: 90, yield: { iron: 2 * E('IRONY', 1), stone: 6 }, unlock: 'site:jarngruvan' },
 };
 
 /** Levels `from`..`to` of a building built from a formula, so growth is one line and not a hand-written table. */
@@ -342,10 +350,10 @@ export const equipment: EquipmentContent = {
     axe_t1: { id: 'axe_t1', weaponTypeId: 'axe', tier: 1, materials: { ore: 2 }, workPerItem: 60 },
     bow_t1: { id: 'bow_t1', weaponTypeId: 'bow', tier: 1, materials: { wood: 3 }, workPerItem: 60 },
     // T2 (docs/PROGRESSION_V2.md §19.5): iron from Järngruvan, unlocked by boss 4, gated by T1 mastery 2 of the same type.
-    sword_t2: { id: 'sword_t2', weaponTypeId: 'sword', tier: 2, materials: { iron: 6, ore: 3 }, workPerItem: 120, requiresMastery: { level: 2 } },
-    cleaver_t2: { id: 'cleaver_t2', weaponTypeId: 'cleaver', tier: 2, materials: { iron: 6, ore: 3 }, workPerItem: 120, requiresMastery: { level: 2 } },
-    axe_t2: { id: 'axe_t2', weaponTypeId: 'axe', tier: 2, materials: { iron: 6, ore: 3 }, workPerItem: 120, requiresMastery: { level: 2 } },
-    bow_t2: { id: 'bow_t2', weaponTypeId: 'bow', tier: 2, materials: { iron: 4, wood: 4 }, workPerItem: 120, requiresMastery: { level: 2 } },
+    sword_t2: { id: 'sword_t2', weaponTypeId: 'sword', tier: 2, materials: { iron: Math.round(6 * E('IRONM', 1)), ore: 3 }, workPerItem: 120, requiresMastery: { level: 2 } },
+    cleaver_t2: { id: 'cleaver_t2', weaponTypeId: 'cleaver', tier: 2, materials: { iron: Math.round(6 * E('IRONM', 1)), ore: 3 }, workPerItem: 120, requiresMastery: { level: 2 } },
+    axe_t2: { id: 'axe_t2', weaponTypeId: 'axe', tier: 2, materials: { iron: Math.round(6 * E('IRONM', 1)), ore: 3 }, workPerItem: 120, requiresMastery: { level: 2 } },
+    bow_t2: { id: 'bow_t2', weaponTypeId: 'bow', tier: 2, materials: { iron: Math.round(4 * E('IRONM', 1)), wood: 4 }, workPerItem: 120, requiresMastery: { level: 2 } },
   },
   unarmedMult: 1,
   chancesAtMin: [0.85, 0.13, 0.02, 0, 0],

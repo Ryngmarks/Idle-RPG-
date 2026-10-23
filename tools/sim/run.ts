@@ -86,7 +86,7 @@ const median = (xs: number[]) => (xs.length ? [...xs].sort((a, b) => a - b)[Math
 function printLong(race: string, strategy: Strategy, res: RunResult) {
   const bosses = content.zones[content.constants.startZoneId]!.bosses;
   console.log(`\n=== ${race} · ${strategy} to level ${bosses[bosses.length - 1]!.level} (game time h:mm) ===`);
-  console.log('boss  level   time    gap   soldiers  groups  armed  T2 share  tries');
+  console.log('boss  level   time    gap   soldiers  groups  armed  T2 share  troopLv  tries');
   let prev = 0;
   bosses.forEach((b, i) => {
     const t = res.bossTimes[i] ?? null;
@@ -96,7 +96,7 @@ function printLong(race: string, strategy: Strategy, res: RunResult) {
     if (t != null) prev = t;
     const share = ok && ok.armed > 0 ? `${ok.t2Armed}/${ok.armed}` : '-';
     console.log(
-      `${String(i + 1).padStart(4)}  ${String(b.level).padStart(5)} ${hm(t)} ${hm(gap)}  ${String(ok?.soldiers ?? '-').padStart(8)}  ${String(ok?.groups ?? '-').padStart(6)}  ${String(ok?.armed ?? '-').padStart(5)}  ${share.padStart(8)}  ${String(starts.length).padStart(5)}`,
+      `${String(i + 1).padStart(4)}  ${String(b.level).padStart(5)} ${hm(t)} ${hm(gap)}  ${String(ok?.soldiers ?? '-').padStart(8)}  ${String(ok?.groups ?? '-').padStart(6)}  ${String(ok?.armed ?? '-').padStart(5)}  ${share.padStart(8)}  ${String(ok?.troopLevel ?? '-').padStart(7)}  ${String(starts.length).padStart(5)}`,
     );
   });
   const per: number[] = [];

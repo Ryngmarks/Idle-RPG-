@@ -175,7 +175,7 @@ export const equipment: EquipmentContent = {
   chancesAtMax: [0.3, 0.33, 0.22, 0.11, 0.04],
   maxMastery: 10,
   itemsPerMasteryStep: 20,
-  firstMasteryStep: 8,
+  firstMasteryStep: 6,
 };
 
 export const objectives: ObjectiveDef[] = [

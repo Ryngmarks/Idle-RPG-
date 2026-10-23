@@ -478,3 +478,8 @@ Existing guards in §11 stay, with these changes:
 1. **Soldier count at 40 min:** is Humans at 6 soldiers at ~40 min (rescue at stage 4) acceptable, or should the stage-4 rescue replace some other future soldier so the army is 5 at 40 min?
 2. **Forge earlier:** may the forge unlock right after "two groups" (~14 min) instead of after the farm? This is the biggest timeline change in the spec (the farm stays as a goal but no longer opens the forge).
 3. **Old saves:** do players with stage 5 already reached get the stage-4 rescue soldier as a gift (recommended: no, mark done without a soldier), and should the level-5/10 notices be silent for already-high groups?
+
+### 16.7 Built and tuned (M10b, 2026-10-23)
+
+Implemented as specified, with these tunings and owner decisions (see [Balance Log pass 10](BALANCE_LOG.md)): Forge II costs 90 wood / 60 stone / 10 ore, Farm II 70 wood / 40 stone, the first mastery step is at **6** weapons (D-40 still holds: level 2 at 80, max at ~2,000). Forge II and Farm II are **post-boss goals** (a bridge to region 2). Guards: armed ratio measured when the boss fight starts; food floor 4 % until upkeep exists; event gap 4 min (Humans) / 7 min (Orcs) for the balanced bot; optional goals are not required. Save version 8.
+

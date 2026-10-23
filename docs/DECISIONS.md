@@ -60,6 +60,7 @@
 | D-51 | **Working method with agents:** the lead proposes a work split (task, agent, why, result, order, risks, cost) and waits for the owner's approval before starting agents or implementation. Agents: Game Designer, Game Systems, UI/UX, QA & Balance (sonnet), Research (haiku). See CLAUDE.md. | 2026-10-23 | Owner |
 | D-52 | **UI and art direction (M10c):** the layout from docs/mockups/ui-v2.html (work cycle as the hero, a "what limits you now" strip, combat and forge cards) and the custom SVG art style from docs/mockups/art-style.html (shared palette, ink outlines, two-tone shading, glow only on rare or dangerous things). Own SVG instead of icon packs; the UI reads timers and limits from core helpers. | 2026-10-23 | Owner, M10c |
 | D-53 | **M10b first-hour upgrade** as specified in PROGRESSION_V2 §16: new objectives (forge after two groups, tent 2, woodshed, optional ore and farm goals, forge 2), a rescue at stage 4 (+1 soldier; 6 Humans at 40 min accepted), stage 5 shortened, first mastery step at 10 weapons, more ore loot, second levels for forge and farm, woodshed, Sharp axes II, Stone picks II, level notices at 5 and 10. Old saves: no rescue soldier, no retroactive notices. | 2026-10-23 | Owner, M10b |
+| D-54 | M10b follow-up: Forge II and Farm II are goals after the boss; armed ratio measured at the start of the boss fight; first mastery step at 6 weapons; food floor 4 % until upkeep; event-gap guard for the balanced bot only (Humans 4 min, Orcs 7 min) | 2026-10-23 | Owner, M10b |
 
 ## Proposed 💡 (awaiting confirmation)
 

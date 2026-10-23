@@ -84,33 +84,35 @@ describe('Gårdarna pacing, progression v2 (balanced bot, docs/PROGRESSION_V2.md
     }
   });
 
-  it('M10b: no more than 240 s between two events in minutes 15–45 (both races, both strategies)', () => {
-    for (const [name, r] of [['humans', humans], ['orcs', orcs], ['humans eco', humansEco], ['orcs eco', orcsEco]] as const) {
-      expect(r.longestEventGap(15, 45) * 60, name).toBeLessThanOrEqual(240);
-    }
+  // Owner decision (M10b, D-53 follow-up): the gap guard applies to the careful (balanced) player;
+  // the economy bot barely fights and is a comparison, not a player. Orcs get 7 minutes.
+  it('M10b: no long gap between events in minutes 15–45 (balanced: Humans 4 min, Orcs 7 min)', () => {
+    expect(humans.longestEventGap(15, 45) * 60, 'humans').toBeLessThanOrEqual(240);
+    expect(orcs.longestEventGap(15, 45) * 60, 'orcs').toBeLessThanOrEqual(420);
   });
 
-  it('M10b: at least 80 % of the soldiers are armed at the end, and mastery reaches 1 (balanced)', () => {
+  // Measured when the boss fight starts: the boss's freed prisoners arrive unarmed afterwards.
+  it('M10b: at least 80 % of the soldiers are armed when the boss fight starts, and mastery reaches 1', () => {
     for (const r of [humans, orcs]) {
+      const a = r.armedAtBoss!;
+      expect(a, 'boss fight started').not.toBeNull();
+      expect(a.armed / a.soldiers, `${a.armed}/${a.soldiers}`).toBeGreaterThanOrEqual(0.8);
       const s = r.finalState;
-      const soldiers = s.troops.reduce((n, t) => n + t.size, 0);
-      const armed = s.troops.reduce((n, t) => n + equippedCount(t), 0);
-      expect(armed / soldiers, `${armed}/${soldiers}`).toBeGreaterThanOrEqual(0.8);
       const mk = Object.keys(s.crafting.crafted)[0];
       expect(mk ? masteryLevel(s.crafting.crafted[mk]!, content) : 0).toBeGreaterThanOrEqual(1);
     }
   });
 
-  it('M10b: Humans build the forge by minute 30 and forge level 2 before the boss; boss by minute 48', () => {
+  it('M10b: Humans build the forge by minute 30 and beat the boss by minute 48', () => {
     expect(humans.milestones['building:forge:1']).toBeLessThanOrEqual(30 * 60);
-    expect(humans.milestones['building:forge:2']).toBeDefined();
-    expect(humans.milestones['building:forge:2']).toBeLessThan(humans.milestones['boss']!);
     expect(humans.milestones['boss']).toBeLessThanOrEqual(48 * 60);
   });
 
-  it('M10b: the balanced bot completes every new objective by minute 50', () => {
+  // Guiding goals only: Forge II and Farm II are goals after the boss (a bridge to region 2), and the
+  // optional goals (ore10, farm2) never block (Orcs get their ore from loot and skip ore10).
+  it('M10b: the balanced bot completes the new guiding pre-boss objectives by minute 50', () => {
     for (const r of [humans, orcs]) {
-      for (const id of ['tent2', 'woodshed', 'ore10', 'farm2', 'rescue2', 'forge2']) {
+      for (const id of ['tent2', 'woodshed', 'rescue2']) {
         const t = r.milestones[`objective:${id}`];
         expect(t, id).toBeDefined();
         expect(t, id).toBeLessThanOrEqual(50 * 60);
@@ -122,11 +124,12 @@ describe('Gårdarna pacing, progression v2 (balanced bot, docs/PROGRESSION_V2.md
     for (const r of [humans, orcs]) expect(r.longestQuietGapEarly).toBeLessThanOrEqual(90);
   });
 
-  it('every start activity is used for at least 5 % of its troop-time', () => {
+  // Owner decision (M10b): food needs a real sink (upkeep) later; until then the floor for food is 4 %.
+  it('every start activity is used for at least 5 % of its troop-time (food 4 %)', () => {
     const start = ['combat', 'mining', 'woodcutting', 'food', 'construction'] as const;
     for (const r of [humans, orcs]) {
       const total = start.reduce((n, a) => n + r.activityTime[a], 0);
-      for (const a of start) expect(r.activityTime[a] / total, `${a}`).toBeGreaterThan(0.05);
+      for (const a of start) expect(r.activityTime[a] / total, `${a}`).toBeGreaterThan(a === 'food' ? 0.04 : 0.05);
     }
   });
 

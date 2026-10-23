@@ -74,6 +74,8 @@ export interface RunResult {
   /** Times (s) of every "event" a player sees: objective, building, recruit, join, stage clear, new troop, level step. */
   eventTimes: number[];
   /** Longest stretch in minutes between two events inside [fromMin, toMin] (capped at the end of the run). */
+  /** Armed soldiers and soldiers when the boss fight starts (before its rewards add unarmed prisoners). */
+  armedAtBoss: { armed: number; soldiers: number } | null;
   longestEventGap: (fromMin: number, toMin: number) => number;
   finalState: GameState;
 }
@@ -93,6 +95,7 @@ export function runBot(start: GameState, content: Content, opts: RunOptions): Ru
   const milestones: Record<string, number> = {};
   const activityTime = { combat: 0, mining: 0, woodcutting: 0, food: 0, construction: 0, smithing: 0, idle: 0 };
   let nextSnapshot = 0;
+  let armedAtBoss: { armed: number; soldiers: number } | null = null;
   let lastReward = 0;
   let longestQuietGapEarly = 0;
   const progressMark = (s: GameState) =>
@@ -124,6 +127,12 @@ export function runBot(start: GameState, content: Content, opts: RunOptions): Ru
     }
     decide(state, content, opts.strategy, exec, () => state);
     for (const t of state.troops) activityTime[t.activity ?? 'idle'] += opts.tickSeconds;
+    if (state.combat.boss && !armedAtBoss) {
+      armedAtBoss = {
+        armed: state.troops.reduce((n, t) => n + equippedCount(t), 0),
+        soldiers: state.troops.reduce((n, t) => n + t.size, 0),
+      };
+    }
     const before = progressMark(state);
     const r = advance(state, opts.tickSeconds, content);
     state = r.state;
@@ -142,7 +151,7 @@ export function runBot(start: GameState, content: Content, opts: RunOptions): Ru
     for (let i = 1; i < pts.length; i++) gap = Math.max(gap, pts[i]! - pts[i - 1]!);
     return gap / 60;
   };
-  return { log, snapshots, milestones, activityTime, longestQuietGapEarly, eventTimes, longestEventGap, finalState: state };
+  return { log, snapshots, milestones, activityTime, longestQuietGapEarly, eventTimes, longestEventGap, armedAtBoss, finalState: state };
 }
 
 // ------------------------------------------------------------------ decisions

@@ -2,9 +2,11 @@
 // Nothing here is stored in the save; it is always recomputed from state + content.
 
 import { averageWeaponPower, weaponGroups } from './equipment';
-import { damagePerHit, dpsAgainst, killsPerSecond, levelForXp, resolveStat, troopCap } from './formulas';
+import { damagePerHit, dpsAgainst, killsPerSecond, levelForXp, resolveStat } from './formulas';
 import type {
+  ActivityKind,
   Content,
+  Effect,
   EnemyDef,
   GameState,
   LabourActivity,
@@ -12,6 +14,7 @@ import type {
   RaceDef,
   Resources,
   TroopState,
+  WorkSiteDef,
   ZoneDef,
 } from './types';
 
@@ -58,19 +61,45 @@ export function globalModifiers(state: GameState, content: Content): Modifier[] 
   return mods;
 }
 
-export function capLevel(state: GameState, content: Content): number {
-  let level = 0;
+/** Effects of every completed building level. */
+function buildingEffects(state: GameState, content: Content): Effect[] {
+  const out: Effect[] = [];
   for (const [id, built] of Object.entries(state.buildings)) {
     const def = content.buildings[id];
-    for (let l = 0; l < built; l++) {
-      for (const e of def?.levels[l]?.effects ?? []) if (e.kind === 'capLevel') level = Math.max(level, e.level);
-    }
+    for (let l = 0; l < built; l++) out.push(...(def?.levels[l]?.effects ?? []));
   }
-  return level;
+  return out;
 }
 
-export function currentCap(state: GameState, content: Content): number {
-  return troopCap(race(state, content).population.maxTroopSize, capLevel(state, content), content.constants.capLevelFractions);
+/** Soldiers in every troop group. */
+export function soldierCount(state: GameState): number {
+  return state.troops.reduce((n, t) => n + t.size, 0);
+}
+
+/** Beds in the camp: the race's start beds plus what buildings add (× the race's bed multiplier). */
+export function beds(state: GameState, content: Content): number {
+  const r = race(state, content);
+  const built = buildingEffects(state, content).reduce((n, e) => n + (e.kind === 'beds' ? e.amount : 0), 0);
+  return r.population.startBeds + built * r.population.bedMult;
+}
+
+/** Beds nobody sleeps in, counting the recruit in training. */
+export function freeBeds(state: GameState, content: Content): number {
+  return beds(state, content) - soldierCount(state) - (state.training ? 1 : 0);
+}
+
+/** How many soldiers can work a site (or build / smith) at once, across all troop groups. */
+export function capacity(state: GameState, content: Content, target: string): number {
+  const c = content.constants;
+  const base = target === 'construction' ? c.crews.construction : target === 'smithing' ? c.crews.smithing : (content.sites[target]?.capacity ?? 0);
+  return base + buildingEffects(state, content).reduce((n, e) => n + (e.kind === 'capacity' && e.target === target ? e.amount : 0), 0);
+}
+
+/** Sites in the current zone a troop may work for this activity, in default order. */
+export function availableSites(state: GameState, content: Content, activity: ActivityKind): WorkSiteDef[] {
+  return zone(state, content)
+    .sites.map((id) => content.sites[id])
+    .filter((s): s is WorkSiteDef => !!s && s.activity === activity && (!s.unlock || state.unlocks.includes(s.unlock)));
 }
 
 export function troopLevel(troop: TroopState, content: Content): number {
@@ -95,9 +124,10 @@ export interface TroopStats {
   healPerSec: number;
 }
 
-/** Forge work per second a troop gives while smithing (with an order to work on). */
-export function smithingWork(stats: TroopStats, content: Content): number {
-  return stats.workTotal * stats.skills.smithing * content.constants.smithRate;
+/** Forge work per second a troop would give at the anvils (ignoring other smiths and the queue). */
+export function smithingWork(state: GameState, troop: TroopState, content: Content): number {
+  const s = troopStats(state, troop, content);
+  return Math.min(troop.size, capacity(state, content, 'smithing')) * s.work * s.skills.smithing * content.constants.smithRate;
 }
 
 export function troopStats(state: GameState, troop: TroopState, content: Content, mods = globalModifiers(state, content)): TroopStats {
@@ -109,8 +139,8 @@ export function troopStats(state: GameState, troop: TroopState, content: Content
   // Racial traits that depend on the troop itself.
   const troopMods: Modifier[] = [];
   if (r.traits.includes('horde')) {
-    const cap = currentCap(state, content);
-    const fullness = cap > 0 ? Math.min(1, troop.size / cap) : 0;
+    // A horde hits harder the more of it there is: up to +50 % at ten or more in one group.
+    const fullness = Math.min(1, troop.size / 10);
     troopMods.push({ stat: 'attack', op: 'mult', value: 0.5 * fullness, source: 'trait:horde' });
   }
   const all = troopMods.length ? [...mods, ...troopMods] : mods;
@@ -146,10 +176,14 @@ export function troopStats(state: GameState, troop: TroopState, content: Content
 }
 
 export interface Rates {
-  /** Resources per second from labour activities and combat loot. */
+  /** Resources per second that flow continuously (combat loot). */
   resources: Resources;
-  /** Resources per second from labour only (for "gathered" stats/objectives). */
+  /** Average resources per second from work cycles (paid out a whole cycle at a time). */
   gathered: Resources;
+  /** Everything per second on average: `resources` + `gathered`. For display and planning. */
+  income: Resources;
+  /** Work cycles per second per work site. */
+  siteCycles: Record<string, number>;
   killsPerSec: number;
   constructionWorkPerSec: number;
   bossDps: number;
@@ -160,7 +194,7 @@ export interface Rates {
   /** Net wounds per second per troop id: positive = taking damage, negative = healing. */
   woundsPerSec: Record<string, number>;
   /** Per-troop output, useful for UI and the simulator. */
-  perTroop: Record<string, { killsPerSec: number; bossDps: number; output: Partial<Resources>; work: number }>;
+  perTroop: Record<string, { killsPerSec: number; bossDps: number; output: Partial<Resources>; work: number; working: number; siteId: string | null }>;
 }
 
 export function emptyResources(): Resources {
@@ -174,6 +208,8 @@ export function computeRates(state: GameState, content: Content): Rates {
   const rates: Rates = {
     resources: emptyResources(),
     gathered: emptyResources(),
+    income: emptyResources(),
+    siteCycles: {},
     killsPerSec: 0,
     constructionWorkPerSec: 0,
     bossDps: 0,
@@ -184,16 +220,23 @@ export function computeRates(state: GameState, content: Content): Rates {
   };
   const foe = currentEnemy(state, content);
   const boss = state.combat.boss ? enemy(zone(state, content).boss.enemyId, content) : null;
-  const oreShare = Math.min(0.9, c.miningOreShare + (r.traits.includes('deepDelvers') ? 0.15 : 0));
   const fighting = state.troops.filter((t) => t.activity === 'combat');
   const fightingSize = fighting.reduce((sum, t) => sum + t.size, 0);
   const incomingTotal = fightingSize > 0 ? (boss ?? foe).attack : 0;
 
+  // Sites, builders and anvils have room for a limited number of soldiers, filled in troop order.
+  const used: Record<string, number> = {};
+  const take = (target: string, wanted: number) => {
+    const n = Math.max(0, Math.min(wanted, capacity(state, content, target) - (used[target] ?? 0)));
+    used[target] = (used[target] ?? 0) + n;
+    return n;
+  };
+  const addXp = (id: string, xp: number) => (rates.xpPerSec[id] = (rates.xpPerSec[id] ?? 0) + xp);
+
   for (const t of state.troops) {
     const s = troopStats(state, t, content, mods);
-    const entry = { killsPerSec: 0, bossDps: 0, output: {} as Partial<Resources>, work: 0 };
+    const entry = { killsPerSec: 0, bossDps: 0, output: {} as Partial<Resources>, work: 0, working: 0, siteId: null as string | null };
     rates.perTroop[t.id] = entry;
-    const labour = (skill: number) => t.size * s.work * skill * c.gatherRate;
     switch (t.activity) {
       case 'combat':
         // Each weapon group (and the unarmed remainder) fights with its own attack: exact, O(groups).
@@ -202,36 +245,43 @@ export function computeRates(state: GameState, content: Content): Rates {
           if (boss) entry.bossDps += dpsAgainst(g.count, atk, s.armourPen, boss.armour, c.attacksPerSecond);
           else entry.killsPerSec += killsPerSecond(g.count, atk, s.armourPen, foe, c.attacksPerSecond);
         }
+        entry.working = t.size;
         rates.bossDps += entry.bossDps;
         rates.killsPerSec += entry.killsPerSec;
         break;
-      case 'mining': {
-        const total = labour(s.skills.mining);
-        entry.output = { stone: total * (1 - oreShare), ore: total * oreShare };
+      case 'mining':
+      case 'woodcutting':
+      case 'food': {
+        const site = t.siteId ? content.sites[t.siteId] : undefined;
+        if (!site || !availableSites(state, content, t.activity).includes(site)) break;
+        entry.siteId = site.id;
+        entry.working = take(site.id, t.size);
+        // Each working soldier finishes a cycle every cycleSec / (work × skill) seconds.
+        const cycles = (entry.working * s.work * s.skills[t.activity]) / site.cycleSec;
+        rates.siteCycles[site.id] = (rates.siteCycles[site.id] ?? 0) + cycles;
+        for (const [res, v] of Object.entries(site.yield) as [keyof Resources, number][]) entry.output[res] = v * cycles;
+        addXp(t.id, cycles * c.workXp);
         break;
       }
-      case 'woodcutting':
-        entry.output = { wood: labour(s.skills.woodcutting) };
-        break;
-      case 'food':
-        entry.output = { food: labour(s.skills.food) };
-        break;
       case 'construction':
-        entry.work = state.construction ? t.size * s.work * s.skills.construction : 0;
+        if (!state.construction) break;
+        entry.working = take('construction', t.size);
+        entry.work = entry.working * s.work * s.skills.construction;
         rates.constructionWorkPerSec += entry.work;
+        addXp(t.id, (entry.work / c.workMoment) * c.workXp);
         break;
       case 'smithing':
-        // Troops at the forge do the smithing; without an order there is nothing to work on.
-        entry.work = state.crafting.queue.length > 0 ? smithingWork(s, content) : 0;
+        // Smiths work only while there is an order; the anvils limit how many can work.
+        if (state.crafting.queue.length === 0) break;
+        entry.working = take('smithing', t.size);
+        entry.work = entry.working * s.work * s.skills.smithing * c.smithRate;
         rates.craftWorkPerSec += entry.work;
+        addXp(t.id, (entry.work / c.workMoment) * c.workXp);
         break;
       case null:
         break;
     }
-    for (const [res, v] of Object.entries(entry.output) as [keyof Resources, number][]) {
-      rates.gathered[res] += v;
-      rates.resources[res] += v;
-    }
+    for (const [res, v] of Object.entries(entry.output) as [keyof Resources, number][]) rates.gathered[res] += v;
     // Damage is shared by the fighting troops in proportion to their size; everyone heals.
     const incoming = t.activity === 'combat' && fightingSize > 0 ? (incomingTotal * t.size) / fightingSize : 0;
     const net = incoming - s.healPerSec;
@@ -248,9 +298,10 @@ export function computeRates(state: GameState, content: Content): Rates {
     rates.resources.stone += rates.killsPerSec * (foe.loot.stone ?? 0);
     for (const t of state.troops) {
       const k = rates.perTroop[t.id]?.killsPerSec ?? 0;
-      if (k > 0) rates.xpPerSec[t.id] = k * foe.xp;
+      if (k > 0) addXp(t.id, k * foe.xp);
     }
   }
+  for (const r of Object.keys(rates.income) as (keyof Resources)[]) rates.income[r] = rates.resources[r] + rates.gathered[r];
   return rates;
 }
 

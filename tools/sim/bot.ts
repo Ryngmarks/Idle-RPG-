@@ -1,21 +1,18 @@
 // Scripted players for the balance simulator. They only use the public core API,
-// exactly like the UI will. See docs/ROADMAP.md §3.
+// exactly like the UI does. See docs/PROGRESSION_V2.md §8 and docs/BALANCE_LOG.md.
 
 import {
-  ACTIVITIES,
   advance,
-  computeRates,
-  currentCap,
+  availableSites,
   dispatch,
   estimatedBossDamage,
   averageWeaponPower,
-  craftCost,
   equippedCount,
   maxCraftable,
   recipeAvailable,
-  maxRecruitable,
-  recruitCost,
   stageSafety,
+  trainBlocker,
+  trainCost,
   troopStats,
   type ActivityKind,
   type Command,
@@ -24,27 +21,28 @@ import {
   type GameEvent,
   type GameState,
   type ResourceId,
-  type TroopState,
 } from '../../src/core';
 
+/** `balanced`: a careful active player. `economy`: builds first and only fights when nothing is missing. */
 export type Strategy = 'balanced' | 'economy';
 
 type Wish =
   | { kind: 'upgrade'; id: string }
   | { kind: 'building'; id: string; level: number };
 
-/** What a sensible player works towards in P0, in priority order. */
+/** What a sensible player works towards in Gårdarna, in priority order. */
 const WISHLIST: Wish[] = [
   { kind: 'upgrade', id: 'sharpenedAxes' },
-  { kind: 'building', id: 'trainingCamp', level: 1 },
   { kind: 'upgrade', id: 'drillPractice' },
+  { kind: 'building', id: 'tents', level: 1 },
   { kind: 'upgrade', id: 'stonePicks' },
-  { kind: 'building', id: 'barracks', level: 1 },
-  { kind: 'building', id: 'forge', level: 1 },
-  { kind: 'upgrade', id: 'carpentry' },
+  { kind: 'building', id: 'trainingCamp', level: 1 },
+  { kind: 'building', id: 'tents', level: 2 },
   { kind: 'building', id: 'farm', level: 1 },
+  { kind: 'building', id: 'forge', level: 1 },
+  { kind: 'building', id: 'tents', level: 3 },
   { kind: 'upgrade', id: 'fieldKitchens' },
-  { kind: 'building', id: 'barracks', level: 2 },
+  { kind: 'upgrade', id: 'carpentry' },
 ];
 
 export interface LogEntry {
@@ -66,6 +64,8 @@ export interface RunResult {
   milestones: Record<string, number>;
   /** Troop-seconds spent per activity. */
   activityTime: Record<ActivityKind | 'idle', number>;
+  /** Longest stretch in the first 15 minutes without anything completing (a cycle, a kill, an event). */
+  longestQuietGapEarly: number;
   finalState: GameState;
 }
 
@@ -84,6 +84,10 @@ export function runBot(start: GameState, content: Content, opts: RunOptions): Ru
   const milestones: Record<string, number> = {};
   const activityTime = { combat: 0, mining: 0, woodcutting: 0, food: 0, construction: 0, smithing: 0, idle: 0 };
   let nextSnapshot = 0;
+  let lastReward = 0;
+  let longestQuietGapEarly = 0;
+  const progressMark = (s: GameState) =>
+    Object.values(s.stats.gathered).reduce((a, b) => a + b, 0) + Math.floor(s.stats.totalKills + 1e-9);
 
   const note = (events: GameEvent[]) => {
     for (const e of events) {
@@ -108,15 +112,28 @@ export function runBot(start: GameState, content: Content, opts: RunOptions): Ru
     }
     decide(state, content, opts.strategy, exec, () => state);
     for (const t of state.troops) activityTime[t.activity ?? 'idle'] += opts.tickSeconds;
+    const before = progressMark(state);
     const r = advance(state, opts.tickSeconds, content);
     state = r.state;
     note(r.events);
+    if (progressMark(state) > before + 1e-9 || r.events.length > 0) lastReward = state.clock;
+    if (state.clock <= 15 * 60) longestQuietGapEarly = Math.max(longestQuietGapEarly, state.clock - lastReward);
   }
   snapshots.push(snapshot(state, content));
-  return { log, snapshots, milestones, activityTime, finalState: state };
+  return { log, snapshots, milestones, activityTime, longestQuietGapEarly, finalState: state };
 }
 
 // ------------------------------------------------------------------ decisions
+
+/** Where a resource is gathered, as an activity and a work site. */
+function gatherJob(state: GameState, content: Content, r: ResourceId): { activity: ActivityKind; siteId?: string } | undefined {
+  if (r === 'wood') return { activity: 'woodcutting', siteId: 'birchGrove' };
+  if (r === 'stone') return { activity: 'mining', siteId: 'oldQuarry' };
+  if (r === 'ore') return { activity: 'mining', siteId: 'oreVein' };
+  const food = availableSites(state, content, 'food');
+  const best = [...food].sort((a, b) => b.yield.food! / b.cycleSec - a.yield.food! / a.cycleSec)[0];
+  return best ? { activity: 'food', siteId: best.id } : undefined;
+}
 
 function decide(
   initial: GameState,
@@ -127,8 +144,9 @@ function decide(
 ): void {
   let state = initial;
   const refresh = () => (state = current());
+  const can = (a: ActivityKind) => state.unlocks.includes(`activity:${a}`);
 
-  // 1. Boss: commit everyone when the estimate says we win comfortably.
+  // 1. Boss: commit everyone when the estimate says it falls in time.
   if (state.combat.boss) {
     for (const t of state.troops) if (t.activity !== 'combat') exec({ type: 'assignTroop', troopId: t.id, activity: 'combat' });
     return;
@@ -142,126 +160,83 @@ function decide(
     }
   }
 
-  // 2. The tutorial asks for one recruit; do it as soon as possible.
-  if (state.unlocks.includes('recruit') && state.stats.recruited === 0) {
-    exec({ type: 'recruit', troopId: state.troops[0]!.id, count: 1 });
-    refresh();
+  // 2. Buy the next wish when affordable.
+  const wish = WISHLIST.find((w) => !wishDone(w, state) && wishUnlocked(w, state) && !(w.kind === 'building' && state.construction));
+  let goal: Cost = {};
+  if (wish) {
+    if (tryBuy(wish, state, content, exec)) refresh();
+    else goal = { ...wishCost(wish, state, content) };
   }
 
-  // 3. Buy the current wish if affordable.
-  let wish = currentWish(state, content);
-  if (wish && tryBuy(wish, state, content, exec)) {
+  // 3. Train a recruit whenever a bed is free and the food is there (the wish's food stays reserved).
+  const smallest = () => [...state.troops].sort((a, b) => a.size - b.size)[0]!;
+  const blocker = trainBlocker(state, content);
+  const trainFood = trainCost(state, content).food;
+  if (blocker === null && state.resources.food - trainFood >= (goal.food ?? 0)) {
+    exec({ type: 'trainRecruit', troopId: smallest().id });
     refresh();
-    wish = currentWish(state, content);
+  } else if (blocker === null || blocker === 'food') {
+    goal.food = (goal.food ?? 0) + trainFood;
   }
 
-  // 3b. Forge: keep a small order going while soldiers are unarmed (a player racing to the boss
-  // arms the army, it does not grind quality); re-arm troops whenever the armoury has something better.
+  // 4. Forge: weapons for unarmed soldiers only (racing to the boss, not grinding quality).
   const recipeId = `${content.races[state.raceId]!.weaponTypeId}_t1`;
-  const unarmed = () =>
-    state.troops.reduce((n, t) => n + t.size - equippedCount(t), 0) -
-    Object.values(state.armoury).reduce((a, b) => a + b, 0) -
-    state.crafting.queue.reduce((n, o) => n + o.remaining, 0);
   if (recipeAvailable(state, recipeId, content)) {
-    const queued = state.crafting.queue.reduce((n, o) => n + o.remaining, 0);
-    if (queued < 5 && unarmed() > 0) {
-      const wishOre = wish ? wishCost(wish, state, content).ore ?? 0 : 0;
-      const spare = { ...state, resources: { ...state.resources, ore: Math.max(0, state.resources.ore - wishOre) } };
-      const n = Math.min(10, unarmed(), maxCraftable(spare, recipeId, content));
-      if (n > 0) exec({ type: 'queueCraft', recipeId, count: n });
-    }
-    refresh();
-    if (Object.values(state.armoury).some((n) => n > 0)) {
-      for (const t of state.troops) exec({ type: 'equipTroop', troopId: t.id });
-    }
-    refresh();
-  }
-
-  // 4. Recruit with food not needed for the wish (keep a small reserve).
-  if (state.unlocks.includes('recruit')) {
-    const reservedFood = (wish ? wishCost(wish, state, content).food ?? 0 : 0) + 5;
-    for (const t of [...state.troops].sort((a, b) => a.size - b.size)) {
-      refresh();
-      const per = recruitCost(state, t.id, 1, content);
-      const affordable = Math.floor(Math.max(0, state.resources.food - reservedFood) / (per.food ?? Infinity));
-      const n = Math.min(maxRecruitable(state, t.id, content), affordable);
-      if (n > 0) exec({ type: 'recruit', troopId: t.id, count: n });
-    }
-    refresh();
-  }
-
-  // 5. Assign troops.
-  // Growth goal: the next batch of recruits for the smallest troop. It comes first while that
-  // troop is below half its cap (a tiny troop gathers too slowly to be worth saving with),
-  // and otherwise once the wishlist is done.
-  let goalCost: Cost = wish ? wishCost(wish, state, content) : {};
-  if (strategy === 'balanced' && state.unlocks.includes('recruit')) {
-    const cap = currentCap(state, content);
-    const smallest = [...state.troops].sort((a, b) => a.size - b.size)[0]!;
-    const room = cap - smallest.size;
-    const growFirst = smallest.size < cap / 2;
-    if (room > 0 && (growFirst || (!wish && state.troops.length >= 2))) {
-      goalCost = recruitCost(state, smallest.id, Math.min(growFirst ? 3 : 10, room), content);
-    }
-  }
-  // Unarmed soldiers are a goal too: gather the ore for the next batch of weapons.
-  // An idle forge is wasted time, so its ore counts even when something else is being saved for.
-  if (recipeAvailable(state, recipeId, content) && (!wish || state.crafting.queue.length === 0)) {
     const soldiers = state.troops.reduce((n, t) => n + t.size, 0);
-    const armed = state.troops.reduce((n, t) => n + equippedCount(t), 0) + Object.values(state.armoury).reduce((a, b) => a + b, 0);
     const queued = state.crafting.queue.reduce((n, o) => n + o.remaining, 0);
-    const want = Math.min(10, soldiers - armed - queued);
-    if (want > 0) {
-      for (const [r, v] of Object.entries(craftCost(recipeId, want, content)) as [ResourceId, number][]) {
-        goalCost = { ...goalCost, [r]: (goalCost[r] ?? 0) + v };
-      }
+    const spare = Object.values(state.armoury).reduce((a, b) => a + b, 0);
+    const unarmed = soldiers - state.troops.reduce((n, t) => n + equippedCount(t), 0) - spare - queued;
+    if (unarmed > 0) {
+      const n = Math.min(unarmed, maxCraftable({ ...state, resources: { ...state.resources, ore: Math.max(0, state.resources.ore - (goal.ore ?? 0)) } }, recipeId, content));
+      if (n > 0) exec({ type: 'queueCraft', recipeId, count: n });
+      else goal.ore = (goal.ore ?? 0) + (content.equipment.recipes[recipeId]?.materials.ore ?? 0);
+      refresh();
     }
   }
-  const missing = missingFor(goalCost, state);
-  const free = [...state.troops];
-  const assign = (troopId: string, activity: ActivityKind) => {
-    const t = state.troops.find((x) => x.id === troopId);
-    if (t && t.activity !== activity && exec({ type: 'assignTroop', troopId, activity })) refresh();
-    const i = free.findIndex((x) => x.id === troopId);
-    if (i >= 0) free.splice(i, 1);
+
+  // 5. An open group slot: split a soldier off the biggest group.
+  if (state.troops.length < state.troopSlots) {
+    const big = [...state.troops].sort((a, b) => b.size - a.size)[0];
+    if (big && big.size >= 2) exec({ type: 'transferSoldiers', fromTroopId: big.id, toTroopId: null, count: 1 });
+    refresh();
+  }
+
+  // 6. Assign groups: economy jobs in order of urgency, the rarest missing material first.
+  const missing = (Object.entries(goal) as [ResourceId, number][])
+    .map(([r, v]) => ({ r, gap: v - state.resources[r] }))
+    .filter((x) => x.gap > 1e-9);
+  const perSec = (r: ResourceId) => {
+    const job = gatherJob(state, content, r);
+    const site = job?.siteId ? content.sites[job.siteId] : undefined;
+    return site ? (site.yield[r] ?? 0) / site.cycleSec : 0;
   };
-  const can = (a: ActivityKind) => state.unlocks.includes(`activity:${a}`);
-
-  if (state.construction && can('construction')) {
-    const builder = [...free].sort((a, b) => troopStats(state, b, content).workTotal - troopStats(state, a, content).workTotal)[0];
-    if (builder) assign(builder.id, 'construction');
+  missing.sort((a, b) => b.gap / Math.max(1e-6, perSec(b.r)) - a.gap / Math.max(1e-6, perSec(a.r)));
+  type Job = { activity: ActivityKind; siteId?: string };
+  const econ: Job[] = [];
+  if (state.construction && can('construction')) econ.push({ activity: 'construction' });
+  if (state.crafting.queue.length > 0 && can('smithing')) econ.push({ activity: 'smithing' });
+  for (const m of missing) {
+    const job = gatherJob(state, content, m.r);
+    if (job && can(job.activity)) econ.push(job);
   }
-
-  const fightNeeded = can('combat') && (!state.combat.cleared || state.unlocks.includes('boss'));
-  if (strategy === 'balanced' && free.length >= 2 && fightNeeded) {
-    const fighter = [...free].sort((a, b) => troopStats(state, b, content).strength - troopStats(state, a, content).strength)[0]!;
-    assign(fighter.id, 'combat');
-  }
-
-  // Smithing: with orders waiting, a troop works the forge, unless it is the last free troop
-  // and something is being saved for (that wish comes first).
-  const ordersWaiting = state.crafting.queue.length > 0;
-  if (can('smithing') && ordersWaiting && free.length > 0 && (free.length >= 2 || !wish)) {
-    const smithPower = (t: TroopState) => troopStats(state, t, content).workTotal * troopStats(state, t, content).skills.smithing;
-    const smith = [...free].sort((a, b) => smithPower(b) - smithPower(a))[0]!;
-    assign(smith.id, 'smithing');
-  }
-
-  for (const t of [...free]) {
-    const job = bestGatherJob(state, content, t.id, missing, can);
-    if (job) {
-      assign(t.id, job);
-      // A second troop should cover a different need.
-      const res = resourceOf(job);
-      for (const r of res) delete missing[r];
-    } else if (can('combat')) {
-      assign(t.id, 'combat');
-    } else {
-      assign(t.id, 'woodcutting');
+  const fight = can('combat') && !state.combat.bossDefeated;
+  const fallback: Job = fight ? { activity: 'combat' } : gatherJob(state, content, 'food') && can('food') ? gatherJob(state, content, 'food')! : { activity: 'woodcutting' };
+  const ordered = [...state.troops].sort((a, b) => b.size - a.size || a.id.localeCompare(b.id));
+  const jobs: Job[] =
+    ordered.length === 1
+      ? // Alone: rescue the first companion, then follow the most urgent need and fight when nothing is missing.
+        [fight && (state.combat.unlockedStage === 0 || econ.length === 0) ? { activity: 'combat' } : (econ[0] ?? fallback)]
+      : strategy === 'balanced' && fight
+        ? [{ activity: 'combat' }, ...econ]
+        : econ;
+  ordered.forEach((t, i) => {
+    const job = jobs[i] ?? fallback;
+    if (t.activity !== job.activity || (job.siteId && t.siteId !== job.siteId)) {
+      exec({ type: 'assignTroop', troopId: t.id, activity: job.activity, siteId: job.siteId });
     }
-  }
+  });
 
-  // 6. Fight at the highest stage that costs no soldiers (a careful player).
+  // 7. Fight at the highest stage that costs no soldiers (a careful player).
   refresh();
   if (state.troops.some((t) => t.activity === 'combat') && !state.combat.boss) {
     let best = 0;
@@ -272,83 +247,25 @@ function decide(
   }
 }
 
-function currentWish(state: GameState, content: Content): Wish | undefined {
-  return WISHLIST.find((w) => !wishDone(w, state) && wishUnlocked(w, state) && !(w.kind === 'building' && state.construction));
-}
-
 function wishDone(w: Wish, state: GameState): boolean {
   if (w.kind === 'upgrade') return (state.upgrades[w.id] ?? 0) > 0;
-  if (w.kind === 'building') {
-    const inProgress = state.construction?.buildingId === w.id && state.construction.level >= w.level;
-    return (state.buildings[w.id] ?? 0) >= w.level || inProgress;
-  }
-  return false;
+  const inProgress = state.construction?.buildingId === w.id && state.construction.level >= w.level;
+  return (state.buildings[w.id] ?? 0) >= w.level || inProgress;
 }
 
 function wishUnlocked(w: Wish, state: GameState): boolean {
   if (w.kind === 'upgrade') return state.unlocks.includes(`upgrade:${w.id}`);
-  if (w.kind === 'building') return state.unlocks.includes(`building:${w.id}`) && (state.buildings[w.id] ?? 0) === w.level - 1;
-  return false;
+  return state.unlocks.includes(`building:${w.id}`) && (state.buildings[w.id] ?? 0) === w.level - 1;
 }
 
 function wishCost(w: Wish, state: GameState, content: Content): Cost {
   if (w.kind === 'upgrade') return content.upgrades[w.id]?.cost ?? {};
-  if (w.kind === 'building') return content.buildings[w.id]?.levels[w.level - 1]?.cost ?? {};
-  return {};
+  return content.buildings[w.id]?.levels[w.level - 1]?.cost ?? {};
 }
 
 function tryBuy(w: Wish, state: GameState, content: Content, exec: (cmd: Command) => boolean): boolean {
   if (w.kind === 'upgrade') return exec({ type: 'buyUpgrade', upgradeId: w.id });
-  if (w.kind === 'building') return exec({ type: 'startConstruction', buildingId: w.id });
-  return false;
-}
-
-function missingFor(cost: Cost, state: GameState): Partial<Record<ResourceId, number>> {
-  const out: Partial<Record<ResourceId, number>> = {};
-  for (const [r, v] of Object.entries(cost) as [ResourceId, number][]) {
-    const gap = v - state.resources[r];
-    if (gap > 1e-9) out[r] = gap;
-  }
-  return out;
-}
-
-function resourceOf(a: ActivityKind): ResourceId[] {
-  switch (a) {
-    case 'mining': return ['stone', 'ore'];
-    case 'woodcutting': return ['wood'];
-    case 'food': return ['food'];
-    case 'combat': return ['food'];
-    default: return [];
-  }
-}
-
-/** The activity that fills the slowest-to-fill missing resource fastest for this troop. */
-function bestGatherJob(
-  state: GameState,
-  content: Content,
-  troopId: string,
-  missing: Partial<Record<ResourceId, number>>,
-  can: (a: ActivityKind) => boolean,
-): ActivityKind | undefined {
-  let best: { activity: ActivityKind; time: number } | undefined;
-  for (const [res, gap] of Object.entries(missing) as [ResourceId, number][]) {
-    let bestForRes: { activity: ActivityKind; rate: number } | undefined;
-    for (const a of ACTIVITIES) {
-      if (a === 'construction' || !can(a) || !resourceOf(a).includes(res)) continue;
-      const trial = structuredCloneState(state);
-      for (const t of trial.troops) t.activity = t.id === troopId ? a : null;
-      const rate = computeRates(trial, content).resources[res];
-      if (rate > 0 && (!bestForRes || rate > bestForRes.rate)) bestForRes = { activity: a, rate };
-    }
-    if (!bestForRes) continue;
-    const time = gap / bestForRes.rate;
-    if (!best || time > best.time) best = { activity: bestForRes.activity, time };
-  }
-  return best?.activity;
-}
-
-function structuredCloneState(s: GameState): GameState {
-  return JSON.parse(JSON.stringify(s)) as GameState;
+  return exec({ type: 'startConstruction', buildingId: w.id });
 }
 
 // ------------------------------------------------------------------ reporting
@@ -358,6 +275,14 @@ function describeEvent(e: GameEvent, state: GameState, content: Content): { text
     case 'objectiveCompleted': {
       const o = content.objectives.find((x) => x.id === e.objectiveId);
       return { text: `✔ ${o?.text ?? e.objectiveId}`, milestone: `objective:${e.objectiveId}` };
+    }
+    case 'recruitTrained': {
+      const n = state.troops.reduce((a, t) => a + t.size, 0);
+      return { text: `🛡  Recruit trained (${n} soldiers)`, milestone: `soldiers:${n}` };
+    }
+    case 'soldiersJoined': {
+      const n = state.troops.reduce((a, t) => a + t.size, 0);
+      return { text: `✨ ${e.count} soldier(s) joined (${n} soldiers)`, milestone: `soldiers:${n}` };
     }
     case 'troopFormed': {
       const t = state.troops.find((x) => x.id === e.troopId);

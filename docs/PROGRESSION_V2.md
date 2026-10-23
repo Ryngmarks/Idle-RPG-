@@ -1,6 +1,6 @@
 # Progression & Economy v2: work cycles, slow soldiers, troop groups
 
-> **Status:** 💡 Proposal for review. Nothing in the game has changed yet.
+> **Status:** ✅ Approved by the owner on 2026-10-23 (every recommendation in §13: D-45–D-50). **M10a implemented**, see §15.
 > **Prototype:** `tools/sim/proposal/workcycles.ts` (standalone model, not used by the game): `npx tsx tools/sim/proposal/workcycles.ts humans|orcs`
 > **Related:** [Troop Model](TROOP_MODEL.md) · [First 15 Minutes](FIRST_15_MINUTES.md) · [Equipment](EQUIPMENT_AND_CRAFTING.md) · [Balance Log](BALANCE_LOG.md) · [Decisions](DECISIONS.md)
 
@@ -358,3 +358,34 @@ Proposed new balance guards (replacing the old ones):
 3. **M10b:** content retune (enemies, boss, races, buildings) and the new balance bot and guards.
 4. **M10c:** UI: site cards, training bar, beds, move soldiers, smaller-army art.
 5. Playtest the first hour with both races before adding region 2.
+
+---
+
+## 15. Implemented in M10a (2026-10-23)
+
+The core, content, save, bot and a minimal UI now follow this document. Differences from the proposal, found while building:
+
+| Topic | Proposal | Built | Why |
+|---|---|---|---|
+| Training food | 20 × 1.5^(k−3) | **40** (Humans) / **30** (Orcs) × 1.5^(n−2) | With 20, the Food activity was used only 1–4 % of the time (risk §12). With 40, food is 7 % (Humans) / 10 % (Orcs), and soldier 5 lands at ~31 min |
+| Orc training | ×0.6 food and time | 30 food, **70 s** | Orcs had 8 soldiers at 30 min (1.6×); now ~5 (1.25×) |
+| Combat food loot | 2 / 3 / 3 / 5 / 6 | **1 / 1 / 1.5 / 2 / 3** | Same reason: hunting fed the whole army |
+| Cycle speed | skill only | skill × **work** (work includes +10 %/level) | Levels from work XP now speed up work too |
+| Group 2 | Player moves a soldier in | Formed **automatically** from the biggest group when the Training Camp is done (if it can spare one), otherwise by the next soldier | Keeps the existing "two groups" objective working with no extra step; the player can move soldiers back with *Flytta en soldat* |
+| Horde trait | n/a | +50 % attack at ten or more soldiers in one group | The old trait scaled with the troop cap, which no longer exists |
+
+New core API: `WorkSiteDef` and `content.sites`, `troop.siteId`, `state.siteProgress`, `state.troopSlots`, `state.training`, `beds` / `freeBeds` / `capacity` / `availableSites`, commands `trainRecruit` and `transferSoldiers`, `assignTroop { siteId }`, objective rewards `soldiers` / `troopSlots`, effects `beds` / `capacity`. Removed: `recruit`, `recruitCost`, `maxRecruitable`, cap levels and `gatherRate`. Save **v7** keeps every soldier of an old save.
+
+Simulated (bot, balanced), see [Balance Log pass 9](BALANCE_LOG.md):
+
+| | Humans | Orcs |
+|---|---|---|
+| Soldier 2 (rescue) | 4:45 | 4:51 |
+| Group 2 | 14:09 | 14:28 |
+| Soldiers at 15 / 30 / 40 min | 2 / 4 / 5 | 2 / 5 / 6 |
+| Soldier 5 | 30:39 | 27:13 |
+| Boss | 43:55 | 53:49 (+22 %) |
+| After the boss | 7 soldiers in 3 groups | 9 in 3 groups |
+
+Still open for **M10b** (tuning): the lull before the boss (stage 5 → boss ~10 min), only 5 of 7 soldiers armed by the boss, Orcs' slower late game, and real playtests. **M10c** (UI): site cards with capacity, nicer training and bed display, smaller-army art.
+

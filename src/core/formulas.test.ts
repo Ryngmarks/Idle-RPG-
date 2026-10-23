@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { damagePerHit, dpsAgainst, killsPerSecond, levelForXp, resolveStat, troopCap, xpForLevel } from './formulas';
+import { damagePerHit, dpsAgainst, killsPerSecond, levelForXp, resolveStat, xpForLevel } from './formulas';
 
 describe('combat formulas (docs/TROOP_MODEL.md §5.3 worked example)', () => {
   const rats = { hp: 1, armour: 0 };
@@ -49,13 +49,6 @@ describe('modifiers', () => {
 });
 
 describe('caps and levels', () => {
-  const fractions = [0.04, 0.08, 0.15, 0.3, 0.5, 0.75, 1];
-  it('cap levels are shared fractions of the race max', () => {
-    expect(troopCap(500, 0, fractions)).toBe(20);
-    expect(troopCap(500, 1, fractions)).toBe(40);
-    expect(troopCap(1000, 0, fractions)).toBe(40);
-    expect(troopCap(500, 99, fractions)).toBe(500);
-  });
   it('xp thresholds and levels are consistent', () => {
     expect(xpForLevel(1, 30, 1.8)).toBe(0);
     expect(xpForLevel(2, 30, 1.8)).toBe(30);

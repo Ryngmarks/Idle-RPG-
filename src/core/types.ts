@@ -25,7 +25,6 @@ export type Stat =
   | 'skill.food'
   | 'skill.construction'
   | 'skill.smithing'
-  | 'foodPerSoldier'
   | 'loot.food'
   | 'loot.ore'
   | 'hp'
@@ -49,13 +48,16 @@ export interface RaceDef {
   /** Shown in the race picker but not selectable when false (Dwarves/Elves in P0). */
   playable: boolean;
   population: {
+    /** Hard ceiling for one troop group (long term). */
     maxTroopSize: number;
     startSize: number;
-    /** Soldiers a newly formed troop starts with (e.g. Troop 2 from the Training Camp). */
-    newTroopSize: number;
-    foodPerSoldier: number;
-    /** Troop size at which recruitment cost starts escalating (cost × (size/scale)^exp). */
-    recruitScaleSize: number;
+    /** Beds in the starting camp; soldiers can only be trained into a free bed. */
+    startBeds: number;
+    /** Multiplies the beds every building gives (Orcs pile into tents). */
+    bedMult: number;
+    /** Food and seconds to train the next soldier when the army has two; both grow per soldier. */
+    trainFood: number;
+    trainSec: number;
   };
   soldier: {
     attack: number;
@@ -86,9 +88,27 @@ export interface EnemyDef {
   loot: Cost;
 }
 
+/**
+ * A place where soldiers gather: each working soldier completes one cycle every `cycleSec`
+ * (divided by work × skill) and the reward arrives when the cycle completes. At most
+ * `capacity` soldiers can work it at once, across all troop groups.
+ */
+export interface WorkSiteDef {
+  id: string;
+  name: string;
+  activity: 'woodcutting' | 'mining' | 'food';
+  capacity: number;
+  cycleSec: number;
+  yield: Cost;
+  /** Needed before troops can work here (e.g. 'site:fields' from the Farm). */
+  unlock?: Unlock;
+}
+
 export interface ZoneDef {
   id: string;
   name: string;
+  /** Work sites in this zone, in the order a troop picks them by default. */
+  sites: string[];
   stages: { enemyId: string; killsToClear: number }[];
   boss: { enemyId: string; timeLimitSec: number };
 }
@@ -96,9 +116,12 @@ export interface ZoneDef {
 export type Unlock = string; // 'activity:mining', 'tab:upgrades', 'upgrade:x', 'building:x', 'recruit', 'gear:1', 'boss', ...
 
 export type Effect =
-  | { kind: 'capLevel'; level: number }
+  | { kind: 'beds'; amount: number }
+  /** More room at a work site, or more builders/smiths ('construction' / 'smithing'). */
+  | { kind: 'capacity'; target: string; amount: number }
   | { kind: 'modifier'; modifier: Modifier }
   | { kind: 'unlock'; unlock: Unlock }
+  /** One more troop group may exist. */
   | { kind: 'troopSlot' };
 
 export interface BuildingLevelDef {
@@ -174,7 +197,7 @@ export type ObjectiveCondition =
   | { kind: 'recruited'; amount: number }
   | { kind: 'buildingLevel'; buildingId: string; level: number }
   | { kind: 'upgradeBought'; upgradeId: string }
-  | { kind: 'troopSizeAtLeast'; size: number }
+  | { kind: 'soldiersAtLeast'; count: number }
   | { kind: 'stageReached'; stage: number }
   | { kind: 'zoneCleared' }
   | { kind: 'bossDefeated' }
@@ -186,7 +209,14 @@ export interface ObjectiveDef {
   text: string;
   requires: string[];
   condition: ObjectiveCondition;
-  rewards: { unlocks?: Unlock[]; resources?: Cost };
+  rewards: {
+    unlocks?: Unlock[];
+    resources?: Cost;
+    /** Soldiers who join (rescued); they fill an open group slot first. */
+    soldiers?: number;
+    /** Extra troop group slots. */
+    troopSlots?: number;
+  };
 }
 
 export interface Content {
@@ -197,19 +227,20 @@ export interface Content {
   upgrades: Record<string, UpgradeDef>;
   equipment: EquipmentContent;
   objectives: ObjectiveDef[];
+  sites: Record<string, WorkSiteDef>;
   constants: {
-    /** Recruit cost per soldier = foodPerSoldier × (size / startSize)^recruitExponent. */
-    recruitExponent: number;
-    /** Fraction of the race's max troop size per cap level. */
-    capLevelFractions: number[];
-    /** Resource per second per (work × skill). */
-    gatherRate: number;
+    /** Each further trained soldier costs this many times more food / training time. */
+    trainFoodGrowth: number;
+    trainTimeGrowth: number;
+    /** Builders per construction project and smiths per forge before buildings add more. */
+    crews: { construction: number; smithing: number };
+    /** XP a troop gets per finished work cycle; construction and smithing count `workMoment` work as one cycle. */
+    workXp: number;
+    workMoment: number;
     /** Attacks per second per soldier. */
     attacksPerSecond: number;
-    /** Forge work per second per (work × smithing skill) of the troops assigned to smithing. */
+    /** Forge work per second per (work × smithing skill) of each smith at an anvil. */
     smithRate: number;
-    /** Share of mining output that becomes ore (rest is stone). */
-    miningOreShare: number;
     /** XP needed to reach level L is xpBase × (L−1)^xpExponent. */
     xpBase: number;
     xpExponent: number;
@@ -243,6 +274,8 @@ export interface TroopState {
   engagedSize: number;
   /** Takes better weapons from the armoury by itself whenever they are there. */
   autoEquip: boolean;
+  /** Work site for woodcutting, mining or food; null for other activities. */
+  siteId: string | null;
 }
 
 export interface BossFight {
@@ -257,6 +290,12 @@ export interface GameState {
   clock: number;
   resources: Resources;
   troops: TroopState[];
+  /** How many troop groups may exist (start 1; Training Camp, boss, …). */
+  troopSlots: number;
+  /** The recruit being trained at the Training Camp (one at a time). */
+  training: { troopId: string; secLeft: number; totalSec: number } | null;
+  /** Fractional work cycles in progress per work site; whole cycles pay out at once. */
+  siteProgress: Record<string, number>;
   buildings: Record<string, number>;
   construction: { buildingId: string; level: number; progress: number } | null;
   upgrades: Record<string, number>;
@@ -302,6 +341,8 @@ export type GameEvent =
   | { type: 'zoneCleared'; at: number; zoneId: string }
   | { type: 'constructionCompleted'; at: number; buildingId: string; level: number }
   | { type: 'troopFormed'; at: number; troopId: string }
+  | { type: 'recruitTrained'; at: number; troopId: string }
+  | { type: 'soldiersJoined'; at: number; troopId: string; count: number }
   | { type: 'troopLevelUp'; at: number; troopId: string; level: number }
   | { type: 'bossDefeated'; at: number; zoneId: string }
   | { type: 'bossFailed'; at: number; zoneId: string }

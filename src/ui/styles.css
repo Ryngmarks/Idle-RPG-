@@ -394,3 +394,8 @@ p { margin: 0.35rem 0; }
 .stat-tile dt { font-size: 0.7rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .stat-tile dd { margin: 0; font-size: 1.05rem; font-weight: 700; color: var(--gold-2); font-variant-numeric: tabular-nums; }
 .stat-forge { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding-top: 8px; }
+
+/* ------------------------------------------------------------ work cycles & sites */
+.cycle { display: flex; flex-direction: column; gap: 4px; }
+.site-picker { display: flex; gap: 6px; flex-wrap: wrap; }
+.btn--on { border-color: var(--gold); color: var(--gold-2); background: #2a2214; }

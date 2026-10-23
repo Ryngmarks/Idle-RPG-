@@ -51,10 +51,16 @@
 | D-42 | **Auto-equip per troop** (on by default): troops with Auto pool their weapons with the armoury and the fighting troops get the best first. Emptying a troop by hand turns Auto off. Runs after every command and every finished weapon, so offline equals online. | 2026-10-23 | Owner, M7 |
 | D-43 | **The forge matters before the boss:** T1 metal weapons cost ore only (2 ore, no wood); `smithRate` 0.1 → 0.3; mastery steps 8 → 20 weapons, so maxing T1 quality still takes ~2,000 weapons | 2026-10-23 | Owner, M8 |
 | D-44 | **Chronicle statistics:** play time, boss time, kills, soldiers, recruited, fallen and weapons per quality. Stored in `state.stats` (save v6); losses and qualities count from v6 on. | 2026-10-23 | Owner, M9 |
+| D-45 | **Soldiers come from beds and training, not a buy button:** a free bed (buildings), food and a short training time, one recruit at a time; both cost and time grow with every soldier. Plus rescues as milestones. | 2026-10-23 | Owner, progression v2 |
+| D-46 | **Troop groups are slots, separate from soldiers:** the Training Camp opens group 2 (~15 min), the first boss frees two prisoners who form group 3. Soldiers can be moved between groups (each keeps ≥ 1). | 2026-10-23 | Owner, progression v2 |
+| D-47 | **Activities are work cycles at work sites with capacity** (a tree, a block, a vein): the reward comes when the cycle completes; extra soldiers beyond a site's room do nothing there. Mining has two sites (stone / ore). Food = berries, fields (Farm) and hunting through combat loot. Builders and smiths have crew limits. | 2026-10-23 | Owner, progression v2 |
+| D-48 | Every finished work cycle gives the group a little XP, so working groups develop too | 2026-10-23 | Owner, progression v2 |
+| D-49 | Combat in Gårdarna is tuned for a handful of soldiers: the rat swarm becomes a fox, the boss has 500 HP and a 90 s limit | 2026-10-23 | Owner, progression v2 |
+| D-50 | **Supersedes** D-14 (~12 soldiers after 15 min), D-16 (troop starts at ~5 / cap 20) and D-24 (Troop 2 forms with free soldiers). Target: ~2 soldiers at 15 min, 3–5 (Humans) at 30–40 min. | 2026-10-23 | Owner, progression v2 |
 
 ## Proposed 💡 (awaiting confirmation)
 
-> **Progression v2 (2026-10-23):** a full proposal for work cycles, site capacity, beds and training, troop groups and a 3–5 soldier first half hour is in [PROGRESSION_V2.md](PROGRESSION_V2.md). If approved it supersedes D-14, D-16 and D-24; open questions are in its §13.
+> **Progression v2 (2026-10-23):** approved and recorded as D-45–D-50; see [PROGRESSION_V2.md](PROGRESSION_V2.md).
 
 | ID | Proposal | Details |
 |---|---|---|

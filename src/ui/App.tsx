@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { content } from '../content';
-import { computeRates, RESOURCES, type GameEvent, type GameState, type Rates, type ResourceId } from '../core';
+import { computeRates, foodBalance, RESOURCES, type GameEvent, type GameState, type Rates, type ResourceId } from '../core';
 import { RaceEmblem } from './art';
 import { Icon, type UiIconName } from './art/icons';
 import { ResIcon } from './art/resources';
@@ -29,13 +29,24 @@ const TABS: { id: Tab; label: string; icon: UiIconName; unlock?: string }[] = [
   { id: 'chronicle', label: 'Krönika', icon: 'book' },
 ];
 
+/** Rate per minute; food shows its net after upkeep (D-55) and warns when it runs out. */
+function ResourceRate({ r, state, rates }: { r: ResourceId; state: GameState; rates: Rates }) {
+  if (r !== 'food') return <span className="resource__rate">{rates.income[r] > 0 ? `+${fmtRate(rates.income[r] * 60)}/min` : ''}</span>;
+  const fb = foodBalance(state, content);
+  if (fb.upkeep <= 0) return <span className="resource__rate">{fb.income > 0 ? `+${fmtRate(fb.income * 60)}/min` : ''}</span>;
+  const net = fb.net * 60;
+  const tone = fb.hungry ? 'resource__rate--bad' : net < 0 ? 'resource__rate--warn' : '';
+  const text = fb.hungry ? 'Hungrig' : `${net >= 0 ? '+' : '−'}${fmtRate(Math.abs(net))}/min`;
+  return <span className={`resource__rate ${tone}`}>{text}</span>;
+}
+
 function ResourceTile({ r, state, rates }: { r: ResourceId; state: GameState; rates: Rates }) {
   const bumps = useRise(state.resources[r], 1);
   return (
     <div className={`resource ${bumps > 0 ? 'resource--bump' : ''}`} key={bumps}>
       <span className="resource__icon" aria-hidden><ResIcon id={r} size={30} /></span>
       <span className="resource__amount">{fmtAmount(state.resources[r])}</span>
-      <span className="resource__rate">{rates.income[r] > 0 ? `+${fmtRate(rates.income[r] * 60)}/min` : ''}</span>
+      <ResourceRate r={r} state={state} rates={rates} />
       <span className="sr-only">{RESOURCE_LABEL[r].name}</span>
     </div>
   );

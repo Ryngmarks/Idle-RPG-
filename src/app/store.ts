@@ -19,6 +19,8 @@ export interface AwayReport {
   capped: boolean;
   resources: Resources;
   kills: number;
+  /** Seconds the troops were hungry while away (not saved). */
+  hungrySec: number;
   events: GameEvent[];
 }
 
@@ -110,6 +112,7 @@ export class GameStore {
             capped: awaySec > OFFLINE_CAP_SEC,
             resources,
             kills: r.state.stats.totalKills - state.stats.totalKills,
+            hungrySec: r.hungrySec,
             events: r.events,
           }
         : this.snapshot.report;

@@ -13,7 +13,8 @@ export type LimiterKind =
   | 'trainingFood' // 'recruit' unlocked, a bed is free, no training running, food < trainCost.food (slow)
   | 'siteFull' // a gathering troop has working < size at its site (slow)
   | 'crewFull' // a construction or smithing troop has working < size (slow)
-  | 'training'; // a recruit is in training (info)
+  | 'training' // a recruit is in training (info)
+  | 'hunger'; // food is 0 and income is below upkeep (block), or the stock runs out within 2 minutes (slow); secondsLeft set when slow
 
 export interface Limiter {
   kind: LimiterKind;
@@ -29,6 +30,32 @@ export interface Limiter {
 
 const ORDER: Record<Limiter['severity'], number> = { block: 0, slow: 1, info: 2 };
 
+export interface FoodBalance {
+  /** Average food income per second (site cycles + combat loot). */
+  income: number;
+  /** Food eaten per second. */
+  upkeep: number;
+  /** income - upkeep. */
+  net: number;
+  /** min(1, income / upkeep); 1 when nobody eats. Below 1 only while hungry. */
+  coverage: number;
+  /** Food stock is 0 and income is below upkeep: work and attack are slowed. */
+  hungry: boolean;
+  /** Seconds until the stock reaches 0 at the average net rate; 0 while hungry; null when it is not falling. */
+  secondsLeft: number | null;
+}
+
+/** Food income, upkeep and hunger, all per second. Derived; nothing is saved. */
+export function foodBalance(state: GameState, content: Content): FoodBalance {
+  const rates = computeRates(state, content);
+  const income = rates.income.food;
+  const upkeep = rates.upkeepPerSec;
+  const net = income - upkeep;
+  const stock = state.resources.food;
+  const secondsLeft = rates.hungry ? 0 : net < 0 && upkeep > 0 ? Math.max(0, stock) / -net : null;
+  return { income, upkeep, net, coverage: rates.coverage, hungry: rates.hungry, secondsLeft };
+}
+
 /** Everything that is slowing the player right now, most severe first (block, slow, info), stable order within a severity (troop order). */
 export function limiters(state: GameState, content: Content): Limiter[] {
   const out: Limiter[] = [];
@@ -43,6 +70,10 @@ export function limiters(state: GameState, content: Content): Limiter[] {
   if (state.crafting.queue.length > 0 && !state.troops.some((t) => t.activity === 'smithing')) {
     out.push({ kind: 'noSmith', severity: 'block', tab: 'forge' });
   }
+
+  const food = foodBalance(state, content);
+  if (food.hungry) out.push({ kind: 'hunger', severity: 'block', current: food.income * 60, max: food.upkeep * 60, tab: 'forces' });
+  else if (food.secondsLeft !== null && food.secondsLeft < 120) out.push({ kind: 'hunger', severity: 'slow', secondsLeft: food.secondsLeft, current: food.income * 60, max: food.upkeep * 60, tab: 'forces' });
 
   if (state.unlocks.includes('recruit') && !state.training) {
     const free = freeBeds(state, content);

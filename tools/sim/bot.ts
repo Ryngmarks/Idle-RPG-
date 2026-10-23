@@ -8,6 +8,7 @@ import {
   estimatedBossDamage,
   averageWeaponPower,
   equippedCount,
+  foodBalance,
   maxCraftable,
   recipeAvailable,
   stageSafety,
@@ -23,8 +24,11 @@ import {
   type ResourceId,
 } from '../../src/core';
 
-/** `balanced`: a careful active player. `economy`: builds first and only fights when nothing is missing. */
-export type Strategy = 'balanced' | 'economy';
+/**
+ * `balanced`: a careful active player (also watches the food). `economy`: builds first and only fights when
+ * nothing is missing. `careless`: like balanced but never reacts to hunger (proves hunger cannot lock the game).
+ */
+export type Strategy = 'balanced' | 'economy' | 'careless';
 
 type Wish =
   | { kind: 'upgrade'; id: string }
@@ -49,6 +53,9 @@ const WISHLIST: Wish[] = [
   { kind: 'upgrade', id: 'fieldKitchens' },
   { kind: 'upgrade', id: 'carpentry' },
 ];
+
+/** The bot sends a group to food when the stock lasts less than this. */
+const FOOD_BUFFER_SEC = 180;
 
 export interface LogEntry {
   t: number;
@@ -76,6 +83,10 @@ export interface RunResult {
   /** Longest stretch in minutes between two events inside [fromMin, toMin] (capped at the end of the run). */
   /** Armed soldiers and soldiers when the boss fight starts (before its rewards add unarmed prisoners). */
   armedAtBoss: { armed: number; soldiers: number } | null;
+  /** Seconds the army was hungry before the boss fight started (sampled every tick). */
+  hungrySec: number;
+  /** Longest unbroken hungry stretch (s) before the boss fight started. */
+  longestHungrySec: number;
   longestEventGap: (fromMin: number, toMin: number) => number;
   finalState: GameState;
 }
@@ -95,6 +106,9 @@ export function runBot(start: GameState, content: Content, opts: RunOptions): Ru
   const milestones: Record<string, number> = {};
   const activityTime = { combat: 0, mining: 0, woodcutting: 0, food: 0, construction: 0, smithing: 0, idle: 0 };
   let nextSnapshot = 0;
+  let hungrySec = 0;
+  let longestHungrySec = 0;
+  let hungryRun = 0;
   let armedAtBoss: { armed: number; soldiers: number } | null = null;
   let lastReward = 0;
   let longestQuietGapEarly = 0;
@@ -133,6 +147,13 @@ export function runBot(start: GameState, content: Content, opts: RunOptions): Ru
         soldiers: state.troops.reduce((n, t) => n + t.size, 0),
       };
     }
+    if (!state.combat.boss) {
+      if (foodBalance(state, content).hungry) {
+        hungrySec += opts.tickSeconds;
+        hungryRun += opts.tickSeconds;
+        longestHungrySec = Math.max(longestHungrySec, hungryRun);
+      } else hungryRun = 0;
+    }
     const before = progressMark(state);
     const r = advance(state, opts.tickSeconds, content);
     state = r.state;
@@ -151,7 +172,7 @@ export function runBot(start: GameState, content: Content, opts: RunOptions): Ru
     for (let i = 1; i < pts.length; i++) gap = Math.max(gap, pts[i]! - pts[i - 1]!);
     return gap / 60;
   };
-  return { log, snapshots, milestones, activityTime, longestQuietGapEarly, eventTimes, longestEventGap, armedAtBoss, finalState: state };
+  return { log, snapshots, milestones, activityTime, longestQuietGapEarly, eventTimes, longestEventGap, armedAtBoss, hungrySec, longestHungrySec, finalState: state };
 }
 
 // ------------------------------------------------------------------ decisions
@@ -244,6 +265,12 @@ function decide(
   missing.sort((a, b) => b.gap / Math.max(1e-6, perSec(b.r)) - a.gap / Math.max(1e-6, perSec(a.r)));
   type Job = { activity: ActivityKind; siteId?: string };
   const econ: Job[] = [];
+  // Food watch (not for the careless player): send a group to food when it is empty or about to run out.
+  if (strategy !== 'careless' && can('food')) {
+    const fb = foodBalance(state, content);
+    const foodJob = gatherJob(state, content, 'food');
+    if (foodJob && (fb.hungry || (fb.net < 0 && fb.secondsLeft !== null && fb.secondsLeft < FOOD_BUFFER_SEC))) econ.push(foodJob);
+  }
   if (state.construction && can('construction')) econ.push({ activity: 'construction' });
   if (state.crafting.queue.length > 0 && can('smithing')) econ.push({ activity: 'smithing' });
   for (const m of missing) {
@@ -257,7 +284,7 @@ function decide(
     ordered.length === 1
       ? // Alone: rescue the first companion, then follow the most urgent need and fight when nothing is missing.
         [fight && (state.combat.unlockedStage === 0 || econ.length === 0) ? { activity: 'combat' } : (econ[0] ?? fallback)]
-      : strategy === 'balanced' && fight
+      : strategy !== 'economy' && fight
         ? [{ activity: 'combat' }, ...econ]
         : econ;
   ordered.forEach((t, i) => {

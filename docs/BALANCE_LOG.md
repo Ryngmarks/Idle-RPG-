@@ -317,3 +317,16 @@ orcs     economy        18%     28%     14%     24%     11%      5%      0%   5+
 
 **Owner decisions after the first measurement (2026-10-23):** (1) Forge II and Farm II are goals after the boss, not required before it; (2) the armed ratio is measured when the boss fight starts (its freed prisoners arrive unarmed); (3) first mastery step at 6 weapons; (4) the food floor is 4 % until food gets a real sink (upkeep) later; (5) the gap guard applies to the balanced bot only, 4 min for Humans and 7 min for Orcs. Optional goals (ore10, farm2) are not required by the guards (Orcs get their ore from loot).
 
+
+## Pass 11: 2026-10-23, food upkeep (M11, D-55/D-56)
+
+Upkeep per soldier but the first: Humans 0.5, Orcs 0.6 food/min. Balanced bot, 90 bot minutes.
+
+| | Humans | Orcs |
+|---|---|---|
+| Boss | 45:01 | 51:44 (+15 %) |
+| Hungry (balanced) | never | never |
+| Food share of start activities | 4 % | 11 % |
+| Careless bot (ignores food) | boss 46:16 (+2.8 %), 3.6 min hungry | — |
+
+Raising Human upkeep to 0.8–1.0 did not lift their food share above ~5 % and slowed soldier growth, so it was reverted. Humans are the better farmers (D-13): a short stint on the fields feeds them. **Owner-delegated decision (D-56):** the food floor in the balance guard is per race, Humans 4 %, Orcs 8 %.

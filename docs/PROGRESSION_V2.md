@@ -484,6 +484,86 @@ Existing guards in §11 stay, with these changes:
 Implemented as specified, with these tunings and owner decisions (see [Balance Log pass 10](BALANCE_LOG.md)): Forge II costs 90 wood / 60 stone / 10 ore, Farm II 70 wood / 40 stone, the first mastery step is at **6** weapons (D-40 still holds: level 2 at 80, max at ~2,000). Forge II and Farm II are **post-boss goals** (a bridge to region 2). Guards: armed ratio measured when the boss fight starts; food floor 4 % until upkeep exists; event gap 4 min (Humans) / 7 min (Orcs) for the balanced bot; optional goals are not required. Save version 8.
 
 
+---
+
+## 17. M11 food upkeep spec (✅ approved by the owner 2026-10-23, D-55)
+
+Status: **proposal**. Not decided, not built. Owner decisions it builds on: path A (soldiers eat; no food means slower, never dead), D-35 / D-36 (no losses, online or offline), D-13 (Humans better at food), D-50 (soldier targets), D-54 (food floor 4 % until upkeep). Out of scope: feasts and rations (surplus sink), new regions. **Every number marked (guess) is a starting point for QA to tune with `npm run sim`.**
+
+Baseline (balanced bot, 70 min sim, M10b): Humans food 4 % of troop-time, 2 / 4 / 5 soldiers at 15 / 30 / 40, boss 44:31; Orcs food 9 %, 2 / 5 / 6, boss 50:35 (+14 %). Food stock is often idle (Humans 77 at 30 min, 142 at 35). Food skill: Humans 1.4, Orcs 0.8. Per forager: berries 2 per 20 s (6 per min at skill 1), fields 9 per 60 s; so a Human forager gives about 8.4 per min on berries, an Orc about 4.8.
+
+### 17.1 Upkeep rule
+
+- Every soldier **in a troop** eats `u` food per minute, **except the first `F` soldiers of the player's whole army** (free allowance). Recruits still in the training queue do not eat. Rescued and boss prisoners eat from the moment they join.
+- `upkeep/min = u_race * max(0, totalSoldiers - F)`. Total soldiers only change at events (recruit finished, rescue, boss, transfer does not change it), so upkeep is a **constant rate between events**: `upkeepPerSec = u * max(0, n - F) / 60`, summed over all troops and added to `computeRates` as a negative food rate.
+- Proposed (guess): `F = 1` (the starting soldier is free, so minute 0 to 4:45 has no upkeep and the first rescue adds only 0.5 food per min), `u = 0.5` (Humans), `u = 0.6` (Orcs; they eat more, forage 0.8 vs 1.4).
+- Why 0.5: a Human forager makes 8.4 per min on berries, so one forager feeds 16 soldiers; 8 soldiers cost 3.5 per min, about 5 % of army time on food. Together with training (40/60/90 food) this should reach 8 to 10 % food share. Not fed by sleeping or training state: simple and readable ("0,5 mat per soldat och minut").
+- UI wording: "Underhåll: 3,5 mat/min (7 ätande soldater)".
+
+### 17.2 Hunger
+
+- **Trigger (derived, no state):** hunger is active when `food stock == 0` **and** `foodIncome < upkeep`. `foodIncome` is the expected food rate already known to the rate code (site cycle yield / cycle time, plus average combat loot if the core exposes it; if loot is not a smooth rate, leave it out and let lumps simply lift the stock above 0).
+- **Coverage ratio** `c = min(1, foodIncome / upkeep)`. A small deficit costs little, so no cliff and no flicker when lumps arrive:
+  - Work speed (all site cycles, construction, smithing, work-cycle XP): `x 1 - 0.4 * (1 - c)`, so **x0.6 at zero income** (guess).
+  - Attack (damage dealt): `x 1 - 0.25 * (1 - c)`, so **x0.75 at zero income** (guess). Enemy damage unchanged.
+  - Training time: unchanged (it needs food to start anyway). Regeneration, healing and loot unchanged.
+  - **Exempt: the food sites (berries, fields).** Hunger can never trap the player: one forager always works at full speed.
+- **Stock while hungry:** stock is pinned at 0 and food consumed equals food produced (income is eaten as it arrives). Stock cannot go negative.
+- **Start:** a continuous drain `stock / (upkeep - income)` seconds after the last event gives a new event `foodEmpty` (needed for the event-driven loop). **End:** as soon as `income >= upkeep` (a forager is assigned, a farm is built, a combat loot lump arrives and income rises); stock then grows above 0 and the factor is 1 again. No timers, no recovery period.
+- **Never:** no soldier dies or leaves, no building or resource is lost, no progress is reset, no objective fails. A fight lost because of slower attack follows the existing retreat rules (D-35).
+- **UI (Swedish text, proposal):** food chip in the resource bar shows the net rate (`-1,2/min`) in ember when negative; below 3 minutes of food left: "Maten räcker i 2 min". When hungry: red "Hungrig" badge on every troop card and a line in the "what limits you now" strip (D-52): "Trupperna är hungriga: arbete -40 %, anfall -25 %. Skicka någon till bären." Chronicle: "Maten tog slut." and "Maten räcker igen." **Away report:** "Maten tog slut efter 12 min. Trupperna arbetade långsammare i 38 min. Ingen svalt." (needs `hungrySec` summed in the offline catch-up, not saved).
+- Spending is allowed down to 0. A buy or training that would leave food at 0 with upkeep above income shows "Maten tar slut: trupperna blir hungriga" before confirming (UI warning only).
+
+### 17.3 Levers that grow in value
+
+| Lever | Change | Why |
+|---|---|---|
+| Berries (cap 2) | None | Cheap and always open; enough for the first 8 soldiers. Cap 2 is the hunger cure early |
+| Farm / fields (cap 3, Farm II +1) | None to yield; objective `farm` stays | Fields give 9 per min per forager, 54 to 63 per min at full room: covers 100+ soldiers. This is the long-term answer; Farm II becomes a real goal |
+| Field kitchens (+0.3 food skill) | Keep +0.3; consider also **-10 % upkeep** (guess, optional) | Gives a reason to buy it before the boss. QA decides if needed |
+| Combat loot | None | Hunting already feeds ~1 soldier-min per stage; upkeep makes it count |
+| Training food (40 Humans / 30 Orcs, x1.5 per soldier) | **Unchanged first.** Fallback if soldier 5 slips past 42 min: 35 (Humans) / 27 (Orcs) | Upkeep and training both draw on food; do not lower both at once without a sim |
+
+### 17.4 Targets and guards (guesses marked)
+
+- **Food share** of start-activity troop-time, balanced bot: **>= 8 %** for both races (floor goes from 4 % to 8 %); expected Humans 8 to 10 %, Orcs 14 to 17 %. Orcs above 20 % means `u` too high.
+- **Hunger time before the boss, balanced bot:** total <= **4 min** (guess), longest stretch <= 90 s. Economy bot: <= 8 min. A new **careless bot** (never assigns food on purpose) must still kill the boss, in <= **+40 %** time, which proves there is no death spiral.
+- Bot rule to add: assign a forager when food left < 3 min of upkeep or when hungry; keep a reserve of about 3 min of upkeep when buying.
+- Unchanged guards: D-50 soldiers 3 to 6 at 30 and 40 min (Humans), Orcs 1.0 to 1.6 x Humans; Humans boss 40 to 48 min, Orcs within +-25 %; M10b event-gap guards (Humans 4 min, Orcs 7 min); armed ratio >= 0.80 at the boss; first-15-minute 90 s gap guard; every start activity used.
+- Test needed: with `u = 0` or `n <= F` results equal today's (pins the old behaviour); with stock 0 and zero income, work speed is exactly x0.6 and food sites are unaffected; offline = online hunger time.
+
+### 17.5 Expected timeline, before to after (guesses)
+
+| | Humans before | Humans after | Orcs before | Orcs after |
+|---|---|---|---|---|
+| Soldiers at 15 / 30 / 40 | 2 / 4 / 5 | 2 / 4 / 5 (soldier 5 at ~38 to 41) | 2 / 5 / 6 | 2 / 4 to 5 / 6 |
+| Soldier 5 | 37:54 | 38 to 41 | 26:43 | 27 to 30 |
+| Boss | 44:31 | 45 to 47 | 50:35 | 52 to 56 (+18 to 22 %) |
+| Food share | 4 % | 8 to 10 % | 9 % | 14 to 17 % |
+| Hungry time before boss | n/a | 0 to 2 min | n/a | 0 to 3 min |
+
+The extra food time is taken mostly from mining and wood, so the boss slips by 1 to 3 min (guess). If Orcs exceed +25 %, lower Orc `u` to 0.5 before touching other numbers.
+
+### 17.6 Save and offline notes
+
+- **No new state.** Food stock already exists; `upkeep`, `foodIncome`, `c` and the hunger factors are all derived from soldiers, sites and stock. **No `SAVE_VERSION` bump or migration is needed** (Systems to confirm). Test: an old save loads with the same stock and soldiers.
+- Old saves with large armies start with upkeep from the first load. They may be hungry at once, but only slower, and one forager ends it. Optional (open question): no grace needed.
+- **Offline stays O(events):** upkeep is a constant rate per segment, so `foodEmpty` is one more event in the existing loop (time `stock / (upkeep - income)`); after it the segment runs with the constant hunger factors and stock pinned at 0. No per-minute stepping. Offline follows D-36 (troops fall back to the highest safe stage); hunger changes only speed. The away report adds `hungrySec` and the moment food ran out.
+
+### 17.7 Risks
+
+- Upkeep is linear in soldiers while a forager's yield is flat; at 50+ soldiers the Farm and later rations must carry it (out of scope now, flagged).
+- Hunger lowers attack during the boss (limit 90 s): the UI warning before the boss objective matters; the coverage ratio keeps small deficits mild.
+- Food is a hidden new chore if the UI is quiet: the "what limits you now" strip and the food chip must show it, or it feels like a silent penalty.
+
+### 17.8 Open questions for the owner
+
+1. **Strength of hunger:** work -40 % and attack -25 % at zero income (guess). Milder (-30 % / -15 %) or stronger?
+2. **Allowance and race rates:** first soldier free, Humans 0.5, Orcs 0.6 food per soldier per minute. Fine, or should Orcs eat the same as Humans?
+3. **Offline:** hunger applies offline the same as online (recommended, simple), or should offline be milder (for example never below x0.8)?
+
+**Owner decisions (2026-10-23):** hunger strength work ×0.6 / attack ×0.75 at zero coverage; the first soldier eats for free, Humans 0.5 and Orcs 0.6 food per soldier per minute; offline uses the same rule as online (offline must equal online). Feasts/rations come later.
+
 
 ---
 

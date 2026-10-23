@@ -24,6 +24,15 @@ const runEconomy = (raceId: string) =>
     snapshotEverySeconds: 300,
   });
 
+const runCareless = (raceId: string) =>
+  runBot(newGame(raceId, content), content, {
+    raceId,
+    strategy: 'careless',
+    maxSeconds: 120 * 60,
+    tickSeconds: 5,
+    snapshotEverySeconds: 300,
+  });
+
 const soldiersAt = (r: ReturnType<typeof run>, minute: number) => {
   const snap = r.snapshots.find((x) => x.t >= minute * 60 - 1e-6) ?? r.snapshots[r.snapshots.length - 1]!;
   return snap.troops.reduce((n, t) => n + t.size, 0);
@@ -34,6 +43,8 @@ describe('Gårdarna pacing, progression v2 (balanced bot, docs/PROGRESSION_V2.md
   const orcs = run('orcs');
   const humansEco = runEconomy('humans');
   const orcsEco = runEconomy('orcs');
+  const humansCareless = runCareless('humans');
+  const orcsCareless = runCareless('orcs');
 
   it('soldier 2 is rescued within 4–8 bot minutes', () => {
     for (const r of [humans, orcs]) {
@@ -124,12 +135,13 @@ describe('Gårdarna pacing, progression v2 (balanced bot, docs/PROGRESSION_V2.md
     for (const r of [humans, orcs]) expect(r.longestQuietGapEarly).toBeLessThanOrEqual(90);
   });
 
-  // Owner decision (M10b): food needs a real sink (upkeep) later; until then the floor for food is 4 %.
-  it('every start activity is used for at least 5 % of its troop-time (food 4 %)', () => {
+  // M11 (D-55/D-56): upkeep is a real food sink. Humans are the better farmers (D-13), so a short
+  // stint on the fields covers them: their food floor is 4 %, the Orcs' 8 %.
+  it('every start activity is used for at least 5 % of its troop-time (food: Humans 4 %, Orcs 8 %)', () => {
     const start = ['combat', 'mining', 'woodcutting', 'food', 'construction'] as const;
-    for (const r of [humans, orcs]) {
+    for (const [name, r, foodFloor] of [['humans', humans, 0.04], ['orcs', orcs, 0.08]] as const) {
       const total = start.reduce((n, a) => n + r.activityTime[a], 0);
-      for (const a of start) expect(r.activityTime[a] / total, `${a}`).toBeGreaterThan(a === 'food' ? 0.04 : 0.05);
+      for (const a of start) expect(r.activityTime[a] / total, `${name} ${a}`).toBeGreaterThan(a === 'food' ? foodFloor : 0.05);
     }
   });
 
@@ -138,6 +150,22 @@ describe('Gårdarna pacing, progression v2 (balanced bot, docs/PROGRESSION_V2.md
       const total = Object.values(r.activityTime).reduce((a, b) => a + b, 0);
       expect(r.activityTime.smithing / total).toBeGreaterThan(0.01);
       expect(r.finalState.stats.weaponsCrafted).toBeGreaterThan(3);
+    }
+  });
+
+  // M11 (D-55, §17.4): the careful player keeps the army fed.
+  it('M11: the balanced bot is hungry at most 4 min in total before the boss, never more than 90 s at a time', () => {
+    for (const [name, r] of [['humans', humans], ['orcs', orcs]] as const) {
+      expect(r.hungrySec, `${name} total`).toBeLessThanOrEqual(4 * 60);
+      expect(r.longestHungrySec, `${name} longest`).toBeLessThanOrEqual(90);
+    }
+  });
+
+  // Hunger only slows: a player who never reacts still wins, within +40 % of the balanced time.
+  it('M11: a careless bot that ignores food still beats the boss within +40 % of the balanced time', () => {
+    for (const [name, c, b] of [['humans', humansCareless, humans], ['orcs', orcsCareless, orcs]] as const) {
+      expect(c.milestones['boss'], `${name} boss`).toBeDefined();
+      expect(c.milestones['boss']!, name).toBeLessThanOrEqual(b.milestones['boss']! * 1.4);
     }
   });
 });

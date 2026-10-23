@@ -7,7 +7,7 @@ export const races: Record<string, RaceDef> = {
     id: 'humans',
     name: 'Människor',
     playable: true,
-    population: { maxTroopSize: 500, startSize: 1, startBeds: 2, bedMult: 1, trainFood: 40, trainSec: 90 },
+    population: { maxTroopSize: 500, startSize: 1, startBeds: 2, bedMult: 1, trainFood: 40, trainSec: 90, upkeep: 0.5 },
     soldier: {
       attack: 1,
       work: 1,
@@ -25,7 +25,7 @@ export const races: Record<string, RaceDef> = {
     id: 'orcs',
     name: 'Orcher',
     playable: true,
-    population: { maxTroopSize: 1000, startSize: 1, startBeds: 3, bedMult: 2, trainFood: 30, trainSec: 70 },
+    population: { maxTroopSize: 1000, startSize: 1, startBeds: 3, bedMult: 2, trainFood: 30, trainSec: 70, upkeep: 0.6 },
     soldier: {
       attack: 0.75,
       work: 1,
@@ -43,7 +43,7 @@ export const races: Record<string, RaceDef> = {
     id: 'dwarves',
     name: 'Dvärgar',
     playable: false,
-    population: { maxTroopSize: 200, startSize: 1, startBeds: 2, bedMult: 1, trainFood: 40, trainSec: 150 },
+    population: { maxTroopSize: 200, startSize: 1, startBeds: 2, bedMult: 1, trainFood: 40, trainSec: 150, upkeep: 0.5 },
     soldier: {
       attack: 2.5,
       work: 1,
@@ -61,7 +61,7 @@ export const races: Record<string, RaceDef> = {
     id: 'elves',
     name: 'Alver',
     playable: false,
-    population: { maxTroopSize: 150, startSize: 1, startBeds: 2, bedMult: 1, trainFood: 45, trainSec: 150 },
+    population: { maxTroopSize: 150, startSize: 1, startBeds: 2, bedMult: 1, trainFood: 45, trainSec: 150, upkeep: 0.5 },
     soldier: {
       attack: 2.6,
       work: 1,

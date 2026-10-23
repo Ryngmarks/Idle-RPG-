@@ -86,6 +86,9 @@ function limiterView(l: Limiter, state: GameState): { icon: ReactNode; title: st
     case 'trainingFood': return { icon: <ResIcon id="food" size={28} />, title: 'Mat saknas', hint: `${Math.floor(l.current ?? 0)} av ${Math.ceil(l.max ?? 0)} till utbildning`, action: 'Samla mat' };
     case 'siteFull': return { icon: <Icon name="tree" size={26} />, title: `${site?.name ?? 'Platsen'} full`, hint: `${l.current ?? 0} av ${l.max ?? 0} får plats`, action: 'Byt plats' };
     case 'crewFull': return { icon: <Icon name={l.target === 'smithing' ? 'anvil' : 'hammer'} size={26} />, title: l.target === 'smithing' ? 'Smedjan full' : 'Bygget fullt', hint: `${l.current ?? 0} av ${l.max ?? 0} får arbeta`, action: l.target === 'smithing' ? 'Till Smedjan' : 'Till Bosättning' };
+    case 'hunger': return l.severity === 'block'
+      ? { icon: <ResIcon id="food" size={28} />, title: 'Hungrig armé', hint: `Mat ${fmtRate(l.current ?? 0)}/min, behövs ${fmtRate(l.max ?? 0)}/min · arbete och strid går långsammare`, action: 'Samla mat' }
+      : { icon: <ResIcon id="food" size={28} />, title: 'Maten tar snart slut', hint: `Mat ${fmtRate(l.current ?? 0)}/min, behövs ${fmtRate(l.max ?? 0)}/min`, action: 'Samla mat' };
     case 'training': return { icon: <Icon name="hourglass" size={26} />, title: 'Rekryt utbildas', hint: l.secondsLeft !== undefined ? `klar om ${fmtDuration(l.secondsLeft)}` : '', action: '' };
   }
 }
@@ -196,6 +199,7 @@ function LifeStatus({ troop, rates, hpPerSoldier }: { troop: TroopState; rates: 
 
 function LifeChip({ troop, rates, hpPerSoldier }: { troop: TroopState; rates: Rates; hpPerSoldier: number }) {
   const net = rates.woundsPerSec[troop.id] ?? 0;
+  if (rates.hungry) return <Chip tone="warn"><ResIcon id="food" size={14} /> Hungrig</Chip>;
   if (net > 0) return <Chip tone="warn"><Icon name="warning" size={14} /> Skadas</Chip>;
   if (net < 0) return <Chip tone="ok"><Icon name="heal" size={13} /> Läker</Chip>;
   return <Chip tone="ok"><Icon name="heal" size={13} /> Frisk</Chip>;

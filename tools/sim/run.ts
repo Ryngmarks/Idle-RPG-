@@ -1,7 +1,7 @@
 // Balance simulator CLI.
 //   npm run sim                         → all playable races × all strategies, summary
 //   npm run sim -- --race orcs --log    → one race, full milestone log and snapshots
-// Options: --race <id> --strategy balanced|economy --minutes <n> --tick <sec> --log
+// Options: --race <id> --strategy balanced|economy|careless --minutes <n> --tick <sec> --log
 
 import { content } from '../../src/content';
 import { averageWeaponPower, equippedCount, masteryLevel, newGame } from '../../src/core';
@@ -16,7 +16,7 @@ const showLog = args.includes('--log');
 const minutes = Number(opt('minutes') ?? 180);
 const tick = Number(opt('tick') ?? 5);
 const races = opt('race') ? [opt('race')!] : Object.values(content.races).filter((r) => r.playable).map((r) => r.id);
-const strategies: Strategy[] = opt('strategy') ? [opt('strategy') as Strategy] : ['balanced', 'economy'];
+const strategies: Strategy[] = opt('strategy') ? [opt('strategy') as Strategy] : ['balanced', 'economy', 'careless'];
 
 const mmss = (t: number | undefined) =>
   t === undefined ? '  —  ' : `${String(Math.floor(t / 60)).padStart(2, ' ')}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
@@ -93,12 +93,12 @@ for (const { race, strategy, res } of results) {
 }
 
 console.log('\nShare of troop-time per activity\n');
-console.log('race     strategy    combat  mining    wood    food   build   smith    idle   soldiers@end');
+console.log('race     strategy    combat  mining    wood    food   build   smith    idle   soldiers@end   hungry total / longest');
 for (const { race, strategy, res } of results) {
   const total = Object.values(res.activityTime).reduce((a, b) => a + b, 0) || 1;
   const pct = (k: keyof RunResult['activityTime']) => `${Math.round((100 * res.activityTime[k]) / total)}%`.padStart(8);
   const soldiers = res.finalState.troops.map((t) => t.size).join('+');
   console.log(
-    `${race.padEnd(8)} ${strategy.padEnd(9)} ${pct('combat')}${pct('mining')}${pct('woodcutting')}${pct('food')}${pct('construction')}${pct('smithing')}${pct('idle')}   ${soldiers}`,
+    `${race.padEnd(8)} ${strategy.padEnd(9)} ${pct('combat')}${pct('mining')}${pct('woodcutting')}${pct('food')}${pct('construction')}${pct('smithing')}${pct('idle')}   ${soldiers.padEnd(12)} ${(res.hungrySec / 60).toFixed(1)}m / ${res.longestHungrySec}s`,
   );
 }

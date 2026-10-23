@@ -76,6 +76,19 @@ export function soldierCount(state: GameState): number {
   return state.troops.reduce((n, t) => n + t.size, 0);
 }
 
+/** The first soldier of the whole army eats for free. */
+export const FREE_SOLDIERS = 1;
+/** Hunger at zero coverage: work speed loses 40 %, attack 25 % (owner decision, D-55). */
+export const HUNGER_WORK_PENALTY = 0.4;
+export const HUNGER_ATTACK_PENALTY = 0.25;
+export const FOOD_EPS = 1e-9;
+
+/** Food per second the army eats. Recruits in training are not soldiers yet and do not eat. */
+export function upkeepPerSec(state: GameState, content: Content): number {
+  const n = Math.max(0, soldierCount(state) - FREE_SOLDIERS);
+  return (race(state, content).population.upkeep * n) / 60;
+}
+
 /** Beds in the camp: the race's start beds plus what buildings add (× the race's bed multiplier). */
 export function beds(state: GameState, content: Content): number {
   const r = race(state, content);
@@ -193,6 +206,17 @@ export interface Rates {
   craftWorkPerSec: number;
   /** Net wounds per second per troop id: positive = taking damage, negative = healing. */
   woundsPerSec: Record<string, number>;
+  /** Food the army eats per second (constant between events). */
+  upkeepPerSec: number;
+  /** Net continuous food flow per second that `advance` integrates: loot minus upkeep, clamped so the stock never goes below 0. Site payouts come on top, a whole cycle at a time. */
+  foodPerSec: number;
+  /** Food stock is 0 and average income is below upkeep. */
+  hungry: boolean;
+  /** min(1, income / upkeep); below 1 only while hungry. */
+  coverage: number;
+  /** Multipliers hunger puts on work speed (not food sites) and attack; 1 when not hungry. */
+  workMult: number;
+  attackMult: number;
   /** Per-troop output, useful for UI and the simulator. */
   perTroop: Record<string, { killsPerSec: number; bossDps: number; output: Partial<Resources>; work: number; working: number; siteId: string | null }>;
 }
@@ -202,6 +226,36 @@ export function emptyResources(): Resources {
 }
 
 export function computeRates(state: GameState, content: Content): Rates {
+  const upkeep = upkeepPerSec(state, content);
+  let rates = computeBase(state, content, 1, 1);
+  rates.upkeepPerSec = upkeep;
+  const stock = state.resources.food;
+  if (upkeep > 0 && stock <= FOOD_EPS && rates.income.food < upkeep - 1e-12) {
+    // Hungry. Coverage uses average income only (never the discrete payouts). Food sites are exempt from the
+    // work penalty; loot depends on attack, so solve c = (F + (1 - a·(1 - c))·L) / u for c.
+    let sites = 0;
+    for (const t of state.troops) if (t.activity === 'food') sites += rates.perTroop[t.id]?.output.food ?? 0;
+    const loot = rates.resources.food;
+    const a = HUNGER_ATTACK_PENALTY;
+    const c = Math.max(0, Math.min(1, (sites + (1 - a) * loot) / (upkeep - a * loot)));
+    const workMult = 1 - HUNGER_WORK_PENALTY * (1 - c);
+    const attackMult = 1 - a * (1 - c);
+    rates = computeBase(state, content, workMult, attackMult);
+    rates.upkeepPerSec = upkeep;
+    rates.hungry = true;
+    rates.coverage = c;
+    rates.workMult = workMult;
+    rates.attackMult = attackMult;
+    rates.foodPerSec = 0; // pinned at 0: income is eaten as it arrives
+    return rates;
+  }
+  rates.coverage = upkeep > 0 ? Math.min(1, rates.income.food / upkeep) : 1;
+  const loot = rates.resources.food;
+  rates.foodPerSec = stock > FOOD_EPS ? loot - upkeep : Math.max(0, loot - upkeep);
+  return rates;
+}
+
+function computeBase(state: GameState, content: Content, workMult: number, attackMult: number): Rates {
   const c = content.constants;
   const r = race(state, content);
   const mods = globalModifiers(state, content);
@@ -216,6 +270,12 @@ export function computeRates(state: GameState, content: Content): Rates {
     xpPerSec: {},
     craftWorkPerSec: 0,
     woundsPerSec: {},
+    upkeepPerSec: 0,
+    foodPerSec: 0,
+    hungry: false,
+    coverage: 1,
+    workMult: 1,
+    attackMult: 1,
     perTroop: {},
   };
   const foe = currentEnemy(state, content);
@@ -241,7 +301,7 @@ export function computeRates(state: GameState, content: Content): Rates {
       case 'combat':
         // Each weapon group (and the unarmed remainder) fights with its own attack: exact, O(groups).
         for (const g of weaponGroups(t, content)) {
-          const atk = s.attack * g.power;
+          const atk = s.attack * g.power * attackMult;
           if (boss) entry.bossDps += dpsAgainst(g.count, atk, s.armourPen, boss.armour, c.attacksPerSecond);
           else entry.killsPerSec += killsPerSecond(g.count, atk, s.armourPen, foe, c.attacksPerSecond);
         }
@@ -257,7 +317,7 @@ export function computeRates(state: GameState, content: Content): Rates {
         entry.siteId = site.id;
         entry.working = take(site.id, t.size);
         // Each working soldier finishes a cycle every cycleSec / (work × skill) seconds.
-        const cycles = (entry.working * s.work * s.skills[t.activity]) / site.cycleSec;
+        const cycles = (entry.working * s.work * s.skills[t.activity] * (t.activity === 'food' ? 1 : workMult)) / site.cycleSec;
         rates.siteCycles[site.id] = (rates.siteCycles[site.id] ?? 0) + cycles;
         for (const [res, v] of Object.entries(site.yield) as [keyof Resources, number][]) entry.output[res] = v * cycles;
         addXp(t.id, cycles * c.workXp);
@@ -266,7 +326,7 @@ export function computeRates(state: GameState, content: Content): Rates {
       case 'construction':
         if (!state.construction) break;
         entry.working = take('construction', t.size);
-        entry.work = entry.working * s.work * s.skills.construction;
+        entry.work = entry.working * s.work * s.skills.construction * workMult;
         rates.constructionWorkPerSec += entry.work;
         addXp(t.id, (entry.work / c.workMoment) * c.workXp);
         break;
@@ -274,7 +334,7 @@ export function computeRates(state: GameState, content: Content): Rates {
         // Smiths work only while there is an order; the anvils limit how many can work.
         if (state.crafting.queue.length === 0) break;
         entry.working = take('smithing', t.size);
-        entry.work = entry.working * s.work * s.skills.smithing * c.smithRate;
+        entry.work = entry.working * s.work * s.skills.smithing * c.smithRate * workMult;
         rates.craftWorkPerSec += entry.work;
         addXp(t.id, (entry.work / c.workMoment) * c.workXp);
         break;

@@ -58,6 +58,8 @@ export interface RaceDef {
     /** Food and seconds to train the next soldier when the army has two; both grow per soldier. */
     trainFood: number;
     trainSec: number;
+    /** Food per minute each soldier eats, except the first one of the whole army (docs/PROGRESSION_V2.md §17). */
+    upkeep: number;
   };
   soldier: {
     attack: number;
@@ -356,4 +358,7 @@ export type GameEvent =
   | { type: 'craftOrderCompleted'; at: number; recipeId: string }
   | { type: 'levelStep'; at: number; troopId: string; level: 5 | 10 }
   | { type: 'masteryLevelUp'; at: number; weaponTypeId: string; tier: number; level: number }
-  | { type: 'objectiveCompleted'; at: number; objectiveId: string };
+  | { type: 'objectiveCompleted'; at: number; objectiveId: string }
+  /** Hunger starts (food stock 0 and average income below upkeep) / ends. Only emitted on transitions. */
+  | { type: 'foodEmpty'; at: number }
+  | { type: 'foodRestored'; at: number };

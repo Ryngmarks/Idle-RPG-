@@ -137,6 +137,10 @@ export function eventText(e: GameEvent, state: GameState): string | null {
       return `🏳️ ${content.zones[e.zoneId]?.name ?? ''}: alla steg rensade. Bossen väntar.`;
     case 'troopLevelUp':
       return `⭐ ${state.troops.find((t) => t.id === e.troopId)?.name ?? ''} nådde nivå ${e.level}`;
+    case 'foodEmpty':
+      return '🌾 Maten är slut. Trupperna arbetar och slåss långsammare tills någon samlar mat.';
+    case 'foodRestored':
+      return '🌾 Maten räcker igen. Trupperna är mätta.';
     case 'levelStep': {
       const name = state.troops.find((t) => t.id === e.troopId)?.name ?? '';
       return e.level === 5

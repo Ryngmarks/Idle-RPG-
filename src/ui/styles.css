@@ -109,6 +109,8 @@ p { margin: 0.35rem 0; }
 .resource__icon { grid-row: span 2; font-size: 1.3rem; }
 .resource__amount { font-weight: 700; font-variant-numeric: tabular-nums; }
 .resource__rate { font-size: 0.72rem; color: var(--ok); font-variant-numeric: tabular-nums; min-height: 1em; }
+.resource__rate--warn { color: var(--gold-2); }
+.resource__rate--bad { color: var(--danger); font-weight: 700; }
 .layout { padding-block: 12px; padding-left: var(--gutter-l); padding-right: var(--gutter-r); }
 .layout__aside { display: none; }
 .screen { display: flex; flex-direction: column; gap: 12px; }

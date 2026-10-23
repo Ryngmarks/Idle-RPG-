@@ -5,7 +5,7 @@ import { autoEquipAll, equipBest, unequipAll } from './equipment';
 import { canAfford, gain, hasUnlock, moveSoldiers, openTroopSlot, pay } from './mutations';
 import { evaluateObjectives } from './objectives';
 import { cloneState } from './state';
-import { availableSites, enemy, freeBeds, race, soldierCount, zone } from './stats';
+import { availableSites, computeRates, enemy, freeBeds, race, soldierCount, zone } from './stats';
 import type { ActivityKind, Content, Cost, GameEvent, GameState } from './types';
 
 export type Command =
@@ -219,5 +219,9 @@ export function dispatch(input: GameState, cmd: Command, content: Content): Comm
 
   autoEquipAll(state, content);
   evaluateObjectives(state, content, events);
+  // Hunger is derived: a command (a forager sent out, a recruit paid for) can start or end it.
+  const hungryBefore = computeRates(input, content).hungry;
+  const hungryAfter = computeRates(state, content).hungry;
+  if (hungryBefore !== hungryAfter) events.push({ type: hungryAfter ? 'foodEmpty' : 'foodRestored', at: state.clock });
   return { ok: true, state, events };
 }

@@ -5,7 +5,7 @@ import { deserialize, serialize } from './save';
 import { advance, catchUp } from './simulation';
 import { newGame } from './state';
 import { xpForLevel } from './formulas';
-import { beds, capacity, computeRates, freeBeds, stageSafety, troopStats } from './stats';
+import { beds, capacity, computeRates, freeBeds, stageSafety, troopStats, upkeepPerSec } from './stats';
 import type { GameState } from './types';
 
 function run(state: GameState, ...cmds: Command[]): GameState {
@@ -28,6 +28,7 @@ function sandbox(raceId = 'humans', size = 5): GameState {
   s.objectivesCompleted = content.objectives.map((o) => o.id);
   s.troops[0]!.size = size;
   s.troops[0]!.engagedSize = size;
+  s.resources.food = 100_000; // well fed: hunger has its own tests (food upkeep, docs/PROGRESSION_V2.md §17)
   return s;
 }
 
@@ -152,7 +153,7 @@ describe('combat progression', () => {
     expect(s.combat.unlockedStage).toBe(1);
     expect(s.combat.stageIndex).toBe(0);
     expect(s.stats.totalKills).toBeGreaterThanOrEqual(stage1.killsToClear);
-    expect(s.resources.food).toBeCloseTo(s.stats.totalKills * chicken.loot.food!);
+    expect(s.resources.food - 100_000 + upkeepPerSec(s, content) * s.clock).toBeCloseTo(s.stats.totalKills * chicken.loot.food!);
     expect(s.troops[0]!.xp).toBeCloseTo(s.stats.totalKills * chicken.xp);
     s = run(s, { type: 'selectStage', stageIndex: 1 });
     expect(s.combat.stageIndex).toBe(1);
@@ -304,6 +305,7 @@ describe('troop groups (D-46)', () => {
     const camp = content.buildings.trainingCamp!.levels[0]!;
     let s = sandbox('humans', 2);
     s.resources = { food: 0, wood: 0, stone: 0, ore: 0, ...camp.cost };
+    s.resources.food += 1000; // well fed
     s = run(s, { type: 'startConstruction', buildingId: 'trainingCamp' }, { type: 'assignTroop', troopId: 'troop1', activity: 'construction' });
     const { state, events } = advance(s, camp.work / 2.4 + 1, content);
     expect(state.buildings.trainingCamp).toBe(1);
@@ -567,7 +569,7 @@ describe('M10b first hour (docs/PROGRESSION_V2.md §16)', () => {
     s.stats.gathered.ore = 10;
     s = advance(s, 1, content).state;
     expect(s.objectivesCompleted).toContain('ore10');
-    expect(s.resources.food).toBe(20);
+    expect(s.resources.food).toBeCloseTo(20, 1); // minus a little upkeep
     expect(s.unlocks).toContain('upgrade:stonePicks2');
   });
 

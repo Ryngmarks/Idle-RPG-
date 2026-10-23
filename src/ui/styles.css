@@ -689,3 +689,56 @@ body {
 .activity { flex-direction: column; gap: 2px; min-height: 52px; min-width: 0; }
 .activity__name { font-size: 0.66rem; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cost__item .res-icon, .amount .res-icon { vertical-align: middle; align-self: center; }
+
+/* ---- batch 2: activity picker grid, village scene, plot cards, race select ---- */
+.activity-picker { grid-auto-flow: row; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.activity { min-height: 46px; flex-direction: row; justify-content: center; gap: 6px; padding: 6px 4px; }
+.activity__name { font-size: 0.82rem; }
+
+.village { display: block; width: 100%; height: auto; max-height: 230px; border-radius: 8px; border: 1px solid var(--line-soft); margin-bottom: 8px; background: #140f22; }
+.village--compact { max-height: 120px; }
+.v-flag, .v-flame, .v-glow, .v-smoke, .v-hammer, .v-fireglow, .v-step { transform-box: fill-box; }
+.v-flag { transform-origin: left center; animation: v-wave 2.4s ease-in-out infinite; }
+.v-flame { transform-origin: center bottom; animation: v-flick 0.9s ease-in-out infinite; }
+.v-fireglow { animation: v-pulse 1.6s ease-in-out infinite; }
+.v-glow { animation: v-pulse 1.8s ease-in-out infinite; }
+.v-smoke { transform-origin: center; animation: v-rise 4s ease-out infinite; opacity: 0; }
+.v-hammer { transform-origin: right bottom; animation: v-hit 1s ease-in-out infinite; }
+.v-walk--a { animation: v-patrol-a 16s ease-in-out infinite alternate; }
+.v-walk--b { animation: v-patrol-b 20s ease-in-out infinite alternate; }
+.v-step { transform-origin: center bottom; animation: v-bob 0.7s ease-in-out infinite; }
+@keyframes v-wave { 0%, 100% { transform: skewY(0) scaleX(1); } 50% { transform: skewY(6deg) scaleX(0.88); } }
+@keyframes v-flick { 0%, 100% { transform: scale(1); } 50% { transform: scale(0.88, 1.12); } }
+@keyframes v-pulse { 0%, 100% { opacity: 0.7; } 50% { opacity: 1; } }
+@keyframes v-rise { 0% { transform: translate(0, 0) scale(0.6); opacity: 0.6; } 100% { transform: translate(6px, -22px) scale(1.8); opacity: 0; } }
+@keyframes v-hit { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-22deg); } }
+@keyframes v-patrol-a { from { transform: translateX(0); } to { transform: translateX(34px); } }
+@keyframes v-patrol-b { from { transform: translateX(0); } to { transform: translateX(-60px); } }
+@keyframes v-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-1.2px); } }
+@media (prefers-reduced-motion: reduce) {
+  .v-flag, .v-flame, .v-glow, .v-smoke, .v-hammer, .v-fireglow, .v-walk, .v-step { animation: none !important; }
+  .v-smoke { opacity: 0.4; }
+}
+
+.plot__title { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.plot__title .plot__name { flex: none; }
+.pips { display: inline-flex; gap: 4px; }
+.pip { width: 14px; height: 7px; border-radius: 3px; background: #120d12; border: 1px solid #4a3d2c; }
+.pip--on { background: linear-gradient(180deg, var(--gold-2), var(--gold)); border-color: #7a5e1e; }
+.pip--build { border-color: var(--gold-2); animation: v-pulse 1.2s ease-in-out infinite; }
+.plot__next { margin: 2px 0 -2px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.7rem; }
+.plot--done { border-color: #4a6a3a; }
+.plot__done { margin: 0; display: flex; align-items: center; gap: 6px; color: var(--ok); font-family: var(--heading); }
+.plot .btn { min-height: 44px; }
+
+.race-card { align-items: stretch; text-align: center; }
+.race-card__head { flex-direction: column; gap: 6px; position: relative; }
+.race-card__head .emblem { width: 88px; height: auto; filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.6)); }
+.race-card--locked .race-card__head .emblem { filter: grayscale(0.8) brightness(0.7); }
+.race-card__lock { position: absolute; top: 34px; left: 50%; transform: translateX(-50%); display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: rgba(10, 6, 16, 0.75); border: 1px solid var(--line); }
+.race-card__flavour { margin: 0; }
+.race-chips { list-style: none; margin: 4px 0; padding: 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+.race-chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px 3px 5px; border-radius: 999px; background: #141116; border: 1px solid var(--line-soft); font-size: 0.82rem; font-variant-numeric: tabular-nums; }
+.race-chip small { color: var(--muted); font-size: 0.72rem; }
+.race-card__traits { text-align: left; }
+.race-card--locked { opacity: 0.55; }

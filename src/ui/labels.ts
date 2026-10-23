@@ -79,7 +79,9 @@ export function effectText(e: Effect, bedMult = 1): string {
       return `+${n} ${n === 1 ? 'säng' : 'sängar'} i lägret`;
     }
     case 'capacity':
-      return `+${e.amount} platser: ${content.sites[e.target]?.name ?? e.target}`;
+      if (e.target === 'smithing') return `+${e.amount} städ i smedjan`;
+      if (e.target === 'construction') return `+${e.amount} byggare per bygge`;
+      return `+${e.amount} ${e.amount === 1 ? 'plats' : 'platser'}: ${content.sites[e.target]?.name ?? e.target}`;
     case 'troopSlot':
       return 'En ny truppgrupp kan bildas';
     case 'modifier':

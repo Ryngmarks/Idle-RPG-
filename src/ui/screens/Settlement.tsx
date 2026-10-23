@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { content } from '../../content';
 import { canAfford, race, type BuildingDef, type GameState, type Rates } from '../../core';
-import { SettlementScene } from '../art';
 import { Icon } from '../art/icons';
+import { VillageScene } from '../art/village';
 import { Bar, CostList, Panel } from '../components/common';
 import { fmtDuration, fmtInt } from '../format';
 import { useStore } from '../game';
@@ -22,10 +22,17 @@ function BuildingPlot({ def, state, rates }: { def: BuildingDef; state: GameStat
   const builders = state.troops.filter((t) => t.activity === 'construction');
 
   return (
-    <article className={`plot ${level > 0 ? 'plot--built' : ''}`}>
+    <article className={`plot ${!next && !building ? 'plot--done' : ''} ${level > 0 ? 'plot--built' : ''}`}>
       <header className="plot__head">
         <span className="plot__icon" aria-hidden><Icon name={BUILDING_ICON[def.id] ?? 'castle'} size={34} /></span>
-        <h3 className="plot__name">{def.name}</h3>
+        <div className="plot__title">
+          <h3 className="plot__name">{def.name}</h3>
+          <span className="pips" role="img" aria-label={`Nivå ${level} av ${def.levels.length}`}>
+            {def.levels.map((_, i) => (
+              <i key={i} className={`pip ${i < level ? 'pip--on' : building && i === level ? 'pip--build' : ''}`} />
+            ))}
+          </span>
+        </div>
         <span className="badge plot__level">{level > 0 ? `Nivå ${level}/${def.levels.length}` : 'Ej byggd'}</span>
       </header>
       {building ? (
@@ -48,6 +55,7 @@ function BuildingPlot({ def, state, rates }: { def: BuildingDef; state: GameStat
         </div>
       ) : next ? (
         <>
+          <p className="plot__next small">{level > 0 ? `Nivå ${level + 1} ger` : 'Ger'}</p>
           <ul className="plot__effects">
             {next.effects.map((e) => effectText(e, r.population.bedMult)).filter(Boolean).map((t, i) => <li key={i}>{t}</li>)}
           </ul>
@@ -63,7 +71,7 @@ function BuildingPlot({ def, state, rates }: { def: BuildingDef; state: GameStat
           </button>
         </>
       ) : (
-        <p className="muted small">Fullt utbyggd.</p>
+        <p className="plot__done"><Icon name="check" size={18} /> Färdig <span className="muted small">Fullt utbyggd</span></p>
       )}
       {error && <p className="error" role="alert">{error}</p>}
     </article>
@@ -77,7 +85,7 @@ export function Settlement({ state, rates }: { state: GameState; rates: Rates })
   return (
     <div className="screen">
       <Panel icon="castle" title={stage.name} className="settlement-head">
-        <SettlementScene buildings={state.buildings} />
+        <VillageScene buildings={state.buildings} construction={state.construction} unlocks={state.unlocks} />
         <p className="muted">{stage.text}</p>
       </Panel>
       <div className="plots">

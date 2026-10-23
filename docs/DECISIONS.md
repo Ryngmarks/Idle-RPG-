@@ -57,6 +57,7 @@
 | D-48 | Every finished work cycle gives the group a little XP, so working groups develop too | 2026-10-23 | Owner, progression v2 |
 | D-49 | Combat in Gårdarna is tuned for a handful of soldiers: the rat swarm becomes a fox, the boss has 500 HP and a 90 s limit | 2026-10-23 | Owner, progression v2 |
 | D-50 | **Supersedes** D-14 (~12 soldiers after 15 min), D-16 (troop starts at ~5 / cap 20) and D-24 (Troop 2 forms with free soldiers). Target: ~2 soldiers at 15 min, 3–5 (Humans) at 30–40 min. | 2026-10-23 | Owner, progression v2 |
+| D-51 | **Working method with agents:** the lead proposes a work split (task, agent, why, result, order, risks, cost) and waits for the owner's approval before starting agents or implementation. Agents: Game Designer, Game Systems, UI/UX, QA & Balance (sonnet), Research (haiku). See CLAUDE.md. | 2026-10-23 | Owner |
 
 ## Proposed 💡 (awaiting confirmation)
 

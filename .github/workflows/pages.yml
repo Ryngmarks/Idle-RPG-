@@ -1,8 +1,7 @@
 name: Deploy game to GitHub Pages
 
-# Runs from the default branch (GitHub Pages only accepts deployments from it by default)
-# and builds GAME_REF. While the UI lives on a feature branch, GAME_REF points there;
-# switch it to 'master' once the UI branch has been merged.
+# Runs from the default branch (GitHub Pages only accepts deployments from it by default).
+# Builds master; a manual run can build another branch, tag or commit via the `ref` input.
 on:
   push:
     branches: [master]
@@ -11,10 +10,10 @@ on:
       ref:
         description: Branch, tag or commit to build
         required: false
-        default: m3-playable-ui
+        default: master
 
 env:
-  GAME_REF: ${{ inputs.ref || 'm3-playable-ui' }}
+  GAME_REF: ${{ inputs.ref || 'master' }}
 
 permissions:
   contents: read

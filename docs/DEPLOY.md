@@ -8,7 +8,7 @@ The repository is **public** (owner decision, 2026-10-23), so GitHub Pages is fr
 
 - **URL:** https://ryngmarks.github.io/Idle-RPG-/
 - **Workflow:** `.github/workflows/pages.yml` on `master`. It runs on every push to `master`, and on demand (Actions → *Deploy game to GitHub Pages* → *Run workflow*, with an optional branch input).
-- GitHub Pages only accepts deployments from the default branch, so the workflow **runs on `master` but builds `GAME_REF`**, which is currently `m3-playable-ui`. After the UI branch is merged, change `GAME_REF` to `master`.
+- GitHub Pages only accepts deployments from the default branch, so the workflow runs on `master` and builds `master`. A manual run can build another branch through its `ref` input, which is useful for trying a feature branch on the phone before merging it.
 - Each deploy also runs the tests. A failing test means no deploy.
 
 ## Quick preview (available now)

@@ -1,6 +1,6 @@
 // Versioned save format. Migrations run in order from the save's version to SAVE_VERSION.
 
-import { SAVE_VERSION } from './state';
+import { emptyQualityCounts, SAVE_VERSION } from './state';
 import type { GameState } from './types';
 
 /** migrations[n] upgrades a save from version n to n + 1. */
@@ -41,6 +41,19 @@ const migrations: Record<number, (s: Record<string, unknown>) => Record<string, 
   },
   // v4 → v5: troops can arm themselves from the armoury (M7); on for every troop.
   4: (s) => ({ ...s, troops: (s.troops as Record<string, unknown>[]).map((t) => ({ ...t, autoEquip: true })) }),
+  // v5 → v6: Chronicle statistics (M9). Earlier losses and qualities were never counted.
+  5: (s) => {
+    const combat = s.combat as { bossDefeated: boolean };
+    return {
+      ...s,
+      stats: {
+        ...(s.stats as Record<string, unknown>),
+        weaponsByQuality: emptyQualityCounts(),
+        soldiersLost: 0,
+        bossDefeatedAt: combat.bossDefeated ? (s.clock as number) : null,
+      },
+    };
+  },
 };
 
 export function serialize(state: GameState): string {

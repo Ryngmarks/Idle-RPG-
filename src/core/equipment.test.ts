@@ -165,6 +165,16 @@ describe('crafting', () => {
     expect(qualityChances(0, content)[4]).toBe(0);
   });
 
+  it('counts finished weapons per quality for the chronicle', () => {
+    let s = withForge(50);
+    s.crafting.crafted = { 'sword:t1': 400 };
+    s = run(s, { type: 'queueCraft', recipeId: recipe.id, count: 30 });
+    s = advance(s, 30 * secPerItem(s) + 1, content).state;
+    const byQ = s.stats.weaponsByQuality;
+    expect(Object.values(byQ).reduce((a, b) => a + b, 0)).toBe(30);
+    expect(byQ.good).toBeGreaterThan(0);
+  });
+
   it('crafting is step-size independent (offline equals online)', () => {
     const s = run(withForge(), { type: 'queueCraft', recipeId: 'sword_t1', count: 120 });
     const once = advance(s, 3600, content).state;

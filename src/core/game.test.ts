@@ -136,6 +136,7 @@ describe('life, casualties and retreat', () => {
     expect(t.size).toBe(3); // lost half of 6
     expect(t.activity).toBeNull();
     expect(r.events.filter((e) => e.type === 'soldierLost')).toHaveLength(3);
+    expect(r.state.stats.soldiersLost).toBe(3);
     expect(r.events.some((e) => e.type === 'troopRetreated')).toBe(true);
   });
 
@@ -262,6 +263,7 @@ describe('boss', () => {
     s.troops[0]!.engagedSize = 20000;
     const won = advance(s, 60, content);
     expect(won.state.combat.bossDefeated).toBe(true);
+    expect(won.state.stats.bossDefeatedAt).toBe(won.events.find((e) => e.type === 'bossDefeated')!.at);
   });
 });
 
@@ -332,7 +334,8 @@ describe('save', () => {
     v1.combat.stageIndex = 2;
     delete v1.combat.unlockedStage;
     const s = deserialize(JSON.stringify(v1));
-    expect(s.version).toBe(5);
+    expect(s.version).toBe(6);
+    expect(s.stats).toMatchObject({ soldiersLost: 0, bossDefeatedAt: null, weaponsByQuality: { normal: 0, masterpiece: 0 } });
     expect(s.troops[0]!.autoEquip).toBe(true);
     expect(s.troops[0]).toMatchObject({ wounds: 0, engagedSize: 12, weaponTypeId: 'cleaver' });
     expect(s.troops[0]!.equipment).toEqual([{ tier: 1, quality: 'normal', count: 12 }]);

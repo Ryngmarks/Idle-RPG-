@@ -289,6 +289,11 @@ export interface GameState {
     recruited: number;
     gathered: Resources;
     weaponsCrafted: number;
+    /** Finished weapons per quality (counted from save v6; older weapons are only in the total). */
+    weaponsByQuality: Record<QualityId, number>;
+    soldiersLost: number;
+    /** Game clock when the zone boss fell, or null. */
+    bossDefeatedAt: number | null;
   };
 }
 

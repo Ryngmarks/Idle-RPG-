@@ -1,9 +1,9 @@
 // Creating and copying game state.
 
 import { evaluateObjectives } from './objectives';
-import type { Content, GameEvent, GameState } from './types';
+import { QUALITY_IDS, type Content, type GameEvent, type GameState, type QualityId } from './types';
 
-export const SAVE_VERSION = 5;
+export const SAVE_VERSION = 6;
 
 /** State is plain JSON, so a JSON round-trip is a correct deep copy. */
 export function cloneState(state: GameState): GameState {
@@ -41,9 +41,13 @@ export function newGame(raceId: string, content: Content): GameState {
     crafting: { queue: [], progress: 0, crafted: {}, carry: {} },
     unlocks: [...content.constants.startUnlocks],
     objectivesCompleted: [],
-    stats: { totalKills: 0, recruited: 0, gathered: { food: 0, wood: 0, stone: 0, ore: 0 }, weaponsCrafted: 0 },
+    stats: { totalKills: 0, recruited: 0, gathered: { food: 0, wood: 0, stone: 0, ore: 0 }, weaponsCrafted: 0, weaponsByQuality: emptyQualityCounts(), soldiersLost: 0, bossDefeatedAt: null },
   };
   const events: GameEvent[] = [];
   evaluateObjectives(state, content, events);
   return state;
+}
+
+export function emptyQualityCounts(): Record<QualityId, number> {
+  return Object.fromEntries(QUALITY_IDS.map((q) => [q, 0])) as Record<QualityId, number>;
 }

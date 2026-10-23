@@ -392,9 +392,9 @@ Still open for **M10b** (tuning): the lull before the boss (stage 5 → boss ~10
 
 ---
 
-## 16. M10b spec (proposal, awaiting the owner's approval)
+## 16. M10b spec (✅ approved by the owner 2026-10-23, D-53)
 
-Status: **proposal**. Nothing here is decided until the owner approves it. Scope chosen by the owner: R-01, R-02 (rescue at stage 4), R-03, R-04, R-08-lite (see [IDLE_RESEARCH.md](IDLE_RESEARCH.md) §3.1). Out of scope: race traits, work orders, stage variety, region 2. Baseline = Balance Log pass 9 (Humans balanced: forge 34:46, stage 3 at 32:38, stage 4 at 36:52, stage 5 at 42:35, boss 43:55; Orcs boss 53:49). **Every number marked (guess) is a starting point for QA to tune with `npm run sim`.**
+Status: **approved** with the lead's recommendations on §16.6: (1) 6 Human soldiers at 40 min is accepted; (2) the forge unlocks after two groups; (3) old saves get no rescue soldier and no retroactive level notices. Scope chosen by the owner: R-01, R-02 (rescue at stage 4), R-03, R-04, R-08-lite (see [IDLE_RESEARCH.md](IDLE_RESEARCH.md) §3.1). Out of scope: race traits, work orders, stage variety, region 2. Baseline = Balance Log pass 9 (Humans balanced: forge 34:46, stage 3 at 32:38, stage 4 at 36:52, stage 5 at 42:35, boss 43:55; Orcs boss 53:49). **Every number marked (guess) is a starting point for QA to tune with `npm run sim`.**
 
 Findings from the baseline that shape the spec:
 - Events in the Humans timeline have two holes after minute 15: 14:10 to 19:40 (5.5 min) and 23:12 to 29:02 (5.8 min), plus the pre-boss lull 36:52 to 42:35 and the forge only at 34:46.

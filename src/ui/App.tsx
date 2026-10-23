@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { content } from '../content';
-import { computeRates, RESOURCES, type GameEvent, type GameState, type Rates } from '../core';
+import { computeRates, RESOURCES, type GameEvent, type GameState, type Rates, type ResourceId } from '../core';
 import { RaceEmblem } from './art';
 import { Icon, type UiIconName } from './art/icons';
 import { ResIcon } from './art/resources';
 import { fmtAmount, fmtRate } from './format';
+import { useRise } from './fx';
 import { useSnapshot, useStore } from './game';
 import { QUALITY_COLOR, RESOURCE_LABEL, eventText, qualityName } from './labels';
 import { RARE } from './components/equipment';
@@ -28,20 +29,25 @@ const TABS: { id: Tab; label: string; icon: UiIconName; unlock?: string }[] = [
   { id: 'chronicle', label: 'Krönika', icon: 'book' },
 ];
 
+function ResourceTile({ r, state, rates }: { r: ResourceId; state: GameState; rates: Rates }) {
+  const bumps = useRise(state.resources[r], 1);
+  return (
+    <div className={`resource ${bumps > 0 ? 'resource--bump' : ''}`} key={bumps}>
+      <span className="resource__icon" aria-hidden><ResIcon id={r} size={30} /></span>
+      <span className="resource__amount">{fmtAmount(state.resources[r])}</span>
+      <span className="resource__rate">{rates.income[r] > 0 ? `+${fmtRate(rates.income[r] * 60)}/min` : ''}</span>
+      <span className="sr-only">{RESOURCE_LABEL[r].name}</span>
+    </div>
+  );
+}
+
 function ResourceBar({ state, rates }: { state: GameState; rates: Rates }) {
   const shown = RESOURCES.filter(
     (r) => r === 'wood' || state.resources[r] > 0 || state.stats.gathered[r] > 0 || rates.income[r] > 0,
   );
   return (
     <div className="resources" aria-label="Resurser">
-      {shown.map((r) => (
-        <div key={r} className="resource">
-          <span className="resource__icon" aria-hidden><ResIcon id={r} size={30} /></span>
-          <span className="resource__amount">{fmtAmount(state.resources[r])}</span>
-          <span className="resource__rate">{rates.income[r] > 0 ? `+${fmtRate(rates.income[r] * 60)}/min` : ''}</span>
-          <span className="sr-only">{RESOURCE_LABEL[r].name}</span>
-        </div>
-      ))}
+      {shown.map((r) => <ResourceTile key={r} r={r} state={state} rates={rates} />)}
     </div>
   );
 }
@@ -113,12 +119,14 @@ export function App() {
 
       <div className="layout">
         <main className="layout__main">
-          {active === 'forces' && <Forces state={state} rates={rates} onGo={open} />}
-          {active === 'battle' && <Battle state={state} rates={rates} />}
-          {active === 'settlement' && <Settlement state={state} rates={rates} />}
-          {active === 'forge' && <Forge state={state} rates={rates} log={snap.log} />}
-          {active === 'upgrades' && <Upgrades state={state} />}
-          {active === 'chronicle' && <Chronicle state={state} log={snap.log} />}
+          <div key={active} className="pane">
+            {active === 'forces' && <Forces state={state} rates={rates} onGo={open} />}
+            {active === 'battle' && <Battle state={state} rates={rates} />}
+            {active === 'settlement' && <Settlement state={state} rates={rates} />}
+            {active === 'forge' && <Forge state={state} rates={rates} log={snap.log} />}
+            {active === 'upgrades' && <Upgrades state={state} />}
+            {active === 'chronicle' && <Chronicle state={state} log={snap.log} />}
+          </div>
         </main>
         <aside className="layout__aside">
           <Chronicle state={state} log={snap.log} />

@@ -742,3 +742,59 @@ body {
 .race-chip small { color: var(--muted); font-size: 0.72rem; }
 .race-card__traits { text-align: left; }
 .race-card--locked { opacity: 0.55; }
+
+/* ------------------------------------------------------------ M12 batch 3: motion and reward feel */
+/* Work and strike rhythm follow the real cycle / kill rate (set as --swing / --strike on the scene). */
+.fig--work { animation-duration: var(--swing, 1.3s); }
+.fig--work .tool { animation-duration: var(--swing, 1.3s); }
+.fig--fight { animation-duration: var(--strike, 0.9s); }
+.fig--fight .tool { animation-duration: var(--strike, 0.9s); }
+
+/* Cycle reward pop and bar pulse */
+.cycle-wrap { position: relative; }
+.cycle-pop { position: absolute; left: 0; right: 0; margin: 0 auto; width: fit-content; bottom: 6px; display: inline-flex; gap: 6px; padding: 2px 8px; border-radius: 999px; background: rgba(20, 16, 12, 0.85); border: 1px solid var(--gold); color: var(--gold-2); font-weight: 800; font-size: 0.95rem; pointer-events: none; z-index: 2; animation: pop-up 1.3s ease-out forwards; }
+.cycle-pulse { border-radius: 10px; animation: cycle-pulse 0.5s ease-out; }
+@keyframes pop-up { 0% { opacity: 0; transform: translateY(8px) scale(0.7); } 15% { opacity: 1; transform: translateY(-2px) scale(1.12); } 30% { transform: translateY(-6px) scale(1); } 100% { opacity: 0; transform: translateY(-34px) scale(1); } }
+@keyframes cycle-pulse { 0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(227, 192, 106, 0.7); filter: brightness(1.5); } 40% { transform: scale(1.03); } 100% { transform: scale(1); box-shadow: 0 0 0 10px rgba(227, 192, 106, 0); filter: none; } }
+
+/* Resource tile pulse when a chunk arrives */
+.resource--bump { animation: res-bump 0.5s ease-out; }
+@keyframes res-bump { 0% { transform: scale(1); border-color: var(--gold-2); box-shadow: 0 0 0 0 rgba(227, 192, 106, 0.6); } 35% { transform: scale(1.07); border-color: var(--gold-2); } 100% { transform: scale(1); box-shadow: 0 0 0 8px rgba(227, 192, 106, 0); } }
+.resource--bump .resource__amount { animation: res-amount 0.5s ease-out; }
+@keyframes res-amount { 0% { color: #fff3c4; } 100% { color: inherit; } }
+
+/* Level-up flare, building shine, rescued soldier fade-in */
+.badge--flare { animation: flare 1.4s ease-out; }
+@keyframes flare { 0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 220, 120, 0.9); } 25% { transform: scale(1.3); box-shadow: 0 0 14px 6px rgba(255, 220, 120, 0.8); background: #6b5018; } 100% { transform: scale(1); box-shadow: 0 0 0 10px rgba(255, 220, 120, 0); } }
+.plot { overflow: hidden; }
+.plot__shine { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(105deg, transparent 35%, rgba(255, 236, 170, 0.5) 50%, transparent 65%); transform: translateX(-100%); animation: shine 0.9s ease-out 1 forwards; }
+@keyframes shine { to { transform: translateX(100%); opacity: 0; } }
+.fig-in { animation: fig-in 0.8s ease-out both; }
+@keyframes fig-in { 0% { opacity: 0; transform: translateY(-6px); } 100% { opacity: 1; transform: none; } }
+
+/* Screen, modal and toast transitions */
+.pane { animation: pane-in 0.14s ease-out both; }
+@keyframes pane-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.modal { animation: fade-in 0.15s ease-out both; }
+.modal__box { animation: modal-in 0.2s cubic-bezier(0.2, 0.9, 0.3, 1.2) both; }
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes modal-in { from { opacity: 0; transform: scale(0.92) translateY(10px); } to { opacity: 1; transform: none; } }
+
+/* Battle: flinch in rhythm with the strikes, fall and fade on defeat, next foe steps in */
+.foe--flinch { transform-box: fill-box; transform-origin: 50% 100%; animation: flinch var(--strike, 0.9s) ease-out infinite; animation-delay: calc(var(--strike, 0.9s) * 0.45); }
+@keyframes flinch { 0%, 100% { transform: none; filter: none; } 8% { transform: translateX(3px); filter: brightness(1.8); } 25% { transform: translateX(-1px); filter: none; } }
+.foe--in { animation: foe-in 0.35s ease-out 0.2s both; }
+@keyframes foe-in { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: none; } }
+.foe--dead { pointer-events: none; animation: foe-dead 0.45s ease-in forwards; }
+@keyframes foe-dead { 0% { opacity: 1; transform: none; filter: brightness(2); } 100% { opacity: 0; transform: translateY(14px) rotate(14deg); } }
+.dmg-num { animation: dmg 2s ease-out infinite; opacity: 0; pointer-events: none; }
+@keyframes dmg { 0%, 55% { opacity: 0; transform: translateY(0); } 62% { opacity: 1; } 100% { opacity: 0; transform: translateY(-14px); } }
+.stage-banner { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 0 auto 6px; padding: 5px 16px; width: fit-content; border-radius: 999px; font-family: var(--heading); font-weight: 700; color: #2a1c06; background: linear-gradient(180deg, var(--gold-2), var(--gold)); border: 1px solid #7a5e1e; box-shadow: 0 0 18px rgba(227, 192, 106, 0.55); animation: banner 3s ease-out both; }
+@keyframes banner { 0% { opacity: 0; transform: scale(0.6); } 10% { opacity: 1; transform: scale(1.12); } 18% { transform: scale(1); } 85% { opacity: 1; } 100% { opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .cycle-pop, .cycle-pulse, .resource--bump, .resource--bump .resource__amount, .badge--flare, .plot__shine, .fig-in,
+  .pane, .modal, .modal__box, .foe--flinch, .foe--in, .foe--dead, .dmg-num, .stage-banner { animation: none !important; }
+  .dmg-num { display: none; }
+  .foe--dead { display: none; }
+}

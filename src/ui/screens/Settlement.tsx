@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useRise } from '../fx';
 import { content } from '../../content';
 import { canAfford, race, type BuildingDef, type GameState, type Rates } from '../../core';
 import { Icon } from '../art/icons';
@@ -16,6 +17,7 @@ function BuildingPlot({ def, state, rates }: { def: BuildingDef; state: GameStat
   const [error, setError] = useState<string | null>(null);
   const level = state.buildings[def.id] ?? 0;
   const next = def.levels[level];
+  const built = useRise(level);
   const building = state.construction?.buildingId === def.id ? state.construction : null;
   const busy = state.construction !== null && !building;
   const r = race(state, content);
@@ -74,6 +76,7 @@ function BuildingPlot({ def, state, rates }: { def: BuildingDef; state: GameStat
         <p className="plot__done"><Icon name="check" size={18} /> Färdig <span className="muted small">Fullt utbyggd</span></p>
       )}
       {error && <p className="error" role="alert">{error}</p>}
+      {built > 0 && <span key={built} className="plot__shine" aria-hidden />}
     </article>
   );
 }

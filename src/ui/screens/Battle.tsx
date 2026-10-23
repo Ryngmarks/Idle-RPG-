@@ -72,6 +72,7 @@ export function Battle({ state, rates }: { state: GameState; rates: Rates }) {
   return (
     <div className="screen">
       <Panel hero icon="swords" title={z.name} aside={<span className="battle-head"><span className="muted small">Steg {c.stageIndex + 1} av {z.stages.length}</span><RiskBadge risk={here.risk} /></span>}>
+        {justOpened !== null && <div key={justOpened} className="stage-banner" role="status"><Icon name="flag" size={18} /> Steg {justOpened} klart!</div>}
         <ol className="path" aria-label="Välj steg">
           {z.stages.map((s, i) => {
             const open = i <= c.unlockedStage;
@@ -134,6 +135,8 @@ export function Battle({ state, rates }: { state: GameState; rates: Rates }) {
           size={soldiers}
           enemyId={c.boss ? boss.id : foe.id}
           hitKey={Math.floor(state.stats.totalKills)}
+          strikeSec={rates.killsPerSec > 0 ? Math.max(0.5, Math.min(1.4, 1 / rates.killsPerSec)) : undefined}
+          dmg={rates.killsPerSec < 1 ? `-${fmtRate((c.boss ? rates.bossDps : totalDps) * 2)}` : undefined}
           fighting={fighters.length > 0}
           boss={!!c.boss}
           equipment={normalizeBuckets(fighters.flatMap((t) => t.equipment), content)}

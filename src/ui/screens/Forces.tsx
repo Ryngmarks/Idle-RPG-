@@ -27,6 +27,7 @@ import { ResIcon } from '../art/resources';
 import { Bar, Chip, CostList, ResAmount, Slots } from '../components/common';
 import { EquipmentBar, Switch } from '../components/equipment';
 import { fmtDuration, fmtInt, fmtRate } from '../format';
+import { useRise, useWrap } from '../fx';
 import { useStore } from '../game';
 import { ACTIVITY_LABEL, RESOURCE_LABEL, effectText, objectiveProgress } from '../labels';
 
@@ -156,10 +157,27 @@ function CycleHero({ troop, state, rates }: { troop: TroopState; state: GameStat
         <span className="small muted">{working} av {cap} {cap === 1 ? 'plats' : 'platser'}</span>
         <Slots used={Math.min(working, cap)} total={cap} label={`${working} av ${cap} platser`} />
       </div>
-      <Bar value={state.siteProgress[site.id] ?? 0} max={1} tone="gold" label={`${site.name}: arbetscykel`} inside={fmtDuration(left)} />
+      <CycleBar key={site.id} progress={state.siteProgress[site.id] ?? 0} site={site} left={left} />
       <div className="hero-cycle__next">
         <strong className="hero-cycle__reward">nästa {reward} om {fmtDuration(left)}</strong>
         <span className="small muted">{perMin}</span>
+      </div>
+    </div>
+  );
+}
+
+/** The cycle bar: pulses when a cycle completes and floats the reward up from it. */
+function CycleBar({ progress, site, left }: { progress: number; site: { id: string; name: string; yield: Partial<Record<ResourceId, number>> }; left: number }) {
+  const n = useWrap(progress);
+  return (
+    <div className={`cycle-wrap ${n > 0 ? 'cycle-wrap--done' : ''}`}>
+      {n > 0 && (
+        <span key={n} className="cycle-pop" aria-hidden>
+          {Object.entries(site.yield).filter(([, v]) => (v ?? 0) > 0).map(([r, v]) => <ResAmount key={r} r={r as ResourceId} v={`+${fmtInt(v ?? 0)}`} />)}
+        </span>
+      )}
+      <div key={n} className={n > 0 ? 'cycle-pulse' : undefined}>
+        <Bar value={progress} max={1} tone="gold" label={`${site.name}: arbetscykel`} inside={fmtDuration(left)} />
       </div>
     </div>
   );
@@ -192,6 +210,7 @@ function TroopCard({ troop, state, rates, hero }: { troop: TroopState; state: Ga
   const c = content.constants;
   const lvlFrom = xpForLevel(stats.level, c.xpBase, c.xpExponent);
   const lvlTo = xpForLevel(stats.level + 1, c.xpBase, c.xpExponent);
+  const lvlUps = useRise(stats.level);
   const unlocked = ACTIVITIES.filter((a) => state.unlocks.includes(`activity:${a}`));
   const canRecruit = state.unlocks.includes('recruit');
   const blocker = trainBlocker(state, content);
@@ -211,7 +230,7 @@ function TroopCard({ troop, state, rates, hero }: { troop: TroopState; state: Ga
 
   return (
     <article className={`troop ${hero ? 'troop--hero' : ''}`}>
-      <TroopScene race={state.raceId} size={troop.size} activity={troop.activity} equipment={troop.equipment} />
+      <TroopScene race={state.raceId} size={troop.size} activity={troop.activity} equipment={troop.equipment} cycleSec={troop.siteId && (rates.siteCycles[troop.siteId] ?? 0) > 0 ? 1 / rates.siteCycles[troop.siteId]! : undefined} />
       <header className="troop__head">
         {editing ? (
           <form
@@ -230,7 +249,7 @@ function TroopCard({ troop, state, rates, hero }: { troop: TroopState; state: Ga
             {troop.name} <span className="troop__edit" aria-hidden><Icon name="pencil" size={15} /></span>
           </button>
         )}
-        <span className="badge badge--lvl" title={`${Math.floor(troop.xp)} / ${lvlTo} XP`}><Icon name="star" size={13} /> Nv {stats.level}</span>
+        <span key={lvlUps} className={`badge badge--lvl ${lvlUps > 0 ? 'badge--flare' : ''}`} title={`${Math.floor(troop.xp)} / ${lvlTo} XP`}><Icon name="star" size={13} /> Nv {stats.level}</span>
         <LifeChip troop={troop} rates={rates} hpPerSoldier={stats.hp} />
       </header>
       <div className="troop__mini">

@@ -251,7 +251,7 @@ export function Battle({ state, rates, log }: { state: GameState; rates: Rates; 
                 ) : (
                   <p className="muted small"><Icon name="lock" size={16} /> Rensa nivå {bossDef.level} för att utmana bossen.</p>
                 )}
-                {c.cleared && bossSafety.risk !== 'safe' && <p className="small muted">{riskText(bossSafety)}</p>}
+                {c.cleared && bossSafety.risk !== 'safe' && <p className="small muted">Ingen faller i en bossstrid: trupperna retirerar med sår om de inte orkar.</p>}
               </>
             )}
           </>

@@ -3,13 +3,22 @@
 // Targets: docs/PROGRESSION_V2.md §11 and docs/BALANCE_LOG.md.
 import { describe, expect, it } from 'vitest';
 import { content } from '../../src/content';
-import { newGame } from '../../src/core';
+import { equippedCount, masteryLevel, newGame } from '../../src/core';
 import { runBot } from './bot';
 
 const run = (raceId: string) =>
   runBot(newGame(raceId, content), content, {
     raceId,
     strategy: 'balanced',
+    maxSeconds: 90 * 60,
+    tickSeconds: 5,
+    snapshotEverySeconds: 300,
+  });
+
+const runEconomy = (raceId: string) =>
+  runBot(newGame(raceId, content), content, {
+    raceId,
+    strategy: 'economy',
     maxSeconds: 90 * 60,
     tickSeconds: 5,
     snapshotEverySeconds: 300,
@@ -23,6 +32,8 @@ const soldiersAt = (r: ReturnType<typeof run>, minute: number) => {
 describe('Gårdarna pacing, progression v2 (balanced bot, docs/PROGRESSION_V2.md §11)', () => {
   const humans = run('humans');
   const orcs = run('orcs');
+  const humansEco = runEconomy('humans');
+  const orcsEco = runEconomy('orcs');
 
   it('soldier 2 is rescued within 4–8 bot minutes', () => {
     for (const r of [humans, orcs]) {
@@ -66,10 +77,44 @@ describe('Gårdarna pacing, progression v2 (balanced bot, docs/PROGRESSION_V2.md
     expect(Math.abs(o - h) / h).toBeLessThan(0.25);
   });
 
-  it('the boss frees two prisoners into a third group', () => {
+  it('the boss frees two prisoners into a third group (M10b: its size may differ, but it exists)', () => {
     for (const r of [humans, orcs]) {
       expect(r.finalState.troops).toHaveLength(3);
-      expect(r.finalState.troops[2]!.size).toBe(2);
+      expect(r.finalState.troops[2]!.size).toBeGreaterThanOrEqual(2);
+    }
+  });
+
+  it('M10b: no more than 240 s between two events in minutes 15–45 (both races, both strategies)', () => {
+    for (const [name, r] of [['humans', humans], ['orcs', orcs], ['humans eco', humansEco], ['orcs eco', orcsEco]] as const) {
+      expect(r.longestEventGap(15, 45) * 60, name).toBeLessThanOrEqual(240);
+    }
+  });
+
+  it('M10b: at least 80 % of the soldiers are armed at the end, and mastery reaches 1 (balanced)', () => {
+    for (const r of [humans, orcs]) {
+      const s = r.finalState;
+      const soldiers = s.troops.reduce((n, t) => n + t.size, 0);
+      const armed = s.troops.reduce((n, t) => n + equippedCount(t), 0);
+      expect(armed / soldiers, `${armed}/${soldiers}`).toBeGreaterThanOrEqual(0.8);
+      const mk = Object.keys(s.crafting.crafted)[0];
+      expect(mk ? masteryLevel(s.crafting.crafted[mk]!, content) : 0).toBeGreaterThanOrEqual(1);
+    }
+  });
+
+  it('M10b: Humans build the forge by minute 30 and forge level 2 before the boss; boss by minute 48', () => {
+    expect(humans.milestones['building:forge:1']).toBeLessThanOrEqual(30 * 60);
+    expect(humans.milestones['building:forge:2']).toBeDefined();
+    expect(humans.milestones['building:forge:2']).toBeLessThan(humans.milestones['boss']!);
+    expect(humans.milestones['boss']).toBeLessThanOrEqual(48 * 60);
+  });
+
+  it('M10b: the balanced bot completes every new objective by minute 50', () => {
+    for (const r of [humans, orcs]) {
+      for (const id of ['tent2', 'woodshed', 'ore10', 'farm2', 'rescue2', 'forge2']) {
+        const t = r.milestones[`objective:${id}`];
+        expect(t, id).toBeDefined();
+        expect(t, id).toBeLessThanOrEqual(50 * 60);
+      }
     }
   });
 

@@ -58,6 +58,7 @@ const KEYS: [string, string][] = [
   ['soldiers:5', 'Soldier 5'],
   ['stage:3', 'Stage 3'],
   ['building:forge:1', 'Forge'],
+  ['building:forge:2', 'Forge2'],
   ['objective:zoneCleared', 'Zone clear'],
   ['boss', 'Boss'],
 ];
@@ -79,7 +80,16 @@ for (const { race, strategy, res } of results) {
   const mix = ['normal', 'good', 'outstanding', 'excellent', 'masterpiece'].map((q) =>
     s.troops.reduce((n, t) => n + t.equipment.filter((b) => b.quality === q).reduce((m, b) => m + b.count, 0), 0) +
     Object.entries(s.armoury).filter(([k]) => k.endsWith(':' + q)).reduce((m, [, v]) => m + v, 0));
-  console.log(`${race.padEnd(8)} ${strategy.padEnd(9)} ${String(s.stats.weaponsCrafted).padStart(5)} crafted · ${armed}/${soldiers} armed · ×${power.toFixed(2)} · mastery ${mastery} · ${mix.join('/')}`);
+  console.log(`${race.padEnd(8)} ${strategy.padEnd(9)} gap15-45 ${res.longestEventGap(15, 45).toFixed(1)}m · ${String(s.stats.weaponsCrafted).padStart(5)} crafted · ${armed}/${soldiers} armed · ×${power.toFixed(2)} · mastery ${mastery} · ${mix.join('/')}`);
+}
+
+console.log('\nSoldiers at 15 / 30 / 40 min\n');
+for (const { race, strategy, res } of results) {
+  const at = (m: number) => {
+    const snap = res.snapshots.find((x) => x.t >= m * 60 - 1e-6) ?? res.snapshots[res.snapshots.length - 1]!;
+    return snap.troops.reduce((n, t) => n + t.size, 0);
+  };
+  console.log(`${race.padEnd(8)} ${strategy.padEnd(9)} ${at(15)} / ${at(30)} / ${at(40)}`);
 }
 
 console.log('\nShare of troop-time per activity\n');

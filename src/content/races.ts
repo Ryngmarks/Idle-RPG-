@@ -5,7 +5,7 @@ import type { RaceDef } from '../core/types';
 export const races: Record<string, RaceDef> = {
   humans: {
     id: 'humans',
-    name: 'Humans',
+    name: 'Människor',
     playable: true,
     population: { maxTroopSize: 500, startSize: 5, newTroopSize: 3, foodPerSoldier: 5 },
     soldier: {
@@ -20,7 +20,7 @@ export const races: Record<string, RaceDef> = {
   },
   orcs: {
     id: 'orcs',
-    name: 'Orcs',
+    name: 'Orcher',
     playable: true,
     population: { maxTroopSize: 1000, startSize: 10, newTroopSize: 6, foodPerSoldier: 1.25 },
     soldier: {
@@ -35,7 +35,7 @@ export const races: Record<string, RaceDef> = {
   },
   dwarves: {
     id: 'dwarves',
-    name: 'Dwarves',
+    name: 'Dvärgar',
     playable: false,
     population: { maxTroopSize: 200, startSize: 2, newTroopSize: 1, foodPerSoldier: 15 },
     soldier: {
@@ -50,7 +50,7 @@ export const races: Record<string, RaceDef> = {
   },
   elves: {
     id: 'elves',
-    name: 'Elves',
+    name: 'Alver',
     playable: false,
     population: { maxTroopSize: 150, startSize: 2, newTroopSize: 1, foodPerSoldier: 19 },
     soldier: {

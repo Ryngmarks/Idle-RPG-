@@ -2,7 +2,7 @@
 
 A fantasy idle army RPG for mobile and desktop. Your **troops** (groups of soldiers that grow from a handful to hundreds) fight, mine, cut wood, produce food and build your settlement. Your race decides how big your troops get and what they are good at.
 
-> **Status:** M1–M2 done: a headless game core and a balance simulator. No UI yet.
+> **Status:** M3: first playable version (Humans & Orcs, the first ~15 minutes up to the boss). Mobile first, saves locally, offline progress.
 
 ## Documents
 
@@ -15,6 +15,7 @@ A fantasy idle army RPG for mobile and desktop. Your **troops** (groups of soldi
 | [Architecture](docs/ARCHITECTURE.md) | Game core, simulation, data model, persistence, dependencies |
 | [Roadmap & Prototype](docs/ROADMAP.md) | Milestones and the first playable prototype (P0) |
 | [Balance Log](docs/BALANCE_LOG.md) | Simulator results and every tuning pass |
+| [Deploy](docs/DEPLOY.md) | Free hosting for phone testing |
 | [Decisions](docs/DECISIONS.md) | Confirmed, proposed and open decisions |
 | [Concept v0.1 (archive)](docs/archive/FANTASY_IDLE_RPG_CONCEPT_V0.1.md) | Original discovery document |
 
@@ -22,16 +23,20 @@ A fantasy idle army RPG for mobile and desktop. Your **troops** (groups of soldi
 
 ```
 src/core/      pure TypeScript game core (no UI, no DOM, no Date/Math.random)
+src/app/       browser shell: real-time loop, autosave, offline catch-up, export/import
+src/ui/        React UI (screens, components, dark fantasy CSS)
 src/content/   game data: races, enemies, zone, buildings, upgrades, objectives
 tools/sim/     balance simulator: scripted bots play the game headlessly
 ```
 
 ```bash
 npm install
+npm run dev         # play locally at http://localhost:5173
+npm run build       # typecheck + production build into dist/
 npm test            # unit tests + core purity check + balance regression tests
 npm run typecheck
 npm run sim         # Humans vs Orcs, two strategies, milestone summary
 npm run sim -- --race orcs --strategy balanced --log   # full timeline for one run
 ```
 
-Planned UI tech (M3): React · Vite · PWA.
+**Play:** https://ryngmarks.github.io/Idle-RPG-/ (GitHub Pages; see [docs/DEPLOY.md](docs/DEPLOY.md)).

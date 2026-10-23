@@ -1,4 +1,5 @@
 {
+  // Core, content and tools: no DOM types, so browser APIs can't leak into the game rules.
   "compilerOptions": {
     "target": "ES2022",
     "lib": ["ES2022"],
@@ -8,12 +9,11 @@
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
     "noFallthroughCasesInSwitch": true,
-    "exactOptionalPropertyTypes": false,
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
     "skipLibCheck": true,
     "noEmit": true,
     "types": []
   },
-  "include": ["src", "tools"]
+  "include": ["src/core", "src/content", "tools"]
 }

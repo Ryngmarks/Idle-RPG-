@@ -1,0 +1,84 @@
+# Balance Log
+
+> Record of every simulator-driven tuning pass: what was measured, what changed and why.
+> Run it yourself with `npm run sim` (summary) or `npm run sim -- --race orcs --log` (full timeline).
+> **Bot times are faster than human play.** The bot decides instantly every 5 s and never reads text. Expect a real player to take roughly **1.5–2×** as long, plus ~1 minute for choosing a race.
+
+---
+
+## How the simulator works
+
+- `tools/sim/bot.ts` plays the game through the **same public core API** the UI will use (`dispatch`, `advance`).
+- It follows a priority wishlist (Sharpened Axes → Training Camp → Drill → … → Barracks 2). It gathers the slowest-to-fill missing resource, recruits with spare food, and challenges the boss when its damage estimate is ≥ 105% of the boss's HP.
+- **Strategies:**
+  - `balanced`: from Troop 2 onward, the strongest troop always fights while the others gather. Once the wishlist is finished, it works towards growth (the next 10 recruits).
+  - `economy`: fights only when nothing is needed. This is the "neglect combat" comparison.
+- `tools/sim/balance.test.ts` turns the P0 targets into automated tests, so a content change that breaks pacing fails `npm test`.
+
+---
+
+## Pass 1: 2026-10-22, first numbers (from FIRST_15_MINUTES v0.3)
+
+| Milestone (bot time) | Humans | Orcs | Target |
+|---|---|---|---|
+| Troop 2 | 4:15 | 5:06 | ~6–8 (≈ 10–13 real) |
+| Boss | 16:01 | 14:35 | 25–60 (≈ 45–75 real) |
+| Soldiers at 10 min | 45 | — | ~12 |
+
+**Problem found: snowballing.** Chickens gave 3 food per kill, and combat income grows with troop size, while each soldier cost a flat 5 food. Every recruit made the next one cheaper to afford, so the army grew exponentially and everything after Troop 2 came far too fast.
+
+## Pass 2: escalating recruitment cost
+
+- Recruit cost per soldier = `foodPerSoldier × (size / startSize)^1.2`. The first recruit still costs 5 food for Humans.
+
+| | Humans | Orcs |
+|---|---|---|
+| Troop 2 | 4:15 | 5:06 |
+| Boss | 30:59 | 30:41 |
+
+**New problem:** the **Food** activity was almost never used (0–1% of troop-time). Combat loot covered all the food, so one of the five activities was pointless.
+
+## Pass 3: combat gives *a little* food; Training Camp slightly more expensive
+
+- Combat food loot was reduced roughly 3× (Wild Chicken 3 → 1, Boar 8 → 3, …), matching the owner's wording "*a little* experience and food".
+- Training Camp: 40/20/15 + 400 work → **50 wood / 30 stone / 25 food + 500 work**, so that Troop 2 lands closer to minute 10 of real play.
+- Orc construction skill 0.3 → **0.4**, because Orcs reached Troop 2 much later than Humans.
+
+## Pass 4: bot fixes (the content itself was fine)
+
+Two bot behaviours didn't match how a sensible player plays:
+1. With nothing to buy, the bot sent everyone to fight instead of growing the army.
+2. Equipped Orcs could not recruit because **each new soldier needs 3 ore**. The bot sat on 1,800 food while ore stayed at 3. This is the intended "equipping a horde is expensive" lever, and the bot now treats the next batch of recruits as a goal and mines the ore.
+
+### Current result (all tests green)
+
+```
+race     strategy   Combat  Recruit  Troop 2  Barracks 1  Forge  Stage 3  Barracks 2  Zone clear   Boss
+humans   balanced     1:40     2:10     5:24       14:13  23:39    14:21       30:05       32:42  35:48
+humans   economy      1:40     2:10     5:24       13:43  25:36    32:51       35:16       43:37  60:16
+orcs     balanced     1:15     1:50     7:03       14:42  22:22    12:14       29:33       35:26  42:17
+orcs     economy      1:15     1:50     7:03       19:28  33:21    32:58       42:19       51:36  70:37
+
+Share of troop-time      combat  mining  wood  food  build   soldiers at end
+humans   balanced          38%     16%    20%   14%    12%    55 + 54
+orcs     balanced          39%     21%     9%   20%    11%   155 + 153
+```
+
+### What this tells us
+
+| Question (ROADMAP §2.1) | Answer from the simulator |
+|---|---|
+| Do the races play differently? | **Yes.** Orcs field ~3× the soldiers (308 vs 109), clear the rat swarm (stage 3) 2 min earlier, and spend more time mining (ore for a big army's gear) and less time woodcutting late on. Humans spend more time on wood and less on food. |
+| Are the races balanced? | **Within target.** Orcs reach the boss 18% later than Humans (target ±25%). Orcs are slower against armour, as designed. |
+| Is any activity useless? | **No.** With the balanced bot, all five activities get 9–39% of troop-time. |
+| Does neglecting combat pay off? | **No.** `economy` reaches the boss 25–28 min later. Combat matters. |
+| Troop 2 timing | 5:24 (Humans) / 7:03 (Orcs) bot time ≈ **9–12 / 11–15 min real**. On target, with Orcs at the upper edge. |
+| Total P0 length | 36–42 bot minutes ≈ **55–85 min real**. Inside or slightly above the 45–75 min target. |
+
+### Known limitations / next tuning questions
+
+- ⚠️ **The ×1.4 "gear tier 1" from the Forge is a placeholder that will be removed** ([Equipment §6.5](EQUIPMENT_AND_CRAFTING.md#65-migration-from-todays-code)). The boss pacing above relies on it, so a retune pass is needed after M2.5.
+
+- The bot is better than a human at optimisation and worse at "fun" choices. Real playtests (M4) must confirm the feel.
+- Boss HP (7000, armour 3) is untested against human timing. Revisit after the UI exists.
+- The balanced bot's "one troop always fights" is a strong rule. A cleverer bot could find better allocations. A dominant-strategy search (many random allocation policies) is a good M2+ extension.

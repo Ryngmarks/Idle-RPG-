@@ -10,12 +10,13 @@
 | # | Milestone | Output | Needs approval | Est. |
 |---|---|---|---|---|
 | **M0** | Planning v0.2 | These documents | — | ✅ done |
-| **M1** | Headless core | TS game core + P0 content (Humans + Orcs) + unit tests | ⚠️ `typescript`, `vitest`, `tsx` | 1–2 weeks |
-| **M2** | Balance simulator | CLI: bots play both races, print timelines | — (same deps) | 3–5 days |
+| **M1** | Headless core | TS game core + P0 content (Humans + Orcs) + unit tests | ✅ approved | ✅ done (branch `m1-core-simulator`) |
+| **M2** | Balance simulator | CLI: bots play both races, print timelines | — (same deps) | ✅ done, see [Balance Log](BALANCE_LOG.md) |
+| **M2.5** | Equipment foundation 💡 | Replace `gearTier` with weapon type + aggregated tier/quality buckets; T1 Normal on recruit; per-bucket combat; save v2; retune | ⚠️ approval (no new deps) | 2–4 days |
 | **M3** | Prototype P0 playable | Minimal React UI, save/load, offline report | ⚠️ `vite`, `react` … | 2–3 weeks |
 | **M4** | Playtest P0 | Owner + 3–5 testers, tuning | — | 1–2 weeks |
-| **M5** | P1: Depth | Doctrines, upkeep, troop 3, boss reward, Dwarves & Elves | — | 3–5 weeks |
-| **M6** | P2: World | Region 2, travel time, gear tier 2, expeditions | — | TBD |
+| **M5** | P1: Depth | Doctrines, upkeep, troop 3, boss reward, Dwarves & Elves, **T1 crafting with quality** (Smithy, mastery) | — | 3–5 weeks |
+| **M6** | P2: World | Region 2, travel time, **T2 as the first tier milestone** (T2 materials, refining, Smithy 2), expeditions | — | TBD |
 | **M7** | Identity | Final names, art direction, UI skin, PWA install | ⚠️ `vite-plugin-pwa` | TBD |
 
 **Gate after M4:** if P0 doesn't feel good, iterate on the troop model and its formulas, not on new features.
@@ -43,11 +44,11 @@
 | **Resources** | 4: Food, Wood, Stone, Ore |
 | **Combat** | 1 zone, *The Farmsteads*: 5 stages + boss |
 | **Enemies** | 🐔 Wild Chickens (tutorial, HP 30, stages 1–2) · 🐀 Rat swarm (HP 1 each, favours big troops, stage 3) · 🐗 Wild Boar (armoured, stages 4–5) · 👑 **Boss: The Old Tusker** (high HP + armour, 60 s time limit) |
-| **Buildings** | 4, on fixed plots: **Training Camp** (cap 20→40 + Troop 2, the only building in the first 15 min) · **Barracks** (cap levels 2–3) · **Forge** (unlocks gear tier 1, which costs ore per soldier) · **Farm** (+50% Food output) |
+| **Buildings** | 4, on fixed plots: **Training Camp** (cap 20→40 + Troop 2, the only building in the first 15 min) · **Barracks** (cap levels 2–3) · **Forge / Smithy** (see Equipment row and Q-14) · **Farm** (+50% Food output) |
 | **Upgrades** | ~6 cheap ones (e.g. Sharpened Axes, Drill Practice) |
 | **Objectives** | Goal chain that drives every unlock and doubles as the tutorial ([First 15 Minutes §4](FIRST_15_MINUTES.md#4-the-objectives-system-replaces-timers-and-a-tutorial-engine-)) |
 | **Recruitment** | Buttons +1 / +10 / +max, costing food (+ ore if the troop is equipped) |
-| **Gear** | Tier 0 → 1 (×1.4 attack), cost = ore × troop size |
+| **Equipment** | One weapon type per race (Humans: Sword, Orcs: Cleaver), **T1 only**. Recruits come with T1 Normal. ❓ Q-14: the Forge either crafts better-quality T1 weapons (small crafting test) or is replaced by a simpler building until P1. The ×1.4 "gear tier" placeholder goes away, because it was T2-level power after 25 minutes. |
 | **Idle/offline** | Continuous progress. Offline cap 8 h. "While you were away" report. |
 | **Save** | localStorage autosave + export/import string |
 | **UI** | One main screen of troop cards, a resource bar, Settlement and Battle tabs. Emoji/SVG icons, no artwork. |
@@ -56,7 +57,7 @@
 
 ### 2.3 Scope: OUT ❌ (explicitly)
 
-Dwarves & Elves (the data model supports them; they are added in P1) · Doctrines/specialisation · Proficiency · Food upkeep · Troop 3+ · Travel time · Region 2 · Gear tier 2+ · Expeditions · Heroes · Equipment items · World map · Story/quests · Casualties · Prestige · Sound · Art · Backend/cloud · Monetisation · App stores · Localisation · Tutorial system (a few hint texts are enough)
+Dwarves & Elves (the data model supports them; they are added in P1) · Doctrines/specialisation · Proficiency · Food upkeep · Troop 3+ · Travel time · Region 2 · **T2+ equipment, refining, more weapon types, armour/tools** · Expeditions · Heroes · Equipment items · World map · Story/quests · Casualties · Prestige · Sound · Art · Backend/cloud · Monetisation · App stores · Localisation · Tutorial system (a few hint texts are enough)
 
 ### 2.4 Intended progression (illustrative, Humans)
 
@@ -109,7 +110,7 @@ flowchart TD
 | Task | Result |
 |---|---|
 | Project setup (TS, Vitest, tsx), *after approval* | `package.json`, `tsconfig`, test script |
-| Content: Humans, Orcs, 5 activities, 4 enemies, 1 zone, 4 buildings, upgrades, gear tiers, **objectives** | `src/content/*` |
+| Content: Humans, Orcs, 5 activities, 4 enemies, 1 zone, 4 buildings, upgrades, gear placeholder (→ equipment buckets in M2.5), **objectives** | `src/content/*` |
 | Formulas: production, combat (armour + overkill), recruitment, caps | `src/core/formulas/*` + tests |
 | Modifiers + traits (Horde, Raiders) | `src/core/modifiers.ts`, `traits/*` + tests |
 | Commands + validation | `src/core/commands.ts` + tests |

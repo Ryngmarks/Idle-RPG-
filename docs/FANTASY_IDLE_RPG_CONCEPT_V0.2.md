@@ -1,8 +1,8 @@
 # FANTASY IDLE RPG — Concept v0.2
 
-> **Status:** Planning. No code has been written.
-> **Date:** 2026-10-22 (v0.2.1: race profiles adjusted · v0.2.2: first 15 minutes, see [FIRST_15_MINUTES.md](FIRST_15_MINUTES.md)) · **Supersedes:** [v0.1](archive/FANTASY_IDLE_RPG_CONCEPT_V0.1.md)
-> **Detailed documents:** [First 15 Minutes](FIRST_15_MINUTES.md) · [Troop Model](TROOP_MODEL.md) · [Architecture](ARCHITECTURE.md) · [Roadmap & Prototype](ROADMAP.md) · [Decisions](DECISIONS.md)
+> **Status:** Planning. The headless core and simulator (M1–M2) exist; see [Balance Log](BALANCE_LOG.md).
+> **Date:** 2026-10-22 (v0.2.1: race profiles adjusted · v0.2.2: first 15 minutes, see [FIRST_15_MINUTES.md](FIRST_15_MINUTES.md) · v0.2.3: equipment tiers T1–T8, see [EQUIPMENT_AND_CRAFTING.md](EQUIPMENT_AND_CRAFTING.md)) · **Supersedes:** [v0.1](archive/FANTASY_IDLE_RPG_CONCEPT_V0.1.md)
+> **Detailed documents:** [First 15 Minutes](FIRST_15_MINUTES.md) · [Troop Model](TROOP_MODEL.md) · [Equipment & Crafting](EQUIPMENT_AND_CRAFTING.md) · [Architecture](ARCHITECTURE.md) · [Roadmap & Prototype](ROADMAP.md) · [Decisions](DECISIONS.md)
 
 **Labels:** ✅ Confirmed · 💡 Proposed · ❓ Open
 
@@ -50,6 +50,7 @@ Unchanged from v0.1, and still valid: the pillars (§2), idle/offline principles
 | **3. Your race is your strategy** | Population size and soldier quality change *which* activities and enemies suit you, not just your numbers. |
 | **4. Decisions over reflexes** | No action combat. The skill is allocation and timing. |
 | **5. Respectful idle** | Being away is rewarded. No punishing timers, no offline losses. |
+| **6. Slow, earned tiers** ✅ | Equipment runs T1–T8 with quality levels. T1 lasts, T2 is a real milestone, T8 is a very long-term goal. Tiers are earned through progression, buildings, resources and crafting, never just by waiting. |
 
 ---
 
@@ -70,7 +71,7 @@ flowchart LR
 | ⛏️ **Mining** | Stone, Ore | Construction (stone), gear (ore) |
 | 🪓 **Woodcutting** | Wood | Construction |
 | 🌾 **Food** | Food | Recruitment (+ upkeep in P1) |
-| 🔨 **Construction** | Building progress (labour) | Caps, troop slots, gear tiers, production bonuses |
+| 🔨 **Construction** | Building progress (labour) | Caps, troop slots, the Smithy (crafting), production bonuses |
 
 The full resource-flow diagram is in [Troop Model §9](TROOP_MODEL.md#9-resource-flow-in-the-start-area-p0).
 
@@ -102,7 +103,8 @@ The full specification is in [Troop Model §3–6](TROOP_MODEL.md#3-per-soldier-
 See [Troop Model](TROOP_MODEL.md) for formulas and worked examples.
 
 - **Size:** grows by recruiting (food, plus ore if the troop is equipped). Limited by a cap that Barracks raise. 💡
-- **Quality:** race base × gear tier × doctrine × traits × upgrades, all through one modifier system. 💡
+- **Quality:** race base × weapon (tier × quality) × doctrine × traits × upgrades, all through one modifier system. 💡
+- **Equipment:** one weapon type per troop, with mixed tiers and qualities held as aggregated counts (e.g. 75 Normal + 15 Good + 10 Excellent swords). See [Equipment & Crafting](EQUIPMENT_AND_CRAFTING.md). ✅ concept / 💡 model
 - **Assignment:** one activity per troop; free in the start area; travel time later. ✅
 - **Slots:** Troop 2 via construction, Troop 3 via the boss, more later. 💡
 - **Specialisation:** Doctrine (a chosen focus) in P1. Proficiency (learning by doing) maybe later. ✅ concept / 💡 method
@@ -152,9 +154,11 @@ See [Roadmap §2](ROADMAP.md#2-prototype-p0-the-farmstead-camp).
 
 ---
 
-## 9. Long-term expansion (unchanged direction)
+## 9. Long-term expansion
 
-Roughly in this order, each one only after the previous step is validated: Dwarves & Elves → doctrines & soft upkeep → Region 2 with travel time → expeditions → heroes as troop **commanders** (deterministic recruitment, no gacha) → buildings/stronghold depth → prestige ❓ → territories → cloud save → store release. Speculative: world map, async online features. Not recommended: PvP.
+**Equipment backbone ✅:** T1–T8 weapon tiers with five quality levels, Albion-inspired crafting (recipes, crafting mastery, refined materials) and aggregated equipment per troop. It is a long-term *structure*: T1 is the whole first region, T2 is a milestone, and T8 takes months. Details: [Equipment & Crafting](EQUIPMENT_AND_CRAFTING.md).
+
+Roughly in this order, each one only after the previous step is validated: Dwarves & Elves → doctrines & soft upkeep → T1 crafting & quality → Region 2 with travel time and **T2** → expeditions → heroes as troop **commanders** (deterministic recruitment, no gacha) → buildings/stronghold depth → prestige ❓ → territories → cloud save → store release. Speculative: world map, async online features. Not recommended: PvP.
 
 ---
 

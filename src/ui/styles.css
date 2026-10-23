@@ -285,6 +285,28 @@ p { margin: 0.35rem 0; }
 @keyframes flag { 0%, 100% { transform: translate(-50%, 0); } 50% { transform: translate(-50%, -3px); } }
 @keyframes unlock { 0% { box-shadow: 0 0 0 0 rgba(227, 192, 106, 0.8); } 100% { box-shadow: 0 0 0 16px rgba(227, 192, 106, 0); } }
 
+/* ------------------------------------------------------------ equipment & forge */
+.weapon-icon { flex: none; vertical-align: middle; }
+.equip { display: flex; flex-direction: column; gap: 5px; }
+.equip__head { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.equip__power { color: var(--gold-2); font-weight: 700; font-variant-numeric: tabular-nums; }
+.equip__bar, .chance-bar { display: flex; height: 12px; border-radius: 999px; overflow: hidden; border: 1px solid #2a241d; background: #0c0a0d; }
+.equip__bar span, .chance-bar span { display: block; min-width: 2px; transition: flex-grow 0.4s ease; }
+.equip__legend { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 0.78rem; color: var(--muted); }
+.legend-dot { display: inline-flex; align-items: center; gap: 4px; font-variant-numeric: tabular-nums; }
+.legend-dot i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.recipe { display: flex; gap: 12px; align-items: center; margin-bottom: 8px; }
+.recipe__info { min-width: 0; }
+.recipe__name { font-family: var(--heading); color: var(--gold-2); font-size: 1.05rem; }
+.queue { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--line-soft); }
+.queue__row { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px; }
+.qchips { display: flex; flex-wrap: wrap; gap: 8px; }
+.qchip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px 4px 4px; border-radius: 999px; border: 1.5px solid; background: #141116; font-size: 0.85rem; }
+.qchip__count { font-variant-numeric: tabular-nums; }
+.tiers { list-style: none; margin: 0 0 8px; padding: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.tier { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 6px 2px; border-radius: 8px; border: 1px solid var(--line-soft); background: #141116; opacity: 0.55; }
+.tier--open { opacity: 1; border-color: var(--gold); box-shadow: 0 0 10px rgba(201, 162, 74, 0.2); }
+
 /* Cards and toasts ease in instead of popping. */
 .troop, .plot, .panel { animation: rise 0.35s ease-out both; }
 .toast { animation: toast-in 0.3s ease-out both; }

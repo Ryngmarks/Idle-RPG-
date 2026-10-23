@@ -10,6 +10,10 @@ export type Cost = Partial<Resources>;
 export const ACTIVITIES: readonly ActivityKind[] = ['combat', 'mining', 'woodcutting', 'food', 'construction'];
 export const RESOURCES: readonly ResourceId[] = ['food', 'wood', 'stone', 'ore'];
 
+/** Weapon quality, worst to best. See docs/EQUIPMENT_AND_CRAFTING.md. */
+export type QualityId = 'normal' | 'good' | 'outstanding' | 'excellent' | 'masterpiece';
+export const QUALITY_IDS: readonly QualityId[] = ['normal', 'good', 'outstanding', 'excellent', 'masterpiece'];
+
 // ---------------------------------------------------------------- modifiers
 
 export type Stat =
@@ -64,6 +68,8 @@ export interface RaceDef {
   };
   modifiers: Modifier[];
   traits: TraitId[];
+  /** Every troop of this race uses this weapon type (D-26). */
+  weaponTypeId: string;
   /** Default name for troop N (1-based). */
   troopNames: string[];
 }
@@ -92,7 +98,9 @@ export type Effect =
   | { kind: 'capLevel'; level: number }
   | { kind: 'modifier'; modifier: Modifier }
   | { kind: 'unlock'; unlock: Unlock }
-  | { kind: 'troopSlot' };
+  | { kind: 'troopSlot' }
+  /** Crafting work per second produced by this building (the forge). */
+  | { kind: 'craftSpeed'; workPerSec: number };
 
 export interface BuildingLevelDef {
   cost: Cost;
@@ -113,9 +121,50 @@ export interface UpgradeDef {
   modifiers: Modifier[];
 }
 
-export interface GearTierDef {
-  attackMult: number;
-  orePerSoldier: number;
+export interface WeaponTypeDef {
+  id: string;
+  name: string;
+  /** Name of one soldier using it, e.g. "svärdskrigare". */
+  wielder: string;
+}
+
+export interface TierDef {
+  tier: number;
+  /** Attack multiplier of a Normal-quality weapon of this tier. */
+  powerMult: number;
+}
+
+export interface QualityDef {
+  id: QualityId;
+  name: string;
+  /** Multiplies the tier's power. Masterpiece of tier N ≈ Normal of tier N+1. */
+  powerMult: number;
+}
+
+export interface RecipeDef {
+  id: string;
+  weaponTypeId: string;
+  tier: number;
+  /** Materials per weapon, paid when the order is placed. */
+  materials: Cost;
+  /** Forge work needed per weapon. */
+  workPerItem: number;
+}
+
+export interface EquipmentContent {
+  weaponTypes: Record<string, WeaponTypeDef>;
+  /** T1–T8. Only tiers listed in state.unlocks as 'tier:N' can be crafted. */
+  tiers: TierDef[];
+  qualities: QualityDef[];
+  recipes: Record<string, RecipeDef>;
+  /** Attack multiplier for a soldier without a weapon (improvised arms). */
+  unarmedMult: number;
+  /** Quality chances [normal … masterpiece] at mastery level 0 and at maxMastery; linear in between. */
+  chancesAtMin: number[];
+  chancesAtMax: number[];
+  maxMastery: number;
+  /** Mastery level = floor(sqrt(weaponsCrafted / itemsPerMasteryStep)). */
+  itemsPerMasteryStep: number;
 }
 
 export type ObjectiveCondition =
@@ -130,7 +179,8 @@ export type ObjectiveCondition =
   | { kind: 'stageReached'; stage: number }
   | { kind: 'zoneCleared' }
   | { kind: 'bossDefeated' }
-  | { kind: 'gearTier'; tier: number };
+  | { kind: 'weaponsEquipped'; amount: number }
+  | { kind: 'weaponsCrafted'; amount: number };
 
 export interface ObjectiveDef {
   id: string;
@@ -146,7 +196,7 @@ export interface Content {
   zones: Record<string, ZoneDef>;
   buildings: Record<string, BuildingDef>;
   upgrades: Record<string, UpgradeDef>;
-  gearTiers: GearTierDef[];
+  equipment: EquipmentContent;
   objectives: ObjectiveDef[];
   constants: {
     /** Recruit cost per soldier = foodPerSoldier × (size / startSize)^recruitExponent. */
@@ -170,12 +220,21 @@ export interface Content {
 
 // ---------------------------------------------------------------- state
 
+/** Aggregated equipment: `count` soldiers carry a weapon of this tier and quality. */
+export interface EquipmentBucket {
+  tier: number;
+  quality: QualityId;
+  count: number;
+}
+
 export interface TroopState {
   id: string;
   name: string;
   size: number;
   xp: number;
-  gearTier: number;
+  weaponTypeId: string;
+  /** Sorted best first. Invariant: Σ count ≤ size; the rest fight with improvised arms. */
+  equipment: EquipmentBucket[];
   activity: ActivityKind | null;
   /** Damage taken but not yet healed (0 … hp per soldier). */
   wounds: number;
@@ -209,12 +268,24 @@ export interface GameState {
     bossDefeated: boolean;
     boss: BossFight | null;
   };
+  /** Spare weapons, by item key `${weaponTypeId}:t${tier}:${quality}`. */
+  armoury: Record<string, number>;
+  crafting: {
+    queue: { recipeId: string; remaining: number }[];
+    /** Work done on the weapon currently being made. */
+    progress: number;
+    /** Weapons crafted per `${weaponTypeId}:t${tier}`; drives mastery. */
+    crafted: Record<string, number>;
+    /** Deterministic quality distribution carry per mastery key (see equipment.ts). */
+    carry: Record<string, number[]>;
+  };
   unlocks: Unlock[];
   objectivesCompleted: string[];
   stats: {
     totalKills: number;
     recruited: number;
     gathered: Resources;
+    weaponsCrafted: number;
   };
 }
 
@@ -230,4 +301,7 @@ export type GameEvent =
   | { type: 'troopRetreated'; at: number; troopId: string; reason: 'losses' | 'offlineSafety' }
   | { type: 'stageChanged'; at: number; stage: number; reason: 'offlineSafety' }
   | { type: 'bossAbandoned'; at: number; zoneId: string }
+  | { type: 'weaponCrafted'; at: number; recipeId: string; quality: QualityId }
+  | { type: 'craftOrderCompleted'; at: number; recipeId: string }
+  | { type: 'masteryLevelUp'; at: number; weaponTypeId: string; tier: number; level: number }
   | { type: 'objectiveCompleted'; at: number; objectiveId: string };

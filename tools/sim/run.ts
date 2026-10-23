@@ -4,7 +4,7 @@
 // Options: --race <id> --strategy balanced|economy --minutes <n> --tick <sec> --log
 
 import { content } from '../../src/content';
-import { newGame } from '../../src/core';
+import { averageWeaponPower, equippedCount, masteryLevel, newGame } from '../../src/core';
 import { runBot, type RunResult, type Strategy } from './bot';
 
 const args = process.argv.slice(2);
@@ -66,6 +66,20 @@ console.log(`\nMilestones (simulated time mm:ss, bot decides every ${tick}s, lim
 console.log('race     strategy  ' + KEYS.map(([, label]) => label.padStart(11)).join(''));
 for (const { race, strategy, res } of results) {
   console.log(`${race.padEnd(8)} ${strategy.padEnd(9)} ` + KEYS.map(([k]) => mmss(res.milestones[k]).padStart(11)).join(''));
+}
+
+console.log('\nForge at the end (weapons crafted · armed soldiers · avg weapon power · mastery · quality mix N/G/O/E/M)\n');
+for (const { race, strategy, res } of results) {
+  const s = res.finalState;
+  const soldiers = s.troops.reduce((n, t) => n + t.size, 0);
+  const armed = s.troops.reduce((n, t) => n + equippedCount(t), 0);
+  const power = soldiers ? s.troops.reduce((p, t) => p + averageWeaponPower(t, content) * t.size, 0) / soldiers : 1;
+  const mk = Object.keys(s.crafting.crafted)[0];
+  const mastery = mk ? masteryLevel(s.crafting.crafted[mk]!, content) : 0;
+  const mix = ['normal', 'good', 'outstanding', 'excellent', 'masterpiece'].map((q) =>
+    s.troops.reduce((n, t) => n + t.equipment.filter((b) => b.quality === q).reduce((m, b) => m + b.count, 0), 0) +
+    Object.entries(s.armoury).filter(([k]) => k.endsWith(':' + q)).reduce((m, [, v]) => m + v, 0));
+  console.log(`${race.padEnd(8)} ${strategy.padEnd(9)} ${String(s.stats.weaponsCrafted).padStart(5)} crafted · ${armed}/${soldiers} armed · ×${power.toFixed(2)} · mastery ${mastery} · ${mix.join('/')}`);
 }
 
 console.log('\nShare of troop-time per activity\n');

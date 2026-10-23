@@ -22,6 +22,7 @@ function Modal({ title, children, onClose }: { title: string; children: ReactNod
 export function AwayReportModal({ report, state, onClose }: { report: AwayReport; state: GameState; onClose: () => void }) {
   const gained = RESOURCES.filter((r) => report.resources[r] >= 1);
   const levelUps = report.events.filter((e) => e.type === 'troopLevelUp').length;
+  const crafted = report.events.filter((e) => e.type === 'weaponCrafted').length;
   const notable = report.events.filter((e) => e.type !== 'troopLevelUp').map((e) => eventText(e, state)).filter(Boolean);
   return (
     <Modal title="Medan du var borta" onClose={onClose}>
@@ -29,13 +30,14 @@ export function AwayReportModal({ report, state, onClose }: { report: AwayReport
         Du var borta i <strong>{fmtDuration(report.awaySec)}</strong>.
         {report.capped && <> Dina trupper arbetade de första <strong>{fmtDuration(report.simulatedSec)}</strong> (maxgränsen).</>}
       </p>
-      {gained.length > 0 ? (
+      {gained.length > 0 || crafted > 0 ? (
         <ul className="report-list">
           {gained.map((r) => (
             <li key={r}>{RESOURCE_LABEL[r].icon} +{fmtAmount(report.resources[r])} {RESOURCE_LABEL[r].name.toLowerCase()}</li>
           ))}
           {report.kills >= 1 && <li>⚔️ {fmtInt(Math.floor(report.kills))} fiender besegrade</li>}
           {levelUps > 0 && <li>⭐ {levelUps} nivåhöjningar</li>}
+          {crafted > 0 && <li>⚒️ {crafted} vapen smidda</li>}
         </ul>
       ) : (
         <p className="muted">Dina trupper hade inga order, så inget samlades in.</p>

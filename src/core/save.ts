@@ -11,6 +11,28 @@ const migrations: Record<number, (s: Record<string, unknown>) => Record<string, 
     const combat = s.combat as Record<string, unknown>;
     return { ...s, troops, combat: { ...combat, unlockedStage: combat.stageIndex } };
   },
+  // v2 → v3: real weapons replace the ×1.4 "gear tier" placeholder (M5). Troops that had iron
+  // weapons keep them as T1 Normal swords/cleavers for every soldier; everyone gets an armoury.
+  2: (s) => {
+    const weaponFor: Record<string, string> = { humans: 'sword', orcs: 'cleaver', dwarves: 'axe', elves: 'bow' };
+    const weaponTypeId = weaponFor[s.raceId as string] ?? 'sword';
+    const troops = (s.troops as Record<string, unknown>[]).map(({ gearTier, ...t }) => ({
+      ...t,
+      weaponTypeId,
+      equipment: (gearTier as number) > 0 ? [{ tier: 1, quality: 'normal', count: t.size as number }] : [],
+    }));
+    const stats = s.stats as Record<string, unknown>;
+    const unlocks = (s.unlocks as string[]).filter((u) => u !== 'gear:1');
+    if ((s.buildings as Record<string, number>).forge) unlocks.push('crafting', 'tier:1', 'tab:forge');
+    return {
+      ...s,
+      troops,
+      unlocks,
+      armoury: {},
+      crafting: { queue: [], progress: 0, crafted: {}, carry: {} },
+      stats: { ...stats, weaponsCrafted: 0 },
+    };
+  },
 };
 
 export function serialize(state: GameState): string {

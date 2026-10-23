@@ -122,3 +122,43 @@ orcs     economy        45%     22%     16%      2%     15%      0%   87+86
 | Troop 2 | 11:20 (Humans) / 13:58 (Orcs) bot time ≈ 15–20 real minutes |
 | Boss | 30:31 / 37:26 bot ≈ 45–70 real minutes; Orcs +23% (within ±25%) |
 | Losses | None for careful play; the boss fight costs soldiers |
+
+---
+
+## Pass 6: 2026-10-23, real weapons replace the ×1.4 placeholder (M5)
+
+- The **forge** is cheaper (80 wood / 80 stone / 10 ore, work 2,500 unchanged) so smithing starts mid-game. The bot builds it right after Barracks 1.
+- **T1 Normal = ×1.25** per armed soldier (the old placeholder was ×1.4 for the whole troop at once). A sword costs 2 ore + 1 wood and 15 s at the forge.
+- **Mastery max** needs about 800 weapons (≈ 3.3 h of forge time): T1 stays a long climb.
+- **Bot:** keeps an order going (spare ore only), re-arms troops whenever the armoury has weapons, and counts ore for unarmed soldiers as a goal.
+
+```
+Milestones (simulated time mm:ss, bot decides every 5s, limit 180 min)
+
+race     strategy       Combat    Recruit    Troop 2 Barracks 1      Forge    Stage 3 Barracks 2 Zone clear       Boss
+humans   balanced         4:10       5:10      11:20      18:52      24:36      13:18      27:55      28:52      33:31
+humans   economy          4:10       5:10      12:46      37:35      57:19     108:29     109:18     119:19     137:26
+orcs     balanced         6:00       7:30      13:58      20:03      26:41      15:33      31:16      32:27      39:51
+orcs     economy          6:00       7:30      28:00      41:57      46:39      44:03      57:04      65:29      81:30
+
+Forge at the end (weapons crafted · armed soldiers · avg weapon power · mastery · quality mix N/G/O/E/M)
+
+humans   balanced     27 crafted · 27/140 armed · ×1.05 · mastery 1 · 22/4/1/0/0
+humans   economy     119 crafted · 65/65 armed · ×1.32 · mastery 3 · 88/20/7/3/1
+orcs     balanced     42 crafted · 42/318 armed · ×1.04 · mastery 2 · 33/6/2/1/0
+orcs     economy     139 crafted · 135/196 armed · ×1.20 · mastery 4 · 101/24/9/4/1
+
+Share of troop-time per activity
+
+race     strategy    combat  mining    wood    food   build    idle   soldiers@end
+humans   balanced       50%      5%     13%     27%      5%      0%   70+70
+humans   economy        25%     24%     30%      5%     16%      0%   33+32
+orcs     balanced       46%      8%     13%     27%      6%      0%   160+158
+orcs     economy        52%     18%     14%      1%     14%      0%   98+98
+```
+
+| Question | Answer |
+|---|---|
+| Boss pacing | 33:31 (Humans) / 39:51 (Orcs) bot time; Orcs +19 % (within ±25 %) |
+| Does crafting matter in P0? | Partly. Arming a 140-soldier army takes ~35 min of forge time, so by the boss only part of the army is armed. A player who arms the fighting troop first sees the effect at once (the troop card and battle show weapon power). |
+| Long-term T1 | The economy run (more time) shows the climb: ×1.32 average weapon power at mastery 3 with a first Masterpiece |

@@ -8,7 +8,11 @@ import {
   currentCap,
   dispatch,
   estimatedBossDamage,
-  gearUpgradeCost,
+  averageWeaponPower,
+  craftCost,
+  equippedCount,
+  maxCraftable,
+  recipeAvailable,
   maxRecruitable,
   recruitCost,
   stageSafety,
@@ -26,8 +30,7 @@ export type Strategy = 'balanced' | 'economy';
 
 type Wish =
   | { kind: 'upgrade'; id: string }
-  | { kind: 'building'; id: string; level: number }
-  | { kind: 'gear'; tier: number };
+  | { kind: 'building'; id: string; level: number };
 
 /** What a sensible player works towards in P0, in priority order. */
 const WISHLIST: Wish[] = [
@@ -36,11 +39,10 @@ const WISHLIST: Wish[] = [
   { kind: 'upgrade', id: 'drillPractice' },
   { kind: 'upgrade', id: 'stonePicks' },
   { kind: 'building', id: 'barracks', level: 1 },
+  { kind: 'building', id: 'forge', level: 1 },
   { kind: 'upgrade', id: 'carpentry' },
   { kind: 'building', id: 'farm', level: 1 },
   { kind: 'upgrade', id: 'fieldKitchens' },
-  { kind: 'building', id: 'forge', level: 1 },
-  { kind: 'gear', tier: 1 },
   { kind: 'building', id: 'barracks', level: 2 },
 ];
 
@@ -51,7 +53,7 @@ export interface LogEntry {
 
 export interface Snapshot {
   t: number;
-  troops: { name: string; size: number; level: number; activity: ActivityKind | null; gear: number }[];
+  troops: { name: string; size: number; level: number; activity: ActivityKind | null; gear: number; armed: number }[];
   resources: Record<ResourceId, number>;
   stage: string;
   buildings: Record<string, number>;
@@ -152,6 +154,24 @@ function decide(
     wish = currentWish(state, content);
   }
 
+  // 3b. Forge: keep a small order going until every soldier is armed, then keep smithing for quality
+  // with spare ore; re-arm troops whenever the armoury has something better.
+  const recipeId = `${content.races[state.raceId]!.weaponTypeId}_t1`;
+  if (recipeAvailable(state, recipeId, content)) {
+    const queued = state.crafting.queue.reduce((n, o) => n + o.remaining, 0);
+    if (queued < 5) {
+      const wishOre = wish ? wishCost(wish, state, content).ore ?? 0 : 0;
+      const spare = { ...state, resources: { ...state.resources, ore: Math.max(0, state.resources.ore - wishOre) } };
+      const n = Math.min(10, maxCraftable(spare, recipeId, content));
+      if (n > 0) exec({ type: 'queueCraft', recipeId, count: n });
+    }
+    refresh();
+    if (Object.values(state.armoury).some((n) => n > 0)) {
+      for (const t of state.troops) exec({ type: 'equipTroop', troopId: t.id });
+    }
+    refresh();
+  }
+
   // 4. Recruit with food not needed for the wish (keep a small reserve).
   if (state.unlocks.includes('recruit')) {
     const reservedFood = (wish ? wishCost(wish, state, content).food ?? 0 : 0) + 5;
@@ -177,6 +197,19 @@ function decide(
     const growFirst = smallest.size < cap / 2;
     if (room > 0 && (growFirst || (!wish && state.troops.length >= 2))) {
       goalCost = recruitCost(state, smallest.id, Math.min(growFirst ? 3 : 10, room), content);
+    }
+  }
+  // Unarmed soldiers are a goal too: gather the ore for the next batch of weapons.
+  // An idle forge is wasted time, so its ore counts even when something else is being saved for.
+  if (recipeAvailable(state, recipeId, content) && (!wish || state.crafting.queue.length === 0)) {
+    const soldiers = state.troops.reduce((n, t) => n + t.size, 0);
+    const armed = state.troops.reduce((n, t) => n + equippedCount(t), 0) + Object.values(state.armoury).reduce((a, b) => a + b, 0);
+    const queued = state.crafting.queue.reduce((n, o) => n + o.remaining, 0);
+    const want = Math.min(10, soldiers - armed - queued);
+    if (want > 0) {
+      for (const [r, v] of Object.entries(craftCost(recipeId, want, content)) as [ResourceId, number][]) {
+        goalCost = { ...goalCost, [r]: (goalCost[r] ?? 0) + v };
+      }
     }
   }
   const missing = missingFor(goalCost, state);
@@ -235,27 +268,25 @@ function wishDone(w: Wish, state: GameState): boolean {
     const inProgress = state.construction?.buildingId === w.id && state.construction.level >= w.level;
     return (state.buildings[w.id] ?? 0) >= w.level || inProgress;
   }
-  return state.troops.every((t) => t.gearTier >= w.tier);
+  return false;
 }
 
 function wishUnlocked(w: Wish, state: GameState): boolean {
   if (w.kind === 'upgrade') return state.unlocks.includes(`upgrade:${w.id}`);
   if (w.kind === 'building') return state.unlocks.includes(`building:${w.id}`) && (state.buildings[w.id] ?? 0) === w.level - 1;
-  return state.unlocks.includes(`gear:${w.tier}`);
+  return false;
 }
 
 function wishCost(w: Wish, state: GameState, content: Content): Cost {
   if (w.kind === 'upgrade') return content.upgrades[w.id]?.cost ?? {};
   if (w.kind === 'building') return content.buildings[w.id]?.levels[w.level - 1]?.cost ?? {};
-  const t = state.troops.find((x) => x.gearTier < w.tier);
-  return t ? gearUpgradeCost(state, t.id, content) ?? {} : {};
+  return {};
 }
 
 function tryBuy(w: Wish, state: GameState, content: Content, exec: (cmd: Command) => boolean): boolean {
   if (w.kind === 'upgrade') return exec({ type: 'buyUpgrade', upgradeId: w.id });
   if (w.kind === 'building') return exec({ type: 'startConstruction', buildingId: w.id });
-  const t = state.troops.find((x) => x.gearTier < w.tier);
-  return t ? exec({ type: 'upgradeGear', troopId: t.id }) : false;
+  return false;
 }
 
 function missingFor(cost: Cost, state: GameState): Partial<Record<ResourceId, number>> {
@@ -349,7 +380,8 @@ function snapshot(state: GameState, content: Content): Snapshot {
       size: t.size,
       level: troopStats(state, t, content).level,
       activity: t.activity,
-      gear: t.gearTier,
+      gear: Math.round(averageWeaponPower(t, content) * 100) / 100,
+      armed: equippedCount(t),
     })),
     resources: { ...state.resources },
     stage,

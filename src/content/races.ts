@@ -18,6 +18,7 @@ export const races: Record<string, RaceDef> = {
     },
     modifiers: [],
     traits: ['adaptable'],
+    weaponTypeId: 'sword',
     troopNames: ['Norra Väktarna', 'Skogsarbetarna', 'Tredje Fanan', 'Fjärde Fanan'],
   },
   orcs: {
@@ -35,6 +36,7 @@ export const races: Record<string, RaceDef> = {
     },
     modifiers: [],
     traits: ['horde', 'raiders'],
+    weaponTypeId: 'cleaver',
     troopNames: ['Blodtänderna', 'Yxbröderna', 'Tredje Hjorden', 'Fjärde Hjorden'],
   },
   dwarves: {
@@ -52,6 +54,7 @@ export const races: Record<string, RaceDef> = {
     },
     modifiers: [],
     traits: ['deepDelvers'],
+    weaponTypeId: 'axe',
     troopNames: ['Stenvakten', 'Djupgruvan'],
   },
   elves: {
@@ -69,6 +72,7 @@ export const races: Record<string, RaceDef> = {
     },
     modifiers: [],
     traits: [],
+    weaponTypeId: 'bow',
     troopNames: ['Lövskuggorna', 'Silverpilarna'],
   },
 };

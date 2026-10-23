@@ -29,8 +29,10 @@ export function conditionMet(state: GameState, c: ObjectiveCondition): boolean {
       return state.combat.cleared;
     case 'bossDefeated':
       return state.combat.bossDefeated;
-    case 'gearTier':
-      return state.troops.some((t) => t.gearTier >= c.tier);
+    case 'weaponsEquipped':
+      return state.troops.reduce((n, t) => n + t.equipment.reduce((m, b) => m + b.count, 0), 0) >= c.amount;
+    case 'weaponsCrafted':
+      return state.stats.weaponsCrafted >= c.amount;
   }
 }
 

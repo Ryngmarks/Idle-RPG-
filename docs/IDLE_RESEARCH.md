@@ -133,3 +133,31 @@ Balance guard: keep soldiers at D-50 targets. Rewards in R-01 to R-04 are **capa
 4. **Surplus sink:** Temporary buffs, town renown, or both? Should surplus ever convert into something permanent?
 5. **Tier vs quality:** Which axis should drive combat power? Proposal: tier sets base, quality is a visible step, no third axis before T2.
 6. **Soldier targets for day 1 to 3:** Is 15 to 40 soldiers (PROGRESSION_V2 §10) still right given D-50, or should region 2 stay under ~15?
+
+## 6. Clicker Heroes: zones, bosses and prestige (2026-10-23, for the zone 1 expansion)
+
+Sources: the research agent used search snippets only, because the Clicker Heroes wiki and blog could not be opened from this environment. Facts marked (general knowledge) are well known in the community but were not verified against an opened page here.
+
+| Topic | Clicker Heroes | Source / status |
+|---|---|---|
+| Zone size | 10 monster kills advance a zone; later +0.1 monster per 500 zones | blog.clickerheroes.com monsters guide (snippet) |
+| Bosses | Every 5th zone is a boss zone; beat it within the timer to advance | same (snippet) |
+| Boss timer | 30 s; on failure you stay one zone below and farm until stronger | (general knowledge), timer unconfirmed |
+| Boss HP | About 10× a normal monster | Steam discussion (opinion) |
+| HP growth | About 1.6× per zone up to zone 140, then about 1.15× ("the wall softens"), steeper again much later | Reddit (opinion) + (general knowledge) |
+| Primal bosses | From about zone 100, some bosses are "primal" and drop Hero Souls, the prestige currency | search summary, unverified |
+| Ascension | Soft reset: gold, heroes and zone reset; Hero Souls (+10 % DPS each) and Ancients (permanent upgrades) are kept; 1 soul per 2,000 hero levels | blog.clickerheroes.com (snippets) |
+| Transcendence | Second reset layer: also resets souls and Ancients, gives Ancient Souls and Outsiders | wiki talk page, trueachievements (snippets); details disputed |
+| Realm Grinder | Three soft-reset layers; reviewers find the sense of achievement short-lived | toucharcade review, fandom wiki |
+
+**Why it works:** a boss every 5 zones gives a short goal loop: 5 zones, a boss, a small reward. HP grows faster than income, so the player hits a wall. A wall pushes the player to reset, and the re-climb is quick and satisfying with the new permanent bonus.
+
+**Lessons for Utposten (R-17 to R-21)**
+
+| # | Lesson | Fit |
+|---|---|---|
+| R-17 | **A boss every 5 levels** in a zone, with a short visible goal loop of 5 levels → boss → reward. The current Gamle Betarn becomes the first mini-boss at level 5, so the tuned first hour is untouched | Adopt |
+| R-18 | **Walls are deliberate:** each mini-boss checks the army (soldiers, weapons, troop size), so a wall means "build up", not "wait for numbers". Failing a boss sends the player back to farm the level below; nobody dies (D-15) | Adapt |
+| R-19 | **No timed boss for offline play**, or a timer the offline loop resolves deterministically; the current 90 s boss fight already works this way | Keep |
+| R-20 | **Readable numbers:** HP growth of about 1.12–1.2× per level gives level 40 roughly 100–1,000× level 1, not Clicker Heroes' exponents | Adapt |
+| R-21 | **No classic prestige** (it would wipe named soldiers). A soft variant could come later: a "campaign" layer per zone that keeps the army and rewards replaying a cleared zone faster, or a realm/legacy layer for a second race. Revisit Q-05 after zone 2 | Avoid classic, adapt soft later |

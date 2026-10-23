@@ -483,3 +483,91 @@ Existing guards in §11 stay, with these changes:
 
 Implemented as specified, with these tunings and owner decisions (see [Balance Log pass 10](BALANCE_LOG.md)): Forge II costs 90 wood / 60 stone / 10 ore, Farm II 70 wood / 40 stone, the first mastery step is at **6** weapons (D-40 still holds: level 2 at 80, max at ~2,000). Forge II and Farm II are **post-boss goals** (a bridge to region 2). Guards: armed ratio measured when the boss fight starts; food floor 4 % until upkeep exists; event gap 4 min (Humans) / 7 min (Orcs) for the balanced bot; optional goals are not required. Save version 8.
 
+
+
+---
+
+## 18. M12 gameplay polish spec (proposal, awaiting the owner's approval)
+
+Status: **proposal**. Not decided, not built. Builds on D-08 / D-13 (race identity, Humans food, Orcs wood), D-50 (soldier targets stay), D-53 / D-54 (event-gap guards), D-55 (food upkeep, §17 on branch `m11-food-upkeep`; this section is written to merge after it), R-05 and R-14 in IDLE_RESEARCH.md. **Every number marked (guess) is a starting point for QA to tune with `npm run sim`.** Measured baseline (balanced bot, M10b): Orcs events at 29:31 (stage 3) then 36:06 (tent 2) = **6.6 min gap**, and 37:57 to 42:31 = 4.5 min; Orcs soldiers 2 / 5 / 6 at 15 / 30 / 40, boss 50:35 (+14 % vs Humans 44:31).
+
+### 18.1 Small-army race traits (R-05)
+
+**Problem.** Today `adaptable` (Humans) is only a label, and `horde` reaches its full +50 % at 10 in one group (`fullness = size / 10`), so it gives Orcs +5 to +25 % at 1 to 5 soldiers: race identity is invisible in the first hour (D-08).
+
+| Option | Pro | Con |
+|---|---|---|
+| A. Keep traits, tune thresholds only | Tiny change | Humans still have no real trait |
+| B. Data-driven traits with parameters, one felt trait per race at 1 to 5 soldiers (recommended) | Visible from minute 1, no new state, extensible to Dwarves and Elves | Small schema change in `RaceDef.traits` |
+| C. First-cycle bonuses per site and stage (R-05 example) | Flavourful | Needs per-stage state and a save migration |
+
+**Recommendation: B.** Change `traits: TraitId[]` to parameterised entries (guess at shape: `{ id: 'horde', perSoldier: 0.125, cap: 0.5 }`), resolved in `troopStats` as modifiers with a troop-size condition (same place as today's horde code). Pure and derived, so no state.
+
+- **Orcs, Hjordmod (`horde`, changed):** attack bonus = `min(0.5, 0.125 * (size - 1))` per troop. Full +50 % at **5** soldiers instead of 10; size 2 = +12.5 %, 3 = +25 %, 4 = +37.5 % (today +10 / +15 / +20 %). Splitting an Orc army costs attack, so grouping matters. Text: "Hjordmod: +12,5 % anfall per kamrat i truppen, max +50 % vid fem."
+- **Orcs, Plundrare (`raiders`):** unchanged (+50 % food and ore loot).
+- **Humans, Anpassningsbara (`adaptable`, changed from label to effect):** troops of **3 or fewer** soldiers get **+25 % food skill and +25 % construction skill** (guess; multiplies with the race skills 1.4 and 1.2). Text: "Anpassningsbara: små trupper bygger och samlar mat 25 % snabbare (tre eller färre)." Fits D-13 (food) and builders; affects the first 25 minutes the most, then fades as troops grow, so it never scales into late game. Deliberately not attack or mining so Humans' boss time barely moves.
+- Dwarves and Elves: out of scope (not playable). Same schema carries them later.
+
+**Balance effect (guess).** Orcs: troops of 5 hit +20 % harder than today's +25 %->+50 %, i.e. about 20 % more attack at 5 soldiers and about 8 to 12 % faster stage 3 to boss; boss 50:35 -> about 47 to 49 (ratio 1.08 to 1.12, partly cancelling the +18 to 22 % that food upkeep adds). Humans: food and building -25 % time while small; boss -0 to 1 min (44:31 stays inside 40 to 48). Soldier counts must not move (training is not touched).
+**QA.** Unit tests: horde bonus at sizes 1, 2, 3, 5, 10 (0, 12.5, 25, 50, 50 %); adaptable applies at size 3 and not at 4; no change for other races. Sim: D-50 soldiers (Humans 3 to 6 at 30 and 40 min, Orcs 1.0 to 1.6 x), Humans boss 40 to 48, Orcs boss ratio vs Humans in 0.95 to 1.25, boss window Orcs +-25 %. If Orcs boss falls below Humans x 0.95, lower cap to +40 %.
+
+### 18.2 Orcs' mid-game gap (minutes 15 to 45)
+
+**Problem.** Orcs have no event between stage 3 (29:31) and tent 2 (36:06), 6.6 min; and 37:57 to 42:31 (4.5 min) also breaks the 4 min guard. Humans pass at under 4 min because their later soldiers and rescue fall in these windows.
+
+| Option | Pro | Con |
+|---|---|---|
+| A. Race-specific tent/woodshed start | Directly targets Orcs | Race branches in content; does not add anything to do |
+| B. Two new generic "raid" objectives with resource rewards that pay for the next building (recommended) | Gives the player a goal and funds tent 2 earlier; no race branching; Humans just get extra events | Reward amounts need tuning |
+| C. A level step at 7 | Free | Cosmetic; no goal |
+
+**Recommendation: B**, using the existing `kills` condition and no new core code:
+1. `raid1` "Plundra gårdarna: besegra 60 fiender." (guess count; kills so far must land at about 30 to 32 min for Orcs). `requires: ['stage3']`. Reward `{ wood: 45, stone: 25 }` (exactly tent 2: it removes the reason tent 2 waits) plus the unlock stays on `tent2`.
+2. `raid2` "Hjordens byte: besegra 150 fiender." (guess). `requires: ['raid1']`. Reward `{ food: 40, ore: 6 }` and nothing permanent. Target time for Orcs about 38 to 41 min, filling the 37:57 to 42:31 hole.
+3. Make `tent2` also awaitable earlier: change its `requires` from `['twoTroops']` to `['train1']` (about 18:40 for Orcs), so it appears before the forge crowds the screen. Soldier 6 is limited by beds at 36:17 for Orcs today; the earlier tent can move soldier 6 earlier, so keep training cost unchanged and **check 40-min soldiers stay <= 6** (D-50; if 7, leave `requires` as is).
+
+**Expected effect (guess).** Orcs longest gap 15 to 45 min: 6.6 -> 3.0 to 3.8 min. Humans: +2 events, gap unchanged or smaller. Soldier targets and boss unchanged (rewards are small materials; sim effect on boss under 1 min).
+**QA.** Tighten the event-gap guard from 7 min to **4 min for Orcs** (balanced bot) and keep Humans at 4; add `raid1/raid2` to the objective-coverage check (done by the balanced bot by minute 50). Check kills curve for both races so thresholds fit; report the longest gap and which two events bound it. Run `balanced` and `economy`.
+
+### 18.3 Feast and rations (surplus sink, R-14)
+
+**Problem.** Food stock is often idle (Humans 77 at 30 min, 142 at 35); upkeep (D-55) turns food into a need, but surplus beyond it has no use. The owner wants a sink that is optional and never required.
+
+| Option | Pro | Con |
+|---|---|---|
+| A. Passive ration upgrade (-x % upkeep) | Simple | Permanent, not a choice |
+| B. Active "Fest" with timed buff and cooldown (recommended) | A visible, satisfying action; offline-safe if timed in state | Needs 2 state fields and a command |
+| C. Renown / cosmetic plots | Long-term | Larger scope, later |
+
+**Recommendation: B.**
+- **Unlock:** after `trainingCamp` is built (about 14 min); button "Fest" in the camp/overview.
+- **Cost:** `50 food + 15 wood` (guess). Optionally `+8 food per soldier` (guess) so it keeps scaling; v1: flat.
+- **Effect:** for **10 min** all troops get **+15 % work speed and +10 % attack** (guess); multiplies with hunger factors from §17 (a hungry army can still feast). Message: "Fest! Trupperna arbetar 15 % snabbare i 10 min."
+- **Cooldown:** 20 min from the start of the feast (about 50 % uptime at most). Cannot be stacked or extended.
+- **Value check (guess):** at 4 soldiers, 15 % x 10 min = 6 soldier-minutes for 50 food and 15 wood (about 7 min of one Human forager): break-even at ~4 soldiers, clearly positive at 8+. So it is a surplus sink, not an optimal early play.
+- **Offline:** the feast is a timed state, so its end is one more event in the O(events) loop (rates change at `feastUntil`). Offline equals online, matching D-36 and D-55's rule.
+- **Never mandatory:** the `balanced` bot does not use it; a new `feast` bot option uses it whenever it is ready and food > 100. D-50 targets are measured without feast.
+
+**Balance effect (guess).** With the feast bot: boss 3 to 6 % earlier (about 1.5 to 3 min), soldiers unchanged (training time is not boosted; food spent is small). Without feast: no change at all.
+**QA.** Tests: cost deducted once; cooldown blocks a second feast; effect factors exact at x1.15 work and x1.10 attack inside the window and 1.0 outside; one 8 h offline advance equals the same time online (state, stock, timers); save round-trip mid-feast. Sim: feast bot boss time between 3 % and 10 % faster than balanced; balanced results identical before and after (pins "optional").
+
+### 18.4 Save notes
+
+- **Items 18.1 and 18.2: no state.** Traits are derived; objectives are stored by id. New objectives `raid1`/`raid2` complete from `kills` already stored; old saves evaluate them on load and could fire at once. Migration marks them done **silently without rewards** if kills already exceed the thresholds (same rule as §16.5; no free resources to old saves). Changing `tent2.requires` only affects the order of display.
+- **Item 18.3: new state** `feast: { until: number, readyAt: number }` (clock seconds, 0 = none). `SAVE_VERSION` +1 (next free after §17; §17 itself needs no bump, so v8 -> v9) with a migration that adds `{ until: 0, readyAt: 0 }`, plus a migration test (old save loads, no feast active, same resources).
+- New command `startFeast` (pure; checks unlock, cost, `readyAt`). Offline catch-up must include `feastUntil` as a segment boundary.
+
+### 18.5 Expected combined sim effect (all guesses)
+
+| | Humans | Orcs |
+|---|---|---|
+| Longest gap 15 to 45 | <= 4 min (unchanged) | 6.6 -> 3.0 to 3.8 min |
+| Soldiers at 15 / 30 / 40 | 2 / 4 / 5 (unchanged) | 2 / 4 to 5 / 6 (unchanged) |
+| Boss (balanced, with §17) | 45 to 47 | 49 to 53 (ratio about 1.10 to 1.17) |
+| Boss (feast bot) | about 3 to 6 % earlier | about 3 to 6 % earlier |
+
+### 18.6 Open questions for the owner
+
+1. **Orc horde:** is full +50 % at five soldiers (instead of ten) right, even though it makes splitting an Orc army costly and the boss a few minutes faster?
+2. **Humans trait scope:** food and building only for troops of 3 or fewer (recommended, safe), or also a small work-speed bonus (stronger, may push the Humans boss toward the 40 min lower limit)?
+3. **Feast strength:** +15 % work and +10 % attack for 10 min, 20 min cooldown, 50 food + 15 wood. Milder, stronger, or should it scale its cost with army size?

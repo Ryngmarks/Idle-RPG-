@@ -7,7 +7,7 @@ import { xpForLevel } from './formulas';
 import { addSoldiers, applyEffects } from './mutations';
 import { evaluateObjectives } from './objectives';
 import { cloneState } from './state';
-import { computeRates, globalModifiers, stageSafety, troopLevel, troopStats, zone, type Rates } from './stats';
+import { computeRates, FOOD_EPS, globalModifiers, stageSafety, troopLevel, troopStats, zone, type Rates } from './stats';
 import { RESOURCES, type Content, type GameEvent, type GameState } from './types';
 
 const MAX_STEPS = 100_000;
@@ -49,6 +49,22 @@ function pendingEvents(state: GameState, rates: Rates, content: Content): Pendin
     }
   }
 
+  // Food: the stock drains continuously (loot minus upkeep) and hits 0 at an exact moment. A payout that
+  // lands in the same step keeps it above 0, so only snap values that are really empty.
+  const emptyFood = (s: GameState) => {
+    if (Math.abs(s.resources.food) < 1e-7) s.resources.food = 0;
+  };
+  if (state.resources.food > FOOD_EPS && rates.foodPerSec < 0) {
+    out.push({ t: state.resources.food / -rates.foodPerSec, snap: emptyFood });
+  } else if (state.resources.food <= FOOD_EPS && !rates.hungry && rates.upkeepPerSec > rates.resources.food) {
+    // Empty stock, upkeep covered by average income: the clamp ends at the next food payout, so stop there.
+    for (const [siteId, cycles] of Object.entries(rates.siteCycles)) {
+      if (cycles <= 0 || !(content.sites[siteId]?.yield.food)) continue;
+      const progress = state.siteProgress[siteId] ?? 0;
+      out.push({ t: (Math.floor(progress + 1e-9) + 1 - progress) / cycles, snap: () => {} });
+    }
+  }
+
   const order = state.crafting.queue[0];
   const recipe = order ? content.equipment.recipes[order.recipeId] : undefined;
   if (recipe && rates.craftWorkPerSec > 0) {
@@ -84,7 +100,7 @@ function pendingEvents(state: GameState, rates: Rates, content: Content): Pendin
 }
 
 function integrate(state: GameState, rates: Rates, dt: number, content: Content): void {
-  for (const r of RESOURCES) state.resources[r] += rates.resources[r] * dt;
+  for (const r of RESOURCES) state.resources[r] += (r === 'food' ? rates.foodPerSec : rates.resources[r]) * dt;
   // Work cycles: progress is kept per site and every whole cycle pays its reward at once.
   // The remainder carries over, so many small steps and one big step pay the same.
   for (const [siteId, cycles] of Object.entries(rates.siteCycles)) {
@@ -99,6 +115,8 @@ function integrate(state: GameState, rates: Rates, dt: number, content: Content)
       state.stats.gathered[r] += v * done;
     }
   }
+  // Hungry: the stock stays at 0, whatever arrives is eaten. Never negative.
+  if (rates.hungry || state.resources.food < 0) state.resources.food = 0;
   if (state.training) state.training.secLeft -= dt;
   const c = state.combat;
   if (c.boss) {
@@ -229,6 +247,8 @@ function processEvents(state: GameState, content: Content, levelsBefore: Map<str
 export interface AdvanceResult {
   state: GameState;
   events: GameEvent[];
+  /** Simulated seconds spent hungry (food at 0, income below upkeep). Not saved; for the away report. */
+  hungrySec: number;
 }
 
 /** Advance the game by `dt` simulated seconds. Pure: returns a new state. */
@@ -237,24 +257,35 @@ export function advance(input: GameState, dt: number, content: Content): Advance
   const events: GameEvent[] = [];
   let remaining = Math.max(0, dt);
   let steps = 0;
+  let hungrySec = 0;
 
   evaluateObjectives(state, content, events);
+  // Hunger is derived, never stored: events only fire on transitions seen while advancing.
+  let wasHungry = computeRates(state, content).hungry;
+  const noteHunger = (hungry: boolean) => {
+    if (hungry === wasHungry) return;
+    wasHungry = hungry;
+    events.push({ type: hungry ? 'foodEmpty' : 'foodRestored', at: state.clock });
+  };
   while (remaining > 1e-12) {
     if (++steps > MAX_STEPS) throw new Error('advance: too many steps (event loop did not converge)');
     const rates = computeRates(state, content);
+    noteHunger(rates.hungry);
     const pending = pendingEvents(state, rates, content);
     let step = remaining;
     for (const p of pending) step = Math.min(step, Math.max(0, p.t));
 
     const levelsBefore = new Map(state.troops.map((t) => [t.id, troopLevel(t, content)]));
     integrate(state, rates, step, content);
+    if (rates.hungry) hungrySec += step;
     for (const p of pending) if (p.t <= step + 1e-12) p.snap(state);
     remaining -= step;
 
     processEvents(state, content, levelsBefore, events);
     evaluateObjectives(state, content, events);
   }
-  return { state, events };
+  noteHunger(computeRates(state, content).hungry);
+  return { state, events, hungrySec };
 }
 
 /**
@@ -289,7 +320,7 @@ export function secureForOffline(input: GameState, content: Content): AdvanceRes
       }
     }
   }
-  return { state, events };
+  return { state, events, hungrySec: 0 };
 }
 
 /** Offline catch-up: secures the troops, clamps elapsed real time to [0, cap] and advances. */
@@ -297,5 +328,5 @@ export function catchUp(state: GameState, elapsedSec: number, offlineCapSec: num
   const simulatedSec = Math.min(Math.max(0, elapsedSec), offlineCapSec);
   const secured = secureForOffline(state, content);
   const r = advance(secured.state, simulatedSec, content);
-  return { state: r.state, events: [...secured.events, ...r.events], simulatedSec };
+  return { state: r.state, events: [...secured.events, ...r.events], hungrySec: r.hungrySec, simulatedSec };
 }

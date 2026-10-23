@@ -30,6 +30,9 @@ export function AwayReportModal({ report, state, onClose }: { report: AwayReport
         Du var borta i <strong>{fmtDuration(report.awaySec)}</strong>.
         {report.capped && <> Dina trupper arbetade de första <strong>{fmtDuration(report.simulatedSec)}</strong> (maxgränsen).</>}
       </p>
+      {report.hungrySec > 0 && (
+        <p className="small warn">🌾 Maten räckte inte i {fmtDuration(report.hungrySec)}. Trupperna arbetade långsammare, men ingen svalt.</p>
+      )}
       {gained.length > 0 || crafted > 0 ? (
         <ul className="report-list">
           {gained.map((r) => (

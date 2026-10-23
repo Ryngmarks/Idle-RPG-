@@ -40,7 +40,7 @@ function withForge(size = 20, raceId = 'humans'): GameState {
   s.troops[0]!.activity = 'smithing';
   // Most tests look at the armoury itself; auto-equip has its own tests.
   s.troops[0]!.autoEquip = false;
-  s.resources = { food: 0, wood: 10_000, stone: 0, ore: 10_000 };
+  s.resources = { food: 100_000, wood: 10_000, stone: 0, ore: 10_000 };
   return s;
 }
 

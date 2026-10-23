@@ -110,6 +110,7 @@ function processEvents(state: GameState, content: Content, levelsBefore: Map<str
     if (c.boss.hpLeft <= EPS) {
       c.boss = null;
       c.bossDefeated = true;
+      state.stats.bossDefeatedAt = state.clock;
       events.push({ type: 'bossDefeated', at: state.clock, zoneId: z.id });
     } else if (c.boss.timeLeft <= EPS) {
       c.boss = null;
@@ -140,6 +141,7 @@ function processEvents(state: GameState, content: Content, levelsBefore: Map<str
       t.size -= 1;
       t.wounds = Math.max(0, t.wounds - hp);
       trimEquipment(t);
+      state.stats.soldiersLost += 1;
       events.push({ type: 'soldierLost', at: state.clock, troopId: t.id });
       if (t.size <= Math.floor(t.engagedSize / 2) && t.activity === 'combat') {
         t.activity = null;
@@ -179,6 +181,7 @@ function processEvents(state: GameState, content: Content, levelsBefore: Map<str
     state.armoury[key] = (state.armoury[key] ?? 0) + 1;
     state.crafting.crafted[mk] = crafted + 1;
     state.stats.weaponsCrafted += 1;
+    state.stats.weaponsByQuality[pick.quality] += 1;
     state.crafting.progress = 0;
     events.push({ type: 'weaponCrafted', at: state.clock, recipeId: recipe.id, quality: pick.quality });
     const newLevel = masteryLevel(crafted + 1, content);

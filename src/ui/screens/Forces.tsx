@@ -16,7 +16,7 @@ import {
   type ResourceId,
   type TroopState,
 } from '../../core';
-import { ActivityScene } from '../art';
+import { TroopScene } from '../army';
 import { Bar, CostList, Panel } from '../components/common';
 import { fmtDuration, fmtRate } from '../format';
 import { useStore } from '../game';
@@ -98,7 +98,7 @@ function TroopCard({ troop, state, rates }: { troop: TroopState; state: GameStat
 
   return (
     <article className="troop">
-      <ActivityScene activity={troop.activity} />
+      <TroopScene race={state.raceId} size={troop.size} activity={troop.activity} />
       <header className="troop__head">
         {editing ? (
           <form

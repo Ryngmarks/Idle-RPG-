@@ -236,6 +236,61 @@ p { margin: 0.35rem 0; }
 .boss__art .portrait { border-color: #5a2a22; box-shadow: 0 0 24px rgba(168, 64, 47, 0.25); }
 .settlement-scene { display: block; width: 100%; height: auto; max-height: 160px; border-radius: 8px; border: 1px solid var(--line-soft); margin-bottom: 8px; }
 
+/* ------------------------------------------------------------ army, battlefield, stage path */
+.troop-scene { display: block; width: calc(100% + 24px); height: 96px; margin: -12px -12px 2px; border-radius: var(--radius) var(--radius) 0 0; border-bottom: 1px solid var(--line-soft); }
+.battlefield { display: block; width: 100%; height: auto; max-height: 190px; border-radius: 8px; border: 1px solid var(--line-soft); margin-bottom: 10px; }
+.fig { transform-box: fill-box; transform-origin: 50% 100%; }
+.fig .tool { transform-box: fill-box; transform-origin: 15% 90%; }
+.fig--idle { animation: breathe 3.2s ease-in-out infinite; }
+.fig--work { animation: bob 1.3s ease-in-out infinite; }
+.fig--work .tool { animation: swing 1.3s ease-in-out infinite; animation-delay: inherit; }
+.fig--fight { animation: lunge 0.9s ease-in-out infinite; }
+.fig--fight .tool { animation: strike 0.9s ease-in-out infinite; animation-delay: inherit; }
+.foe { transform-box: fill-box; transform-origin: 50% 100%; }
+.foe--hit { animation: foe-hit 0.4s ease-out; }
+.spark { animation: spark 0.5s ease-out forwards; transform-box: fill-box; transform-origin: center; }
+.float-num { animation: float-up 0.9s ease-out forwards; }
+
+@keyframes breathe { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(1.025); } }
+@keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-1.5px); } }
+@keyframes swing { 0%, 100% { transform: rotate(0); } 45% { transform: rotate(-35deg); } 60% { transform: rotate(18deg); } }
+@keyframes lunge { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(3px); } }
+@keyframes strike { 0%, 100% { transform: rotate(0); } 40% { transform: rotate(-40deg); } 55% { transform: rotate(30deg); } }
+@keyframes foe-hit { 0% { transform: translateX(0); filter: brightness(2); } 30% { transform: translateX(5px); } 60% { transform: translateX(-2px); } 100% { transform: none; filter: none; } }
+@keyframes spark { 0% { opacity: 1; transform: scale(0.4); } 100% { opacity: 0; transform: scale(1.4); } }
+@keyframes float-up { 0% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-18px); } }
+
+.path { list-style: none; margin: 0 0 10px; padding: 4px 0 0; display: flex; justify-content: space-between; position: relative; }
+.path::before { content: ""; position: absolute; left: 22px; right: 22px; top: 27px; height: 3px; background: repeating-linear-gradient(90deg, var(--line) 0 6px, transparent 6px 10px); }
+.path__step { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; z-index: 1; }
+.path__label { font-size: 0.7rem; color: var(--muted); letter-spacing: 0.06em; }
+.node { position: relative; width: 48px; height: 48px; border-radius: 50%; padding: 0; border: 0; background: none; cursor: pointer; display: grid; place-items: center; }
+.node:disabled { cursor: not-allowed; }
+.node__ring { position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(var(--gold-2) calc(var(--p, 0) * 1%), #2a241d 0); }
+.node__face { position: relative; width: 40px; height: 40px; border-radius: 50%; overflow: hidden; display: grid; place-items: center; background: #141116; font-size: 0.95rem; border: 2px solid var(--bg); }
+.node__face .portrait { border: 0; border-radius: 0; width: 40px; height: 40px; }
+.node--locked .node__face { filter: grayscale(1) brightness(0.45); }
+.node--locked .node__ring { background: #221d24; }
+.node--cleared .node__ring { background: linear-gradient(var(--ok), #3f4f2a); }
+.node--current { transform: scale(1.12); }
+.node--current .node__ring { box-shadow: 0 0 14px rgba(227, 192, 106, 0.55); }
+.node--deadly:not(.node--cleared) .node__ring { box-shadow: 0 0 10px rgba(168, 64, 47, 0.6); }
+.node__flag { position: absolute; top: -16px; left: 50%; transform: translateX(-50%); font-size: 0.95rem; animation: flag 1.6s ease-in-out infinite; }
+.node__badge { position: absolute; right: -2px; bottom: -2px; width: 16px; height: 16px; border-radius: 50%; background: var(--ok); color: #0f0d10; font-size: 0.65rem; font-weight: 800; display: grid; place-items: center; }
+.node__risk { position: absolute; right: -4px; top: -4px; font-size: 0.6rem; }
+.node--new { animation: unlock 1s ease-out 3; }
+.node--boss { width: 54px; height: 54px; }
+.node--boss .node__face { width: 50px; height: 50px; border-color: #5a2a22; }
+.node--boss .node__face .portrait { width: 50px; height: 50px; }
+@keyframes flag { 0%, 100% { transform: translate(-50%, 0); } 50% { transform: translate(-50%, -3px); } }
+@keyframes unlock { 0% { box-shadow: 0 0 0 0 rgba(227, 192, 106, 0.8); } 100% { box-shadow: 0 0 0 16px rgba(227, 192, 106, 0); } }
+
+/* Cards and toasts ease in instead of popping. */
+.troop, .plot, .panel { animation: rise 0.35s ease-out both; }
+.toast { animation: toast-in 0.3s ease-out both; }
+@keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes toast-in { from { opacity: 0; transform: translate(-50%, 10px); } to { opacity: 1; transform: translate(-50%, 0); } }
+
 @keyframes hit { 0% { transform: translateX(0); filter: brightness(1.8); } 30% { transform: translateX(-4px); } 60% { transform: translateX(3px); } 100% { transform: none; filter: none; } }
 @keyframes sway { 0%, 100% { transform: rotate(-2deg); } 50% { transform: rotate(2deg); } }
 @keyframes flicker { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(0.85, 1.1); opacity: 0.8; } }
@@ -247,7 +302,9 @@ p { margin: 0.35rem 0; }
 .chop { animation: chop 1.4s ease-in-out infinite; }
 .sway, .flicker, .chop { transform-box: view-box; }
 @media (prefers-reduced-motion: reduce) {
-  .sway, .flicker, .smoke, .chop, .portrait-wrap--hit { animation: none; }
+  .sway, .flicker, .smoke, .chop, .portrait-wrap--hit,
+  .fig, .fig .tool, .foe--hit, .spark, .float-num, .node__flag, .node--new,
+  .troop, .plot, .panel, .toast { animation: none !important; }
 }
 
 /* ------------------------------------------------------------ larger screens */

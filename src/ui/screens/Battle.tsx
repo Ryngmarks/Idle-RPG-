@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { content } from '../../content';
 import { currentEnemy, enemy, estimatedBossDamage, stageSafety, troopStats, zone, type GameState, type Rates, type StageSafety } from '../../core';
 import { EnemyPortrait } from '../art';
+import { Battlefield } from '../army';
 import { Bar, Panel } from '../components/common';
 import { fmtDuration, fmtInt, fmtRate } from '../format';
 import { useStore } from '../game';
@@ -40,30 +41,65 @@ export function Battle({ state, rates }: { state: GameState; rates: Rates }) {
   const here = safetyAt(c.stageIndex);
   const select = (i: number) => setError(store.command({ type: 'selectStage', stageIndex: i }));
 
+  // Celebrate a newly opened stage for a few seconds.
+  const [justOpened, setJustOpened] = useState<number | null>(null);
+  const prevUnlocked = useRef(c.unlockedStage);
+  useEffect(() => {
+    if (c.unlockedStage > prevUnlocked.current) {
+      setJustOpened(c.unlockedStage);
+      const id = setTimeout(() => setJustOpened(null), 3000);
+      prevUnlocked.current = c.unlockedStage;
+      return () => clearTimeout(id);
+    }
+    prevUnlocked.current = c.unlockedStage;
+  }, [c.unlockedStage]);
+
   return (
     <div className="screen">
-      <Panel title={z.name} aside={<span className="muted small">Du strider på steg {c.stageIndex + 1} / {z.stages.length}</span>}>
-        <div className="stages" role="group" aria-label="Välj steg">
+      <Panel title={z.name} aside={<span className="muted small">Steg {c.stageIndex + 1} av {z.stages.length}</span>}>
+        <Battlefield
+          race={state.raceId}
+          size={fighters.reduce((n, t) => n + t.size, 0)}
+          enemyId={c.boss ? boss.id : foe.id}
+          hitKey={Math.floor(state.stats.totalKills)}
+          fighting={fighters.length > 0}
+          boss={!!c.boss}
+        />
+        <ol className="path" aria-label="Välj steg">
           {z.stages.map((s, i) => {
             const open = i <= c.unlockedStage;
             const cleared = c.cleared || i < c.unlockedStage;
+            const frontier = !c.cleared && i === c.unlockedStage;
             const risk = open ? safetyAt(i).risk : null;
+            const progress = frontier ? Math.min(100, (c.kills / s.killsToClear) * 100) : cleared ? 100 : 0;
             return (
-              <button
-                key={i}
-                className={`stage ${cleared ? 'stage--done' : ''} ${i === c.stageIndex ? 'stage--now' : ''}`}
-                disabled={!open || !!c.boss}
-                aria-pressed={i === c.stageIndex}
-                title={`${content.enemies[s.enemyId]?.name ?? ''}${open ? '' : ' (låst)'}`}
-                onClick={() => select(i)}
-              >
-                <span>{open ? i + 1 : '🔒'}</span>
-                {risk && <span className="stage__risk" aria-label={risk}>{RISK_ICON[risk]}</span>}
-              </button>
+              <li key={i} className="path__step">
+                <button
+                  className={`node ${open ? '' : 'node--locked'} ${cleared ? 'node--cleared' : ''} ${i === c.stageIndex ? 'node--current' : ''} ${i === justOpened ? 'node--new' : ''} ${risk ? `node--${risk}` : ''}`}
+                  style={{ '--p': progress } as CSSProperties}
+                  disabled={!open || !!c.boss}
+                  aria-pressed={i === c.stageIndex}
+                  aria-label={`Steg ${i + 1}: ${content.enemies[s.enemyId]?.name ?? ''}${open ? '' : ' (låst)'}`}
+                  onClick={() => select(i)}
+                >
+                  <span className="node__ring" />
+                  <span className="node__face">{open ? <EnemyPortrait enemyId={s.enemyId} size={40} /> : '🔒'}</span>
+                  {i === c.stageIndex && <span className="node__flag" aria-hidden>🚩</span>}
+                  {cleared && <span className="node__badge" aria-hidden>✓</span>}
+                  {risk && !cleared && <span className="node__risk" aria-hidden>{RISK_ICON[risk]}</span>}
+                </button>
+                <span className="path__label">{i + 1}</span>
+              </li>
             );
           })}
-          <span className={`stage stage--boss ${c.bossDefeated ? 'stage--done' : ''}`} title={boss.name}>👑</span>
-        </div>
+          <li className="path__step">
+            <span className={`node node--boss ${c.cleared ? '' : 'node--locked'} ${c.bossDefeated ? 'node--cleared' : ''}`} aria-label={boss.name}>
+              <span className="node__face">{c.cleared ? <EnemyPortrait enemyId={boss.id} size={46} /> : '👑'}</span>
+              {c.bossDefeated && <span className="node__badge" aria-hidden>✓</span>}
+            </span>
+            <span className="path__label">Boss</span>
+          </li>
+        </ol>
         {onFrontier ? (
           <div className="stage-progress">
             <span className="small">Besegra {stage.killsToClear} för att öppna nästa steg: {fmtInt(Math.floor(c.kills))} / {stage.killsToClear}</span>
@@ -83,9 +119,6 @@ export function Battle({ state, rates }: { state: GameState; rates: Rates }) {
 
       <Panel title="Fiende" className="enemy">
         <div className="enemy__row">
-          <div key={showHp ? Math.floor(state.stats.totalKills) : 'steady'} className={showHp ? 'portrait-wrap portrait-wrap--hit' : 'portrait-wrap'}>
-            <EnemyPortrait enemyId={foe.id} />
-          </div>
           <div className="enemy__info">
             <h3 className="enemy__name">{foe.name}</h3>
             <p className="muted small">

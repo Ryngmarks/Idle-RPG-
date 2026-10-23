@@ -79,7 +79,7 @@ function Boar({ body, tusk, eye, bristle, scale = 1, scars = false, crown = fals
   );
 }
 
-const ENEMY_ART: Record<string, () => ReactElement> = {
+export const ENEMY_ART: Record<string, () => ReactElement> = {
   wildChicken: () => <Bird body="#e9dcc0" tail="#b98a4e" comb="#c8392b" />,
   angryRooster: () => <Bird body="#b4562d" tail="#1f3b33" comb="#e0402e" big />,
   ratSwarm: () => (
@@ -168,7 +168,7 @@ function Pine({ x, h, c = '#1e3a2a' }: { x: number; h: number; c?: string }) {
   return <path className="sway" d={`M${x} ${60 - h} L${x + h * 0.35} 60 H${x - h * 0.35} Z`} fill={c} style={{ transformOrigin: `${x}px 60px` }} />;
 }
 
-const SCENES: Record<ActivityKind | 'idle', { sky: [string, string]; art: ReactElement }> = {
+export const SCENES: Record<ActivityKind | 'idle', { sky: [string, string]; art: ReactElement }> = {
   idle: {
     sky: ['#1a1422', '#2b1d18'],
     art: (

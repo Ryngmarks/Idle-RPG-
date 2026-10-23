@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { content } from '../../content';
-import { currentEnemy, enemy, estimatedBossDamage, nextBoss, normalizeBuckets, secondsPerKill, stageSafety, troopStats, zone, type GameEvent, type GameState, type Rates, type StageSafety } from '../../core';
+import { currentEnemy, enemy, estimatedBossDamage, nextBoss, secondsPerKill, stageSafety, troopStats, zone, type GameEvent, type GameState, type Rates, type StageSafety } from '../../core';
 import { EnemyPortrait } from '../art';
 import { Icon } from '../art/icons';
-import { Battlefield } from '../army';
+import { buildFieldSnap, LivingBattlefield } from '../battlefield';
 import { Bar, Chip, Panel, ResAmount } from '../components/common';
 import { fmtDuration, fmtInt, fmtRate } from '../format';
 import { useStore } from '../game';
@@ -138,8 +138,11 @@ export function Battle({ state, rates, log }: { state: GameState; rates: Rates; 
   const soldiers = fighters.reduce((n, t) => n + t.size, 0);
   const badge = <span className="badge boss__badge">Boss {fightIdx + 1} / {z.bosses.length}</span>;
 
+  const fieldSnap = useMemo(() => buildFieldSnap(state, rates), [state, rates]);
+
   return (
     <div className="screen">
+      <LivingBattlefield snap={fieldSnap} />
       <Panel hero icon="swords" title={z.name} aside={<span className="battle-head"><RiskBadge risk={here.risk} /></span>}>
         <div className="zone-progress">
           <div className="zone-progress__row">
@@ -180,17 +183,6 @@ export function Battle({ state, rates, log }: { state: GameState; rates: Rates; 
       )}
 
       <Panel className="enemy enemy-card" title={c.boss ? boss.name : foe.name} aside={<span className="small muted stat"><Icon name="shield" size={16} /> Rustning {c.boss ? boss.armour : foe.armour}</span>}>
-        <Battlefield
-          race={state.raceId}
-          size={soldiers}
-          enemyId={c.boss ? boss.id : foe.id}
-          hitKey={Math.floor(state.stats.totalKills)}
-          strikeSec={rates.killsPerSec > 0 ? Math.max(0.5, Math.min(1.4, 1 / rates.killsPerSec)) : undefined}
-          dmg={rates.killsPerSec < 1 ? `-${fmtRate(c.boss ? rates.bossDps : totalDps)}/s` : undefined}
-          fighting={fighters.length > 0}
-          boss={!!c.boss}
-          equipment={normalizeBuckets(fighters.flatMap((t) => t.equipment), content)}
-        />
         {!c.boss && (showHp ? (
           <Bar value={foeHp} max={foe.hp} tone="blood" label="Fiendens HP" inside={`HP ${fmtInt(foeHp)} / ${foe.hp}`} />
         ) : (

@@ -876,3 +876,10 @@ body {
 .resource { grid-template-rows: auto auto; row-gap: 0; }
 .boss__need { margin-bottom: 6px; }
 .boss .bar { margin-bottom: 10px; }
+
+/* Living battlefield (canvas hero of the Battle tab) */
+.living-bf {
+  display: block; width: 100%; height: clamp(220px, 64vw, 280px);
+  border-radius: var(--radius); border: 1px solid var(--line);
+  background: #120e12; box-shadow: 0 6px 22px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(227, 192, 106, 0.06);
+}

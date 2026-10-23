@@ -2,6 +2,7 @@
 // Rates are constant between events, so a long Δt costs one step per event, not per second.
 // See docs/ARCHITECTURE.md §4.
 
+import { itemKey, masteryKey, masteryLevel, pickQuality, qualityChances, trimEquipment } from './equipment';
 import { xpForLevel } from './formulas';
 import { applyEffects } from './mutations';
 import { evaluateObjectives } from './objectives';
@@ -48,6 +49,13 @@ function pendingEvents(state: GameState, rates: Rates, content: Content): Pendin
     }
   }
 
+  const order = state.crafting.queue[0];
+  const recipe = order ? content.equipment.recipes[order.recipeId] : undefined;
+  if (recipe && rates.craftWorkPerSec > 0) {
+    const work = recipe.workPerItem;
+    out.push({ t: (work - state.crafting.progress) / rates.craftWorkPerSec, snap: (s) => (s.crafting.progress = work) });
+  }
+
   if (state.construction && rates.constructionWorkPerSec > 0) {
     const proj = state.construction;
     const work = content.buildings[proj.buildingId]?.levels[proj.level - 1]?.work ?? 0;
@@ -88,6 +96,7 @@ function integrate(state: GameState, rates: Rates, dt: number): void {
   }
   for (const t of state.troops) t.wounds = Math.max(0, t.wounds + (rates.woundsPerSec[t.id] ?? 0) * dt);
   if (state.construction) state.construction.progress += rates.constructionWorkPerSec * dt;
+  state.crafting.progress += rates.craftWorkPerSec * dt;
   for (const t of state.troops) t.xp += (rates.xpPerSec[t.id] ?? 0) * dt;
   state.clock += dt;
 }
@@ -130,6 +139,7 @@ function processEvents(state: GameState, content: Content, levelsBefore: Map<str
     if (t.size > 1) {
       t.size -= 1;
       t.wounds = Math.max(0, t.wounds - hp);
+      trimEquipment(t);
       events.push({ type: 'soldierLost', at: state.clock, troopId: t.id });
       if (t.size <= Math.floor(t.engagedSize / 2) && t.activity === 'combat') {
         t.activity = null;
@@ -153,6 +163,30 @@ function processEvents(state: GameState, content: Content, levelsBefore: Map<str
       state.construction = null;
       events.push({ type: 'constructionCompleted', at: state.clock, buildingId: def.id, level: proj.level });
       applyEffects(state, content, level.effects, events);
+    }
+  }
+
+  // Forge: one finished weapon goes to the armoury; its quality follows the smith's mastery.
+  const order = state.crafting.queue[0];
+  const recipe = order ? content.equipment.recipes[order.recipeId] : undefined;
+  if (order && recipe && state.crafting.progress >= recipe.workPerItem - EPS) {
+    const mk = masteryKey(recipe.weaponTypeId, recipe.tier);
+    const crafted = state.crafting.crafted[mk] ?? 0;
+    const level = masteryLevel(crafted, content);
+    const pick = pickQuality(state.crafting.carry[mk] ?? [], qualityChances(level, content));
+    state.crafting.carry[mk] = pick.carry;
+    const key = itemKey(recipe.weaponTypeId, recipe.tier, pick.quality);
+    state.armoury[key] = (state.armoury[key] ?? 0) + 1;
+    state.crafting.crafted[mk] = crafted + 1;
+    state.stats.weaponsCrafted += 1;
+    state.crafting.progress = 0;
+    events.push({ type: 'weaponCrafted', at: state.clock, recipeId: recipe.id, quality: pick.quality });
+    const newLevel = masteryLevel(crafted + 1, content);
+    if (newLevel > level) events.push({ type: 'masteryLevelUp', at: state.clock, weaponTypeId: recipe.weaponTypeId, tier: recipe.tier, level: newLevel });
+    order.remaining -= 1;
+    if (order.remaining <= 0) {
+      state.crafting.queue.shift();
+      events.push({ type: 'craftOrderCompleted', at: state.clock, recipeId: recipe.id });
     }
   }
 

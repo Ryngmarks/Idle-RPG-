@@ -5,7 +5,6 @@ import {
   activeObjectives,
   canAfford,
   currentCap,
-  gearUpgradeCost,
   maxRecruitable,
   recruitCost,
   troopStats,
@@ -18,6 +17,7 @@ import {
 } from '../../core';
 import { TroopScene } from '../army';
 import { Bar, CostList, Panel } from '../components/common';
+import { EquipmentBar } from '../components/equipment';
 import { fmtDuration, fmtRate } from '../format';
 import { useStore } from '../game';
 import { ACTIVITY_LABEL, RESOURCE_LABEL, objectiveProgress } from '../labels';
@@ -89,8 +89,10 @@ function TroopCard({ troop, state, rates }: { troop: TroopState; state: GameStat
   const canRecruit = state.unlocks.includes('recruit');
   const room = cap - troop.size;
   const maxN = maxRecruitable(state, troop.id, content);
-  const gearCost = gearUpgradeCost(state, troop.id, content);
-  const gearUnlocked = gearCost !== null && state.unlocks.includes(`gear:${troop.gearTier + 1}`);
+  const inArmoury = Object.entries(state.armoury)
+    .filter(([k]) => k.startsWith(`${troop.weaponTypeId}:`))
+    .reduce((n, [, v]) => n + v, 0);
+  const showEquipment = state.unlocks.includes('crafting') || troop.equipment.length > 0;
 
   const run = (fn: () => string | null) => setError(fn());
   const assign = (activity: ActivityKind) => run(() => store.command({ type: 'assignTroop', troopId: troop.id, activity }));
@@ -98,7 +100,7 @@ function TroopCard({ troop, state, rates }: { troop: TroopState; state: GameStat
 
   return (
     <article className="troop">
-      <TroopScene race={state.raceId} size={troop.size} activity={troop.activity} />
+      <TroopScene race={state.raceId} size={troop.size} activity={troop.activity} equipment={troop.equipment} />
       <header className="troop__head">
         {editing ? (
           <form
@@ -180,15 +182,20 @@ function TroopCard({ troop, state, rates }: { troop: TroopState; state: GameStat
         </div>
       )}
 
-      {gearUnlocked && gearCost && (
+      {showEquipment && (
         <div className="recruit">
           <span className="recruit__label">Utrustning</span>
-          <button className="btn btn--small" disabled={!canAfford(state, gearCost)} onClick={() => run(() => store.command({ type: 'upgradeGear', troopId: troop.id }))}>
-            Järnvapen åt alla <CostList cost={gearCost} state={state} />
-          </button>
+          <EquipmentBar troop={troop} />
+          <div className="recruit__buttons">
+            <button className="btn btn--small" disabled={inArmoury === 0} onClick={() => run(() => store.command({ type: 'equipTroop', troopId: troop.id }))}>
+              Utrusta bästa från förrådet ({inArmoury})
+            </button>
+            <button className="btn btn--small" disabled={troop.equipment.length === 0} onClick={() => run(() => store.command({ type: 'unequipTroop', troopId: troop.id }))}>
+              Lägg i förrådet
+            </button>
+          </div>
         </div>
       )}
-      {troop.gearTier > 0 && <p className="muted small">⚒️ Utrustad med järnvapen</p>}
       {error && <p className="error" role="alert">{error}</p>}
     </article>
   );

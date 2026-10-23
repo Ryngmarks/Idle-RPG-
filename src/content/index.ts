@@ -1,6 +1,6 @@
 import type { Content } from '../core/types';
 import { races } from './races';
-import { buildings, enemies, gearTiers, objectives, upgrades, zones } from './world';
+import { buildings, enemies, equipment, objectives, upgrades, zones } from './world';
 
 export const content: Content = {
   races,
@@ -8,7 +8,7 @@ export const content: Content = {
   zones,
   buildings,
   upgrades,
-  gearTiers,
+  equipment,
   objectives,
   constants: {
     recruitExponent: 1.2,

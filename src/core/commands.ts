@@ -1,7 +1,8 @@
 // Player actions. Every state change made by the player goes through dispatch().
 // See docs/ARCHITECTURE.md §6.
 
-import { canAfford, hasUnlock, pay } from './mutations';
+import { equipBest, unequipAll } from './equipment';
+import { canAfford, gain, hasUnlock, pay } from './mutations';
 import { evaluateObjectives } from './objectives';
 import { cloneState } from './state';
 import { recruitFoodCost, resolveStat, soldierFoodCost } from './formulas';
@@ -11,7 +12,10 @@ import type { ActivityKind, Content, Cost, GameEvent, GameState } from './types'
 export type Command =
   | { type: 'assignTroop'; troopId: string; activity: ActivityKind | null }
   | { type: 'recruit'; troopId: string; count: number }
-  | { type: 'upgradeGear'; troopId: string }
+  | { type: 'queueCraft'; recipeId: string; count: number }
+  | { type: 'cancelCraft'; index: number }
+  | { type: 'equipTroop'; troopId: string }
+  | { type: 'unequipTroop'; troopId: string }
   | { type: 'startConstruction'; buildingId: string }
   | { type: 'buyUpgrade'; upgradeId: string }
   | { type: 'challengeBoss' }
@@ -29,10 +33,7 @@ export function recruitCost(state: GameState, troopId: string, count: number, co
   const r = race(state, content);
   const base = resolveStat(r.population.foodPerSoldier, 'foodPerSoldier', globalModifiers(state, content));
   const food = recruitFoodCost(base, troop?.size ?? 0, count, r.population.recruitScaleSize, content.constants.recruitExponent);
-  const ore = content.gearTiers[troop?.gearTier ?? 0]?.orePerSoldier ?? 0;
-  const cost: Cost = { food };
-  if (ore > 0) cost.ore = count * ore;
-  return cost;
+  return { food };
 }
 
 /** Largest number of soldiers the player can recruit into a troop right now. */
@@ -42,22 +43,44 @@ export function maxRecruitable(state: GameState, troopId: string, content: Conte
   const room = Math.max(0, currentCap(state, content) - troop.size);
   const r = race(state, content);
   const base = resolveStat(r.population.foodPerSoldier, 'foodPerSoldier', globalModifiers(state, content));
-  const orePer = content.gearTiers[troop.gearTier]?.orePerSoldier ?? 0;
   let n = 0;
   let food = 0;
   while (n < room) {
     food += soldierFoodCost(base, troop.size + n, r.population.recruitScaleSize, content.constants.recruitExponent);
-    if (food > state.resources.food + 1e-9 || (n + 1) * orePer > state.resources.ore + 1e-9) break;
+    if (food > state.resources.food + 1e-9) break;
     n++;
   }
   return n;
 }
 
-export function gearUpgradeCost(state: GameState, troopId: string, content: Content): Cost | null {
-  const troop = state.troops.find((t) => t.id === troopId);
-  const next = troop ? content.gearTiers[troop.gearTier + 1] : undefined;
-  if (!troop || !next) return null;
-  return { ore: troop.size * next.orePerSoldier };
+/** Materials for `count` weapons of a recipe. */
+export function craftCost(recipeId: string, count: number, content: Content): Cost {
+  const recipe = content.equipment.recipes[recipeId];
+  const cost: Cost = {};
+  for (const [res, v] of Object.entries(recipe?.materials ?? {}) as [keyof Cost, number][]) cost[res] = v * count;
+  return cost;
+}
+
+/** Most weapons of a recipe the player can afford right now. */
+export function maxCraftable(state: GameState, recipeId: string, content: Content): number {
+  const recipe = content.equipment.recipes[recipeId];
+  if (!recipe) return 0;
+  let n = Infinity;
+  for (const [res, v] of Object.entries(recipe.materials) as [keyof Cost, number][]) {
+    if (v > 0) n = Math.min(n, Math.floor(state.resources[res] / v + 1e-9));
+  }
+  return Number.isFinite(n) ? n : 0;
+}
+
+/** A recipe can be crafted once crafting is unlocked and its tier is open (only T1 for now). */
+export function recipeAvailable(state: GameState, recipeId: string, content: Content): boolean {
+  const recipe = content.equipment.recipes[recipeId];
+  return (
+    !!recipe &&
+    recipe.weaponTypeId === race(state, content).weaponTypeId &&
+    hasUnlock(state, 'crafting') &&
+    hasUnlock(state, `tier:${recipe.tier}`)
+  );
 }
 
 export function dispatch(input: GameState, cmd: Command, content: Content): CommandResult {
@@ -87,15 +110,35 @@ export function dispatch(input: GameState, cmd: Command, content: Content): Comm
       state.stats.recruited += cmd.count;
       break;
     }
-    case 'upgradeGear': {
+    case 'queueCraft': {
+      if (!recipeAvailable(state, cmd.recipeId, content)) return fail('Recipe is locked');
+      if (!Number.isInteger(cmd.count) || cmd.count <= 0) return fail('Count must be a positive integer');
+      const cost = craftCost(cmd.recipeId, cmd.count, content);
+      if (!canAfford(state, cost)) return fail('Not enough materials');
+      pay(state, cost);
+      const last = state.crafting.queue[state.crafting.queue.length - 1];
+      if (last && last.recipeId === cmd.recipeId) last.remaining += cmd.count;
+      else state.crafting.queue.push({ recipeId: cmd.recipeId, remaining: cmd.count });
+      break;
+    }
+    case 'cancelCraft': {
+      const order = state.crafting.queue[cmd.index];
+      if (!order) return fail('No such order');
+      gain(state, craftCost(order.recipeId, order.remaining, content));
+      state.crafting.queue.splice(cmd.index, 1);
+      if (cmd.index === 0) state.crafting.progress = 0;
+      break;
+    }
+    case 'equipTroop': {
       const troop = state.troops.find((t) => t.id === cmd.troopId);
       if (!troop) return fail('Unknown troop');
-      const cost = gearUpgradeCost(state, troop.id, content);
-      if (!cost) return fail('No higher gear tier');
-      if (!hasUnlock(state, `gear:${troop.gearTier + 1}`)) return fail('Gear tier is locked');
-      if (!canAfford(state, cost)) return fail('Not enough ore');
-      pay(state, cost);
-      troop.gearTier++;
+      equipBest(troop, state.armoury, content);
+      break;
+    }
+    case 'unequipTroop': {
+      const troop = state.troops.find((t) => t.id === cmd.troopId);
+      if (!troop) return fail('Unknown troop');
+      unequipAll(troop, state.armoury);
       break;
     }
     case 'startConstruction': {

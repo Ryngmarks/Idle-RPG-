@@ -48,7 +48,7 @@ function BuildingPlot({ def, state, rates }: { def: BuildingDef; state: GameStat
       ) : next ? (
         <>
           <ul className="plot__effects">
-            {next.effects.map((e, i) => <li key={i}>{effectText(e, capFor)}</li>)}
+            {next.effects.map((e) => effectText(e, capFor)).filter(Boolean).map((t, i) => <li key={i}>{t}</li>)}
           </ul>
           <p className="small">
             Kostnad: <CostList cost={next.cost} state={state} /> · {fmtInt(next.work)} arbete

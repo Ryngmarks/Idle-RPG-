@@ -2,8 +2,9 @@
 // troop's real size, the pose follows its real activity.
 
 import type { ReactElement } from 'react';
-import type { ActivityKind } from '../core';
+import type { ActivityKind, EquipmentBucket } from '../core';
 import { ENEMY_ART, SCENES } from './art';
+import { QUALITY_COLOR } from './labels';
 
 type Pose = 'idle' | 'work' | 'fight';
 type Tool = 'weapon' | 'axe' | 'pick' | 'sickle' | 'hammer';
@@ -19,7 +20,8 @@ const TOOL_FOR: Record<ActivityKind, Tool> = {
 const WOOD = '#8a6a44';
 const STEEL = '#c9ccd4';
 
-function ToolArt({ tool, race }: { tool: Tool; race: string }): ReactElement {
+/** `edge` is the weapon's quality colour, or null for an unarmed soldier (a wooden club). */
+function ToolArt({ tool, race, edge }: { tool: Tool; race: string; edge: string | null }): ReactElement {
   switch (tool) {
     case 'axe':
       return (
@@ -50,22 +52,27 @@ function ToolArt({ tool, race }: { tool: Tool; race: string }): ReactElement {
         </g>
       );
     case 'weapon':
+      if (!edge) {
+        return <path d="M5 -10 L9 -27" stroke="#6a4a2a" strokeWidth="3" strokeLinecap="round" />;
+      }
       return race === 'orcs' ? (
         <g>
           <path d="M5 -8 L8 -26" stroke={WOOD} strokeWidth="1.8" strokeLinecap="round" />
-          <path d="M7 -27 q8 0 8 7 q-5 1 -8 -1 Z" fill="#a8a29a" stroke="#5a544c" strokeWidth="0.6" />
+          <path d="M7 -27 q8 0 8 7 q-5 1 -8 -1 Z" fill="#a8a29a" stroke={edge} strokeWidth="1.2" />
         </g>
       ) : (
         <g>
-          <path d="M6 -4 L6 -40" stroke={WOOD} strokeWidth="1.4" strokeLinecap="round" />
-          <path d="M6 -45 L8 -39 L4 -39 Z" fill={STEEL} />
+          <path d="M6 -14 L6 -36" stroke={STEEL} strokeWidth="2" strokeLinecap="round" />
+          <path d="M6 -36 L6 -38" stroke={edge} strokeWidth="2" strokeLinecap="round" />
+          <path d="M3 -14 H9" stroke={edge} strokeWidth="1.6" strokeLinecap="round" />
+          <path d="M6 -14 V-10" stroke={WOOD} strokeWidth="1.6" strokeLinecap="round" />
         </g>
       );
   }
 }
 
 /** One soldier, feet at (0,0), about 36 units tall, facing right. */
-export function Soldier({ race, tool }: { race: string; tool: Tool }) {
+export function Soldier({ race, tool, edge = '#b8b2a6' }: { race: string; tool: Tool; edge?: string | null }) {
   const orc = race === 'orcs';
   return orc ? (
     <g>
@@ -79,7 +86,7 @@ export function Soldier({ race, tool }: { race: string; tool: Tool }) {
       <path d="M3 -27.5 l1 -2 M5.5 -27.5 l0.5 -2" stroke="#efe4c8" strokeWidth="1" strokeLinecap="round" />
       <g className="tool">
         <path d="M8 -24 q0 6 -2 10" stroke="#6f8a3a" strokeWidth="3.5" strokeLinecap="round" fill="none" />
-        <ToolArt tool={tool} race={race} />
+        <ToolArt tool={tool} race={race} edge={edge} />
       </g>
     </g>
   ) : (
@@ -93,7 +100,7 @@ export function Soldier({ race, tool }: { race: string; tool: Tool }) {
       <circle cx="-6" cy="-17" r="5" fill="#22344a" stroke="#c9a24a" strokeWidth="1.1" />
       <circle cx="-6" cy="-17" r="1.2" fill="#c9a24a" />
       <g className="tool">
-        <ToolArt tool={tool} race={race} />
+        <ToolArt tool={tool} race={race} edge={edge} />
       </g>
     </g>
   );
@@ -127,9 +134,20 @@ function formation(count: number, cx: number, baseline: number, width: number): 
 
 const MAX_DRAWN = 36;
 
+/** Quality colour (or null = unarmed) for figure i of `drawn`, sampled proportionally from the troop. */
+function edgeFor(i: number, drawn: number, size: number, equipment: EquipmentBucket[]): string | null {
+  const soldier = Math.floor(((i + 0.5) * size) / drawn);
+  let seen = 0;
+  for (const b of equipment) {
+    seen += b.count;
+    if (soldier < seen) return QUALITY_COLOR[b.quality];
+  }
+  return null;
+}
+
 export function ArmyFigures({
-  race, size, activity, cx, baseline, width, flip = false,
-}: { race: string; size: number; activity: ActivityKind | null; cx: number; baseline: number; width: number; flip?: boolean }) {
+  race, size, activity, cx, baseline, width, flip = false, equipment = [],
+}: { race: string; size: number; activity: ActivityKind | null; cx: number; baseline: number; width: number; flip?: boolean; equipment?: EquipmentBucket[] }) {
   const drawn = Math.min(size, MAX_DRAWN);
   const pose: Pose = activity === 'combat' ? 'fight' : activity ? 'work' : 'idle';
   const tool: Tool = activity ? TOOL_FOR[activity] : 'weapon';
@@ -147,7 +165,7 @@ export function ArmyFigures({
       {placed.map((p) => (
         <g key={p.i} transform={`translate(${p.x} ${p.y}) scale(${flip ? -p.s : p.s} ${p.s})`} opacity={1 - (front - p.y) / 60}>
           <g className={`fig fig--${pose}`} style={{ animationDelay: `${(p.i * 137) % 900}ms` }}>
-            <Soldier race={race} tool={tool} />
+            <Soldier race={race} tool={tool} edge={edgeFor(p.i, drawn, size, equipment)} />
           </g>
         </g>
       ))}
@@ -156,7 +174,7 @@ export function ArmyFigures({
 }
 
 /** The troop card banner: the activity's scene with the troop's soldiers in front of it. */
-export function TroopScene({ race, size, activity }: { race: string; size: number; activity: ActivityKind | null }) {
+export function TroopScene({ race, size, activity, equipment }: { race: string; size: number; activity: ActivityKind | null; equipment: EquipmentBucket[] }) {
   const scene = SCENES[activity ?? 'idle'];
   const id = `tsky-${activity ?? 'idle'}`;
   return (
@@ -170,7 +188,7 @@ export function TroopScene({ race, size, activity }: { race: string; size: numbe
       <rect width="320" height="96" fill={`url(#${id})`} />
       <g transform="translate(0 30)" opacity="0.75">{scene.art}</g>
       <rect y="86" width="320" height="10" fill="#1a130f" />
-      <ArmyFigures race={race} size={size} activity={activity} cx={170} baseline={92} width={220} />
+      <ArmyFigures race={race} size={size} activity={activity} cx={170} baseline={92} width={220} equipment={equipment} />
       {size > MAX_DRAWN && (
         <g>
           <rect x="262" y="6" width="52" height="18" rx="9" fill="#120e12" stroke="#c9a24a" strokeWidth="1" />
@@ -183,8 +201,8 @@ export function TroopScene({ race, size, activity }: { race: string; size: numbe
 
 /** The battle: your fighting soldiers on the left, the current enemy on the right. */
 export function Battlefield({
-  race, size, enemyId, hitKey, fighting, boss,
-}: { race: string; size: number; enemyId: string; hitKey: string | number; fighting: boolean; boss: boolean }) {
+  race, size, enemyId, hitKey, fighting, boss, equipment = [],
+}: { race: string; size: number; enemyId: string; hitKey: string | number; fighting: boolean; boss: boolean; equipment?: EquipmentBucket[] }) {
   const Enemy = ENEMY_ART[enemyId];
   return (
     <svg className="battlefield" viewBox="0 0 320 130" preserveAspectRatio="xMidYMax slice" role="img" aria-label="Slagfältet">
@@ -198,7 +216,7 @@ export function Battlefield({
       <path d="M0 104 Q80 96 160 102 T320 98 V130 H0 Z" fill="#231a14" />
       <path d="M0 116 Q100 110 200 116 T320 112 V130 H0 Z" fill="#1a130f" />
       {size > 0 ? (
-        <ArmyFigures race={race} size={size} activity={fighting ? 'combat' : null} cx={84} baseline={122} width={140} />
+        <ArmyFigures race={race} size={size} activity={fighting ? 'combat' : null} cx={84} baseline={122} width={140} equipment={equipment} />
       ) : (
         <text x="84" y="90" textAnchor="middle" fill="#a99d86" fontSize="11">Ingen trupp strider</text>
       )}

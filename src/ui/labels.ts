@@ -1,7 +1,21 @@
 // Presentation text and icons. No game rules here: numbers always come from the core/content.
 
 import { content } from '../content';
-import type { ActivityKind, Effect, GameEvent, GameState, Modifier, ObjectiveCondition, ResourceId, TraitId } from '../core';
+import type { ActivityKind, Effect, GameEvent, GameState, Modifier, ObjectiveCondition, QualityId, ResourceId, TraitId } from '../core';
+
+/** Quality colours (grey → green → blue → purple → gold), readable on the dark theme. */
+export const QUALITY_COLOR: Record<QualityId, string> = {
+  normal: '#b8b2a6',
+  good: '#6fbf5a',
+  outstanding: '#4f9be0',
+  excellent: '#b07ce8',
+  masterpiece: '#f0a63a',
+};
+export const UNARMED_COLOR = '#4a4248';
+
+export function qualityName(q: QualityId): string {
+  return content.equipment.qualities.find((x) => x.id === q)?.name ?? q;
+}
 
 export const RESOURCE_LABEL: Record<ResourceId, { name: string; icon: string }> = {
   food: { name: 'Mat', icon: '🌾' },
@@ -55,7 +69,12 @@ export function effectText(e: Effect, capForLevel: (level: number) => number): s
     case 'modifier':
       return modifierText(e.modifier);
     case 'unlock':
-      return e.unlock === 'gear:1' ? 'Låser upp järnvapen för trupperna' : `Låser upp ${e.unlock}`;
+      if (e.unlock === 'crafting') return 'Låser upp vapensmide';
+      if (e.unlock.startsWith('tier:')) return `Låser upp T${e.unlock.slice(5)}-vapen`;
+      if (e.unlock.startsWith('tab:')) return '';
+      return `Låser upp ${e.unlock}`;
+    case 'craftSpeed':
+      return `Smider ${e.workPerSec} arbete per sekund`;
   }
 }
 
@@ -107,6 +126,14 @@ export function eventText(e: GameEvent, state: GameState): string | null {
         : `↩ ${state.troops.find((t) => t.id === e.troopId)?.name ?? ''} drog sig tillbaka när du lämnade spelet (inget steg var säkert)`;
     case 'stageChanged':
       return `↩ Trupperna drog sig tillbaka till steg ${e.stage}, det högsta säkra steget, medan du var borta`;
+    case 'weaponCrafted':
+      return null; // too frequent for the chronicle; summarised in reports
+    case 'craftOrderCompleted': {
+      const r = content.equipment.recipes[e.recipeId];
+      return `⚒️ Smedjan är klar med beställningen: T${r?.tier ?? 1} ${content.equipment.weaponTypes[r?.weaponTypeId ?? '']?.name.toLowerCase() ?? ''}`;
+    }
+    case 'masteryLevelUp':
+      return `⚒️ Smideskunskap (${content.equipment.weaponTypes[e.weaponTypeId]?.name.toLowerCase() ?? ''} T${e.tier}) nådde nivå ${e.level}: bättre kvalitet`;
   }
 }
 

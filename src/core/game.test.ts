@@ -215,14 +215,6 @@ describe('recruitment', () => {
     expect(s.troops[0]!.engagedSize).toBe(7);
   });
 
-  it('equipped troops also pay ore for new recruits', () => {
-    let s = sandbox();
-    s.resources = { food: 100, wood: 0, stone: 0, ore: 100 };
-    s = run(s, { type: 'upgradeGear', troopId: 'troop1' });
-    expect(s.resources.ore).toBe(100 - 5 * 3);
-    s = run(s, { type: 'recruit', troopId: 'troop1', count: 2 });
-    expect(s.resources.ore).toBe(85 - 2 * 3);
-  });
 });
 
 describe('Training Camp milestone', () => {
@@ -323,19 +315,30 @@ describe('save', () => {
     expect(() => deserialize('{}')).toThrow();
   });
 
-  it('migrates a version 1 save (before combat with life)', () => {
+  it('migrates a version 1 save (before combat with life and real weapons)', () => {
     const v1 = JSON.parse(serialize(sandbox('orcs', 12))) as Record<string, any>;
     v1.version = 1;
     for (const t of v1.troops) {
       delete t.wounds;
       delete t.engagedSize;
+      delete t.weaponTypeId;
+      delete t.equipment;
+      t.gearTier = 1; // had the old ×1.4 iron weapons
     }
+    delete v1.armoury;
+    delete v1.crafting;
+    delete v1.stats.weaponsCrafted;
+    v1.buildings.forge = 1;
     v1.combat.stageIndex = 2;
     delete v1.combat.unlockedStage;
     const s = deserialize(JSON.stringify(v1));
-    expect(s.version).toBe(2);
-    expect(s.troops[0]).toMatchObject({ wounds: 0, engagedSize: 12 });
+    expect(s.version).toBe(3);
+    expect(s.troops[0]).toMatchObject({ wounds: 0, engagedSize: 12, weaponTypeId: 'cleaver' });
+    expect(s.troops[0]!.equipment).toEqual([{ tier: 1, quality: 'normal', count: 12 }]);
+    expect(s.troops[0]).not.toHaveProperty('gearTier');
     expect(s.combat.unlockedStage).toBe(2);
+    expect(s.unlocks).toEqual(expect.arrayContaining(['crafting', 'tier:1']));
+    expect(s.crafting).toEqual({ queue: [], progress: 0, crafted: {}, carry: {} });
     expect(advance(s, 60, content).state.clock).toBeGreaterThan(0);
   });
 });

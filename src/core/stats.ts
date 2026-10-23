@@ -1,6 +1,7 @@
 // Derived values: global modifiers, troop stats and all rates.
 // Nothing here is stored in the save; it is always recomputed from state + content.
 
+import { averageWeaponPower, weaponGroups } from './equipment';
 import { damagePerHit, dpsAgainst, killsPerSecond, levelForXp, resolveStat, troopCap } from './formulas';
 import type {
   Content,
@@ -68,6 +69,18 @@ export function capLevel(state: GameState, content: Content): number {
   return level;
 }
 
+/** Crafting work per second from built buildings with a craftSpeed effect. */
+export function forgeSpeed(state: GameState, content: Content): number {
+  let speed = 0;
+  for (const [id, built] of Object.entries(state.buildings)) {
+    const def = content.buildings[id];
+    for (let l = 0; l < built; l++) {
+      for (const e of def?.levels[l]?.effects ?? []) if (e.kind === 'craftSpeed') speed += e.workPerSec;
+    }
+  }
+  return speed;
+}
+
 export function currentCap(state: GameState, content: Content): number {
   return troopCap(race(state, content).population.maxTroopSize, capLevel(state, content), content.constants.capLevelFractions);
 }
@@ -78,8 +91,9 @@ export function troopLevel(troop: TroopState, content: Content): number {
 
 export interface TroopStats {
   level: number;
-  /** Effective per-soldier values. */
+  /** Effective per-soldier values. `attack` is before weapons; `weaponMult` is the troop's average weapon power. */
   attack: number;
+  weaponMult: number;
   armourPen: number;
   work: number;
   skills: Record<LabourActivity, number>;
@@ -98,7 +112,6 @@ export function troopStats(state: GameState, troop: TroopState, content: Content
   const c = content.constants;
   const level = troopLevel(troop, content);
   const levelMult = 1 + c.levelBonus * (level - 1);
-  const gear = content.gearTiers[troop.gearTier] ?? { attackMult: 1, orePerSoldier: 0 };
 
   // Racial traits that depend on the troop itself.
   const troopMods: Modifier[] = [];
@@ -109,7 +122,9 @@ export function troopStats(state: GameState, troop: TroopState, content: Content
   }
   const all = troopMods.length ? [...mods, ...troopMods] : mods;
 
-  const attack = resolveStat(r.soldier.attack, 'attack', all) * gear.attackMult * levelMult;
+  // Per-soldier attack before weapons; each weapon group multiplies it by its weapon's power.
+  const attack = resolveStat(r.soldier.attack, 'attack', all) * levelMult;
+  const weaponMult = averageWeaponPower(troop, content);
   const work = resolveStat(r.soldier.work, 'work', all) * levelMult;
   const skills = {
     mining: resolveStat(r.soldier.skills.mining, 'skill.mining', all),
@@ -128,7 +143,8 @@ export function troopStats(state: GameState, troop: TroopState, content: Content
     skills,
     hp,
     regen,
-    strength: troop.size * attack * c.attacksPerSecond,
+    weaponMult,
+    strength: troop.size * attack * weaponMult * c.attacksPerSecond,
     workTotal: troop.size * work,
     maxHp: troop.size * hp,
     healPerSec: troop.size * regen,
@@ -145,6 +161,8 @@ export interface Rates {
   bossDps: number;
   /** XP per second per troop id. */
   xpPerSec: Record<string, number>;
+  /** Forge work per second (0 when the queue is empty or there is no forge). */
+  craftWorkPerSec: number;
   /** Net wounds per second per troop id: positive = taking damage, negative = healing. */
   woundsPerSec: Record<string, number>;
   /** Per-troop output, useful for UI and the simulator. */
@@ -166,6 +184,7 @@ export function computeRates(state: GameState, content: Content): Rates {
     constructionWorkPerSec: 0,
     bossDps: 0,
     xpPerSec: {},
+    craftWorkPerSec: state.crafting.queue.length > 0 ? forgeSpeed(state, content) : 0,
     woundsPerSec: {},
     perTroop: {},
   };
@@ -183,13 +202,14 @@ export function computeRates(state: GameState, content: Content): Rates {
     const labour = (skill: number) => t.size * s.work * skill * c.gatherRate;
     switch (t.activity) {
       case 'combat':
-        if (boss) {
-          entry.bossDps = dpsAgainst(t.size, s.attack, s.armourPen, boss.armour, c.attacksPerSecond);
-          rates.bossDps += entry.bossDps;
-        } else {
-          entry.killsPerSec = killsPerSecond(t.size, s.attack, s.armourPen, foe, c.attacksPerSecond);
-          rates.killsPerSec += entry.killsPerSec;
+        // Each weapon group (and the unarmed remainder) fights with its own attack: exact, O(groups).
+        for (const g of weaponGroups(t, content)) {
+          const atk = s.attack * g.power;
+          if (boss) entry.bossDps += dpsAgainst(g.count, atk, s.armourPen, boss.armour, c.attacksPerSecond);
+          else entry.killsPerSec += killsPerSecond(g.count, atk, s.armourPen, foe, c.attacksPerSecond);
         }
+        rates.bossDps += entry.bossDps;
+        rates.killsPerSec += entry.killsPerSec;
         break;
       case 'mining': {
         const total = labour(s.skills.mining);
@@ -294,7 +314,9 @@ export function estimatedBossDamage(state: GameState, content: Content, troopIds
   for (const t of state.troops) {
     if (troopIds ? !troopIds.includes(t.id) : t.activity !== 'combat') continue;
     const s = troopStats(state, t, content, mods);
-    dps += t.size * content.constants.attacksPerSecond * damagePerHit(s.attack, b.armour, s.armourPen);
+    for (const g of weaponGroups(t, content)) {
+      dps += g.count * content.constants.attacksPerSecond * damagePerHit(s.attack * g.power, b.armour, s.armourPen);
+    }
   }
   return { damage: dps * z.boss.timeLimitSec, hp: b.hp };
 }

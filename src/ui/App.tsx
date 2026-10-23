@@ -8,17 +8,19 @@ import { RESOURCE_LABEL, eventText } from './labels';
 import { Battle } from './screens/Battle';
 import { Chronicle } from './screens/Chronicle';
 import { Forces } from './screens/Forces';
+import { Forge } from './screens/Forge';
 import { AwayReportModal, MenuModal } from './screens/Modals';
 import { RaceSelect } from './screens/RaceSelect';
 import { Settlement } from './screens/Settlement';
 import { Upgrades } from './screens/Upgrades';
 
-type Tab = 'forces' | 'battle' | 'settlement' | 'upgrades' | 'chronicle';
+type Tab = 'forces' | 'battle' | 'settlement' | 'forge' | 'upgrades' | 'chronicle';
 
 const TABS: { id: Tab; label: string; icon: string; unlock?: string }[] = [
   { id: 'forces', label: 'Styrkor', icon: '🛡️' },
   { id: 'battle', label: 'Strid', icon: '⚔️', unlock: 'tab:battle' },
   { id: 'settlement', label: 'Bosättning', icon: '🏰', unlock: 'tab:settlement' },
+  { id: 'forge', label: 'Smedja', icon: '⚒️', unlock: 'tab:forge' },
   { id: 'upgrades', label: 'Förbättra', icon: '📜', unlock: 'tab:upgrades' },
   { id: 'chronicle', label: 'Krönika', icon: '📖' },
 ];
@@ -41,7 +43,7 @@ function ResourceBar({ state, rates }: { state: GameState; rates: Rates }) {
   );
 }
 
-const TOAST_TYPES = new Set<GameEvent['type']>(['objectiveCompleted', 'troopFormed', 'constructionCompleted', 'stageCleared', 'zoneCleared', 'bossDefeated', 'bossFailed', 'troopRetreated']);
+const TOAST_TYPES = new Set<GameEvent['type']>(['objectiveCompleted', 'troopFormed', 'constructionCompleted', 'stageCleared', 'zoneCleared', 'bossDefeated', 'bossFailed', 'troopRetreated', 'craftOrderCompleted', 'masteryLevelUp']);
 
 function useToast(log: GameEvent[], state: GameState | null): string | null {
   const [toast, setToast] = useState<string | null>(null);
@@ -104,6 +106,7 @@ export function App() {
           {active === 'forces' && <Forces state={state} rates={rates} />}
           {active === 'battle' && <Battle state={state} rates={rates} />}
           {active === 'settlement' && <Settlement state={state} rates={rates} />}
+          {active === 'forge' && <Forge state={state} rates={rates} />}
           {active === 'upgrades' && <Upgrades state={state} />}
           {active === 'chronicle' && <Chronicle state={state} log={snap.log} />}
         </main>

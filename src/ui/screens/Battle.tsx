@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { content } from '../../content';
-import { currentEnemy, enemy, estimatedBossDamage, stageSafety, troopStats, zone, type GameState, type Rates, type StageSafety } from '../../core';
+import { currentEnemy, enemy, estimatedBossDamage, normalizeBuckets, stageSafety, troopStats, zone, type GameState, type Rates, type StageSafety } from '../../core';
 import { EnemyPortrait } from '../art';
 import { Battlefield } from '../army';
 import { Bar, Panel } from '../components/common';
@@ -64,6 +64,7 @@ export function Battle({ state, rates }: { state: GameState; rates: Rates }) {
           hitKey={Math.floor(state.stats.totalKills)}
           fighting={fighters.length > 0}
           boss={!!c.boss}
+          equipment={normalizeBuckets(fighters.flatMap((t) => t.equipment), content)}
         />
         <ol className="path" aria-label="Välj steg">
           {z.stages.map((s, i) => {
@@ -141,7 +142,7 @@ export function Battle({ state, rates }: { state: GameState; rates: Rates }) {
         <p className="small">
           {fighters.length === 0
             ? '⚠️ Ingen trupp strider. Ge en trupp ordern Strid.'
-            : `${fighters.map((t) => t.name).join(', ')} · ${fmtRate(totalDps)} DPS · ${fmtRate(rates.killsPerSec)} besegrade/s`}
+            : `${fighters.map((t) => t.name).join(', ')} · ${fmtRate(totalDps)} DPS (vapen ×${fmtRate(fighters.reduce((p, t) => p + troopStats(state, t, content).weaponMult * t.size, 0) / Math.max(1, fighters.reduce((n, t) => n + t.size, 0)))}) · ${fmtRate(rates.killsPerSec)} besegrade/s`}
         </p>
       </Panel>
 

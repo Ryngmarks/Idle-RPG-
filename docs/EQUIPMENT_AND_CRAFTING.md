@@ -1,6 +1,6 @@
 # Equipment, Tiers & Crafting: Long-Term Design v0.1
 
-> **Status:** Long-term vision (✅ owner) with a proposed technical foundation (💡). **T1–T8 is a structure, not content to build now.** The first prototype stays very small.
+> **Status:** The T1 foundation is **implemented (M5)**: real weapons counted per (type, tier, quality), forge crafting into a shared armoury, equipping from the armoury, and combat per equipment group. T2–T8 exist in the data model but cannot be unlocked yet. See §10 for what was built and how it differs from the proposals below.
 > **Inspiration:** Albion Online's tiers, quality levels and crafting specialisation, adapted to aggregated troops in an idle game.
 > **Related:** [Troop Model](TROOP_MODEL.md) · [Architecture](ARCHITECTURE.md) · [Roadmap](ROADMAP.md) · [Decisions](DECISIONS.md)
 
@@ -292,3 +292,27 @@ Today each troop has a single `gearTier: 0 | 1` (P0's Forge gives ×1.4 attack).
 | Q-15 | Do recruits come with a free T1 Normal weapon, or arrive unarmed? | Included in the recruit cost (simpler). "Arm everyone" matters from T2 onward. |
 | Q-16 | Tier pacing targets (T2 ≈ day 1, T8 ≈ many months) | Confirm together with Q-04 (play rhythm) and Q-05 (prestige) |
 | Q-17 | Final names for tiers and qualities | Our own names, not Albion's |
+
+---
+
+## 10. Implemented in M5 (2026-10-23)
+
+| Owner requirement | Implementation |
+|---|---|
+| One weapon type per troop | `race.weaponTypeId`: Humans **Sword**, Orcs **Cleaver** (Dwarves Axe, Elves Bow in data) |
+| Every soldier can carry one weapon | `troop.equipment: { tier, quality, count }[]`, Σ count ≤ size. The rest fight with improvised arms (×1.0). |
+| Tier and quality | `content.equipment.tiers` T1–T8 (T1 ×1.25, then ×1.35 per tier) × five qualities (×1.00 / 1.07 / 1.15 / 1.24 / 1.35) |
+| Only T1 now | The forge unlocks `tier:1`; no T2+ recipes or unlocks exist |
+| Crafting into a shared armoury | The forge works the order queue at 1 work/s; a T1 weapon costs 2 ore + 1 wood (bow: 3 wood) and 15 work |
+| Equip from the armoury | `equipTroop`: the troop takes the best `size` weapons of its type from its own hands plus the armoury, and the rest return to the armoury. `unequipTroop` returns everything. |
+| Mixed qualities | Buckets per quality, sorted best first |
+| Combat uses the actual equipment | Kills/s and boss DPS are summed per weapon group (exact under the armour/overkill formula) |
+| Hundreds or thousands of soldiers | O(buckets): at most 5 per troop for T1 (40 for T1–T8); tested with 5,000 soldiers |
+| Remove the ×1.4 placeholder | `gearTier`, `upgradeGear` and ore-per-recruit are gone. Save v2 → v3 converts "iron weapons" to T1 Normal for every soldier. |
+| Quality must not max out in minutes | Mastery per weapon type and tier: level = ⌊√(crafted / 8)⌋, max 10 at 800 weapons (≈ 3.3 h of forge time + 1,600 ore). Chances go from 85/13/2/0/0 % to 30/33/22/11/4 %. |
+
+**Decisions taken while building (open to change):**
+- **Q-13 (who crafts):** for now the **forge crafts by itself** (no sixth activity). The owner asked for no further large systems; a smith activity can be added later.
+- **Q-15 changed:** recruits arrive **unarmed** (improvised ×1.0). Arming every soldier is now part of the T1 climb, which is what "every soldier can be equipped" implies.
+- **Deterministic quality:** each weapon adds the chances to a carry. The best quality whose carry has reached one whole weapon is made, otherwise the largest carry. Rare qualities are therefore made only once they are "earned", the result matches the chances over time, and there is no randomness, so offline crafting equals online crafting.
+- **Casualties:** the unarmed fall first, then the worst weapons are lost.

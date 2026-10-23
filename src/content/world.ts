@@ -1,7 +1,7 @@
 // Start-area content for prototype P0 "The Farmstead Camp".
 // See docs/ROADMAP.md §2 and docs/FIRST_15_MINUTES.md. Player-facing text is Swedish for now.
 
-import type { BuildingDef, EnemyDef, GearTierDef, ObjectiveDef, UpgradeDef, ZoneDef } from '../core/types';
+import type { BuildingDef, EnemyDef, EquipmentContent, ObjectiveDef, UpgradeDef, ZoneDef } from '../core/types';
 
 export const enemies: Record<string, EnemyDef> = {
   wildChicken: { id: 'wildChicken', name: 'Vild kyckling', hp: 15, armour: 0, attack: 0.12, xp: 2, loot: { food: 1 } },
@@ -55,7 +55,18 @@ export const buildings: Record<string, BuildingDef> = {
   forge: {
     id: 'forge',
     name: 'Smedja',
-    levels: [{ cost: { wood: 150, stone: 150, ore: 20 }, work: 2500, effects: [{ kind: 'unlock', unlock: 'gear:1' }] }],
+    levels: [
+      {
+        cost: { wood: 80, stone: 80, ore: 10 },
+        work: 2500,
+        effects: [
+          { kind: 'unlock', unlock: 'crafting' },
+          { kind: 'unlock', unlock: 'tier:1' },
+          { kind: 'unlock', unlock: 'tab:forge' },
+          { kind: 'craftSpeed', workPerSec: 1 },
+        ],
+      },
+    ],
   },
 };
 
@@ -92,10 +103,37 @@ export const upgrades: Record<string, UpgradeDef> = {
   },
 };
 
-export const gearTiers: GearTierDef[] = [
-  { attackMult: 1, orePerSoldier: 0 },
-  { attackMult: 1.4, orePerSoldier: 3 },
-];
+const POWER_STEP = 1.35;
+
+/** Weapons: one type per race; T1–T8 exist in the model, only T1 is unlocked (by the forge). */
+export const equipment: EquipmentContent = {
+  weaponTypes: {
+    sword: { id: 'sword', name: 'Svärd', wielder: 'svärdskrigare' },
+    cleaver: { id: 'cleaver', name: 'Klyvyxa', wielder: 'yxkrigare' },
+    axe: { id: 'axe', name: 'Stridsyxa', wielder: 'yxkämpar' },
+    bow: { id: 'bow', name: 'Båge', wielder: 'bågskyttar' },
+  },
+  // A T1 Normal weapon gives +25 % over improvised arms; each tier is ×1.35 more.
+  tiers: Array.from({ length: 8 }, (_, i) => ({ tier: i + 1, powerMult: 1.25 * Math.pow(POWER_STEP, i) })),
+  qualities: [
+    { id: 'normal', name: 'Normal', powerMult: 1 },
+    { id: 'good', name: 'God', powerMult: 1.07 },
+    { id: 'outstanding', name: 'Utmärkt', powerMult: 1.15 },
+    { id: 'excellent', name: 'Exceptionell', powerMult: 1.24 },
+    { id: 'masterpiece', name: 'Mästerverk', powerMult: POWER_STEP },
+  ],
+  recipes: {
+    sword_t1: { id: 'sword_t1', weaponTypeId: 'sword', tier: 1, materials: { ore: 2, wood: 1 }, workPerItem: 15 },
+    cleaver_t1: { id: 'cleaver_t1', weaponTypeId: 'cleaver', tier: 1, materials: { ore: 2, wood: 1 }, workPerItem: 15 },
+    axe_t1: { id: 'axe_t1', weaponTypeId: 'axe', tier: 1, materials: { ore: 2, wood: 1 }, workPerItem: 15 },
+    bow_t1: { id: 'bow_t1', weaponTypeId: 'bow', tier: 1, materials: { wood: 3 }, workPerItem: 15 },
+  },
+  unarmedMult: 1,
+  chancesAtMin: [0.85, 0.13, 0.02, 0, 0],
+  chancesAtMax: [0.3, 0.33, 0.22, 0.11, 0.04],
+  maxMastery: 10,
+  itemsPerMasteryStep: 8,
+};
 
 export const objectives: ObjectiveDef[] = [
   {
@@ -193,9 +231,9 @@ export const objectives: ObjectiveDef[] = [
   },
   {
     id: 'gear1',
-    text: 'Utrusta en trupp med järnvapen.',
+    text: 'Smid vapen och utrusta en trupp med dem.',
     requires: ['forge'],
-    condition: { kind: 'gearTier', tier: 1 },
+    condition: { kind: 'weaponsEquipped', amount: 1 },
     rewards: {},
   },
   {

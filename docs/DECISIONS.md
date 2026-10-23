@@ -43,6 +43,10 @@
 | D-34 | **Combat has life:** enemies hit back, soldiers can die, and the player picks a stage they can handle | 2026-10-23 | Owner, M4 feedback |
 | D-35 | A troop **retreats to camp after losing half** its soldiers and **never drops below one soldier** | 2026-10-23 | Owner, M4 feedback |
 | D-36 | **No losses while offline:** troops fall back to the highest safe stage (or camp) and an unfinished boss fight is abandoned when the player leaves | 2026-10-23 | Owner, M4 feedback |
+| D-37 | **The forge produces actual weapons**, counted per type/tier/quality, never a troop-wide bonus | 2026-10-23 | Owner, M5 |
+| D-38 | One weapon type per troop; every soldier can carry one weapon; mixed qualities within a troop; equip from a shared armoury | 2026-10-23 | Owner, M5 |
+| D-39 | **Only T1** with five qualities for now; T2–T8 exist in the data model and plan but are not unlockable | 2026-10-23 | Owner, M5 |
+| D-40 | Combat uses each troop's actual equipment; the ×1.4 placeholder is removed; T1 quality must take a long time to max out | 2026-10-23 | Owner, M5 |
 
 ## Proposed 💡 (awaiting confirmation)
 
@@ -90,9 +94,9 @@
 | Q-07 | Documentation language: English (current) or Swedish? | |
 | Q-08 | Final names for the world, races and regions | Before the art phase |
 | Q-12 | Should XP also be a spendable currency? | No, per-troop levels only |
-| Q-13 | Who does crafting labour: a 6th activity "Crafting", the Construction activity, or the buildings themselves? | 6th activity, unlocked with the Smithy |
-| Q-14 | T1 crafting in P0, or only the equipment foundation now and crafting in P1? | Foundation now; crafting in P1 unless it's trivially small |
-| Q-15 | Do recruits come with a free T1 Normal weapon? | Yes (included in recruit cost) |
+| Q-13 | Who does crafting labour: a 6th activity "Crafting", the Construction activity, or the buildings themselves? | **Forge crafts by itself for now (M5)**; a smith activity remains an option |
+| Q-14 | T1 crafting in P0, or only the equipment foundation now and crafting in P1? | **Resolved: T1 crafting built in M5** |
+| Q-15 | Do recruits come with a free T1 Normal weapon? | **No (M5): recruits arrive unarmed; arm them from the armoury** |
 | Q-16 | Tier pacing targets (T2 ≈ day 1 … T8 ≈ many months) | Tie to Q-04 / Q-05 |
 | Q-17 | Names for tiers and qualities | Our own, not Albion's |
 

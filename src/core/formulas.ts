@@ -45,12 +45,26 @@ export function dpsAgainst(size: number, attack: number, armourPen: number, armo
   return size * attacksPerSecond * damagePerHit(attack, armour, armourPen);
 }
 
-export function xpForLevel(level: number, base: number, exponent: number): number {
-  return level <= 1 ? 0 : Math.round(base * Math.pow(level - 1, exponent));
+/**
+ * XP needed to reach `level`: base × (L−1)^exponent up to the knee level, then the same curve continued with the
+ * steeper `lateExponent` (continuous at the knee). Without a knee it is the plain power curve.
+ */
+export function xpForLevel(level: number, base: number, exponent: number, kneeLevel = Infinity, lateExponent = exponent): number {
+  if (level <= 1) return 0;
+  if (level <= kneeLevel) return Math.round(base * Math.pow(level - 1, exponent));
+  const atKnee = base * Math.pow(kneeLevel - 1, exponent);
+  return Math.round(atKnee * Math.pow((level - 1) / (kneeLevel - 1), lateExponent));
 }
 
-export function levelForXp(xp: number, base: number, exponent: number): number {
-  let level = 1;
-  while (xp + 1e-9 >= xpForLevel(level + 1, base, exponent)) level++;
+/** Inverse of xpForLevel: a closed-form guess, then a few steps to land exactly on the rounded table. */
+export function levelForXp(xp: number, base: number, exponent: number, kneeLevel = Infinity, lateExponent = exponent): number {
+  if (!(xp > 0)) return 1;
+  const atKnee = base * Math.pow(kneeLevel - 1, exponent);
+  const guess = xp <= atKnee || kneeLevel === Infinity
+    ? Math.pow(xp / base, 1 / exponent) + 1
+    : (kneeLevel - 1) * Math.pow(xp / atKnee, 1 / lateExponent) + 1;
+  let level = Math.max(1, Math.floor(guess));
+  while (level > 1 && xp + 1e-9 < xpForLevel(level, base, exponent, kneeLevel, lateExponent)) level--;
+  while (xp + 1e-9 >= xpForLevel(level + 1, base, exponent, kneeLevel, lateExponent)) level++;
   return level;
 }

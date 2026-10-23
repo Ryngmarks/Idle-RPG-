@@ -24,6 +24,8 @@ export const content: Content = {
     smithRate: 1,
     xpBase: 25,
     xpExponent: 1.7,
+    xpKneeLevel: 12,
+    xpExponentLate: 3.4,
     levelBonus: 0.1,
     startZoneId: 'farmsteads',
     startUnlocks: ['activity:woodcutting'],

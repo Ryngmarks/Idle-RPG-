@@ -275,9 +275,11 @@ export interface Content {
     attacksPerSecond: number;
     /** Forge work per second per (work × smithing skill) of each smith at an anvil. */
     smithRate: number;
-    /** XP needed to reach level L is xpBase × (L−1)^xpExponent. */
+    /** XP needed to reach level L is xpBase × (L−1)^xpExponent up to xpKneeLevel, then continues with xpExponentLate. */
     xpBase: number;
     xpExponent: number;
+    xpKneeLevel: number;
+    xpExponentLate: number;
     levelBonus: number;
     startZoneId: string;
     startUnlocks: Unlock[];

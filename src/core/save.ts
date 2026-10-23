@@ -1,5 +1,6 @@
 // Versioned save format. Migrations run in order from the save's version to SAVE_VERSION.
 
+import { levelForXp, xpForLevel } from './formulas';
 import { emptyQualityCounts, SAVE_VERSION } from './state';
 import type { GameState } from './types';
 
@@ -112,8 +113,15 @@ const migrations: Record<number, (s: Record<string, unknown>) => Record<string, 
     const { bossDefeatedAt, ...statsRest } = stats;
     const unlocks = (s.unlocks as string[]).filter((u) => u !== 'region:2');
     if (beaten) for (const u of ['building:drillGround', 'level:tents:4', 'level:farm:3']) if (!unlocks.includes(u)) unlocks.push(u);
+    // M13 made levels above 12 cost more XP. A troop keeps the level it had: its XP is raised to the
+    // new threshold of that level (curve values frozen as they were at v9 and v10).
+    const troops = (s.troops as { xp: number }[]).map((t) => {
+      const level = levelForXp(t.xp, 25, 1.7);
+      return { ...t, xp: Math.max(t.xp, xpForLevel(level, 25, 1.7, 12, 3.4)) };
+    });
     return {
       ...s,
+      troops,
       resources: { ...(s.resources as Record<string, number>), iron: 0 },
       combat: {
         ...combatRest,

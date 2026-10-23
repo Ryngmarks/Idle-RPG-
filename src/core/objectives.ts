@@ -2,8 +2,7 @@
 // See docs/FIRST_15_MINUTES.md §4.
 
 import { autoEquipAll, masteryLevel } from './equipment';
-import { xpForLevel } from './formulas';
-import { troopLevel } from './stats';
+import { troopLevel, troopXpForLevel } from './stats';
 import { addSoldiers, addUnlock, gain } from './mutations';
 import type { Content, GameEvent, GameState, ObjectiveCondition, ObjectiveDef } from './types';
 
@@ -66,7 +65,7 @@ export function evaluateObjectives(state: GameState, content: Content, events: G
         const officer = [...state.troops].sort((a, b) => b.size - a.size)[0];
         if (officer) {
           const level = troopLevel(officer, content) + o.rewards.troopLevelSteps;
-          officer.xp = Math.max(officer.xp, xpForLevel(level, content.constants.xpBase, content.constants.xpExponent));
+          officer.xp = Math.max(officer.xp, troopXpForLevel(level, content));
         }
       }
       if (o.rewards.soldiers) {

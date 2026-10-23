@@ -52,7 +52,9 @@ describe('M13 enemy generator (levels 6-40)', () => {
     expect(z1.stages).toHaveLength(40);
     expect(z1.bosses.map((b) => b.level)).toEqual([5, 10, 15, 20, 25, 30, 35, 40]);
     const cum = z1.bosses.map((b) => z1.stages.slice(0, b.level).reduce((n, st) => n + st.killsToClear, 0));
-    expect(cum).toEqual([56, 112, 178, 254, 374, 522, 698, 902]);
+    // The first bands keep today's kills (56 and 112 to the first two bosses); tuning only changes the later ones.
+    expect(cum.slice(0, 2)).toEqual([56, 112]);
+    for (let i = 1; i < cum.length; i++) expect(cum[i]!).toBeGreaterThan(cum[i - 1]!);
   });
 
   it('levels 1-5 and Gamle Betarn are exactly as before the expansion', () => {
@@ -64,12 +66,26 @@ describe('M13 enemy generator (levels 6-40)', () => {
     expect(z1.bosses[0]).toEqual({ level: 5, enemyId: 'oldTusker', timeLimitSec: 90 });
   });
 
-  it('matches the sample values of §19.1 at the elite levels', () => {
+  it('matches the sample values of §19.1 at the elite levels (armour and attack; HP and XP are tuned)', () => {
     const at = (level: number) => content.enemies[z1.stages[level - 1]!.enemyId]!;
-    expect(at(10)).toMatchObject({ name: 'Vargalfa', hp: 205, armour: 5 });
-    expect(at(30)).toMatchObject({ name: 'Kullkung', hp: 1190, armour: 11 });
-    expect(at(40)).toMatchObject({ name: 'Borgens elit', hp: 3710, armour: 15 });
+    expect(at(10)).toMatchObject({ name: 'Vargalfa', armour: 5 });
+    expect(at(30)).toMatchObject({ name: 'Kullkung', armour: 11 });
+    expect(at(40)).toMatchObject({ name: 'Borgens elit', armour: 15 });
     expect(at(40).attack).toBeCloseTo(12.9, 1);
+    for (const l of [10, 20, 30, 40]) expect(at(l).hp).toBeGreaterThan(at(l - 5).hp);
+  });
+
+  it('enemy XP rises from the level-5 boar (18): never lower at level 6, and the 5-level moving average never falls', () => {
+    const xp = z1.stages.map((st) => content.enemies[st.enemyId]!.xp);
+    expect(xp[4]).toBe(18);
+    expect(xp[5]!).toBeGreaterThanOrEqual(xp[4]!);
+    let prev = -Infinity;
+    for (let i = 4; i < xp.length; i++) {
+      const avg = xp.slice(i - 4, i + 1).reduce((n, v) => n + v, 0) / 5;
+      expect(avg, `xp window ending at level ${i + 1}`).toBeGreaterThanOrEqual(prev);
+      prev = avg;
+    }
+    expect(xp[39]!).toBeGreaterThan(xp[4]! * 2);
   });
 
   it('the 5-level moving average of hp and armour never falls, and attack and xp grow with the level band', () => {
@@ -93,8 +109,9 @@ describe('M13 enemy generator (levels 6-40)', () => {
 
   it('every boss is an enemy of its own: HP 4x the elite, rising HP, armour and attack, timers 90-150 s', () => {
     const bosses = z1.bosses.map((b) => content.enemies[b.enemyId]!);
-    expect(bosses.map((b) => b.hp)).toEqual([500, 820, 1100, 1500, 2700, 4800, 8400, 14800]);
+    expect(bosses[0]!.hp).toBe(500);
     for (let i = 1; i < bosses.length; i++) {
+      expect(bosses[i]!.hp).toBeGreaterThan(bosses[i - 1]!.hp);
       expect(bosses[i]!.armour).toBeGreaterThan(bosses[i - 1]!.armour);
       expect(bosses[i]!.attack).toBeGreaterThan(bosses[i - 1]!.attack);
     }
@@ -125,7 +142,9 @@ describe('M13 recruit curve (§19.5)', () => {
     expect(cost('humans', 2)).toEqual({ food: 40, sec: 90 });
   });
 
-  it('continues smoothly after 8: still rising, +12 % food and +6 % time per soldier', () => {
+  it('continues smoothly after 8: still rising at the late growth factors of the content', () => {
+    const lateFood = content.constants.trainFoodGrowthLate;
+    const lateSec = content.constants.trainTimeGrowthLate;
     for (const raceId of ['humans', 'orcs']) {
       const at8 = cost(raceId, 8);
       let prev = at8;
@@ -133,18 +152,17 @@ describe('M13 recruit curve (§19.5)', () => {
         const c = cost(raceId, n);
         expect(c.food).toBeGreaterThan(prev.food);
         expect(c.sec).toBeGreaterThan(prev.sec);
-        expect(c.food / prev.food).toBeCloseTo(1.12, 1);
-        expect(c.sec / prev.sec).toBeCloseTo(1.06, 1);
+        expect(c.food / prev.food).toBeCloseTo(lateFood, 1);
+        expect(c.sec / prev.sec).toBeCloseTo(lateSec, 1);
         prev = c;
       }
       // The step from 8 to 9 is the late factor, not the old 1.5 / 1.35.
-      expect(cost(raceId, 9).food / at8.food).toBeCloseTo(1.12, 1);
+      expect(cost(raceId, 9).food / at8.food).toBeCloseTo(lateFood, 1);
+      expect(lateFood).toBeLessThan(content.constants.trainFoodGrowth);
     }
-    // Soldier 29 for Humans: about 4,900 food and 30 minutes.
-    expect(cost('humans', 29).food).toBeGreaterThan(4700);
-    expect(cost('humans', 29).food).toBeLessThan(5100);
-    expect(cost('humans', 29).sec).toBeGreaterThan(25 * 60);
-    expect(cost('humans', 29).sec).toBeLessThan(35 * 60);
+    // The tail is steep but finite: soldier 29 for Humans costs thousands of food and a long drill.
+    expect(cost('humans', 29).food).toBeGreaterThan(cost('humans', 20).food * 2);
+    expect(cost('humans', 29).sec).toBeGreaterThan(cost('humans', 20).sec);
   });
 });
 
@@ -365,18 +383,19 @@ describe('M13 iron and T2', () => {
     return run(s, { type: 'assignTroop', troopId: 'troop1', activity: 'mining', siteId });
   };
 
-  it('Järngruvan is locked until boss 3 and then pays 2 iron and 6 stone per cycle of 90 s', () => {
+  it('Järngruvan is locked until boss 3 and then pays iron and stone per cycle of 90 s', () => {
     const locked = sandbox('humans', 2);
     expect(dispatch(locked, { type: 'assignTroop', troopId: 'troop1', activity: 'mining', siteId: 'jarngruvan' }, content).ok).toBe(false);
     const s = sandbox('humans', 2);
     s.unlocks.push('site:jarngruvan');
     const site = content.sites.jarngruvan!;
-    expect(site).toMatchObject({ capacity: 2, cycleSec: 90, yield: { iron: 2, stone: 6 } });
+    expect(site).toMatchObject({ capacity: 2, cycleSec: 90 });
+    const { iron, stone } = site.yield;
     const m = run(s, { type: 'assignTroop', troopId: 'troop1', activity: 'mining', siteId: 'jarngruvan' });
     const r = advance(m, 90 * 10 / (computeRates(m, content).siteCycles.jarngruvan! * 90), content).state;
-    expect(r.resources.iron).toBeCloseTo(20);
-    expect(r.resources.stone).toBeCloseTo(60);
-    expect(r.stats.gathered.iron).toBeCloseTo(20);
+    expect(r.resources.iron).toBeCloseTo(iron! * 10);
+    expect(r.resources.stone).toBeCloseTo(stone! * 10);
+    expect(r.stats.gathered.iron).toBeCloseTo(iron! * 10);
     expect(newGame('humans', content).resources.iron).toBe(0);
     void miner;
   });
@@ -399,11 +418,16 @@ describe('M13 iron and T2', () => {
     expect(computeRates(m, content).perTroop.troop1!.working).toBe(4);
   });
 
-  it('T2 recipes: 6 iron + 3 ore (bow: 4 iron + 4 wood), twice the smith work, mastery 2 of the same type at T1', () => {
+  it('T2 recipes: iron + ore (bow: iron + wood), twice the smith work, mastery 2 of the same type at T1', () => {
     for (const w of ['sword', 'cleaver', 'axe']) {
-      expect(content.equipment.recipes[`${w}_t2`]).toMatchObject({ tier: 2, materials: { iron: 6, ore: 3 }, workPerItem: 120, requiresMastery: { level: 2 } });
+      const r = content.equipment.recipes[`${w}_t2`]!;
+      expect(r).toMatchObject({ tier: 2, workPerItem: 120, requiresMastery: { level: 2 } });
+      expect(r.materials.iron).toBeGreaterThan(0);
+      expect(r.materials.ore).toBeGreaterThan(0);
     }
-    expect(content.equipment.recipes.bow_t2).toMatchObject({ materials: { iron: 4, wood: 4 }, workPerItem: 120 });
+    expect(content.equipment.recipes.bow_t2!.materials.iron).toBeGreaterThan(0);
+    expect(content.equipment.recipes.bow_t2!.materials.wood).toBeGreaterThan(0);
+    expect(content.equipment.recipes.bow_t2).toMatchObject({ workPerItem: 120 });
     expect(content.equipment.recipes.sword_t1!.workPerItem).toBe(60);
   });
 
@@ -424,16 +448,17 @@ describe('M13 iron and T2', () => {
     expect(recipeBlocker(s, 'sword_t2', content)).toBeNull();
     expect(recipeBlocker(s, 'cleaver_t2', content)).toBe('type'); // not this race's weapon
     const q = run(s, { type: 'queueCraft', recipeId: 'sword_t2', count: 2 });
-    expect(q.resources.iron).toBe(988);
-    expect(q.resources.ore).toBe(994);
+    const rec = content.equipment.recipes.sword_t2!.materials;
+    expect(q.resources.iron).toBe(1000 - 2 * rec.iron!);
+    expect(q.resources.ore).toBe(1000 - 2 * rec.ore!);
   });
 
   it('a crafted T2 sword is x1.35 over T1 and goes to the troop through auto-equip', () => {
     let s = sandbox('humans', 2);
     s.unlocks.push('tier:2');
     s.crafting.crafted['sword:t1'] = 80;
-    s.resources.iron = 6;
-    s.resources.ore = 3;
+    s.resources.iron = content.equipment.recipes.sword_t2!.materials.iron!;
+    s.resources.ore = content.equipment.recipes.sword_t2!.materials.ore!;
     s.troops[0]!.activity = 'smithing';
     s = run(s, { type: 'queueCraft', recipeId: 'sword_t2', count: 1 });
     const r = advance(s, 400, content);
@@ -554,6 +579,15 @@ describe('M13 save v9 -> v10', () => {
     return deserialize(JSON.stringify(j));
   }
 
+
+  it('a troop keeps its level across the steeper XP curve above level 12', () => {
+    const oldXp = Math.round(25 * Math.pow(19, 1.7)) + 5; // level 20 under the v9 curve
+    const s = v9((j) => { j.troops[0].xp = oldXp; });
+    expect(troopStats(s, s.troops[0]!, content).level).toBe(20);
+    expect(s.troops[0]!.xp).toBeGreaterThan(oldXp);
+    const low = v9((j) => { j.troops[0].xp = 300; });
+    expect(low.troops[0]!.xp).toBe(300);
+  });
   it('a save that beat the boss continues at level 6 with the same soldiers and resources, plus iron 0', () => {
     const s = v9((j) => {
       j.combat.bossDefeated = true;

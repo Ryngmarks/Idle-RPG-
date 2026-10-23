@@ -3,11 +3,10 @@
 // See docs/ARCHITECTURE.md §4.
 
 import { autoEquipAll, itemKey, masteryKey, masteryLevel, pickQuality, qualityChances, trimEquipment } from './equipment';
-import { xpForLevel } from './formulas';
 import { addSoldiers, applyEffects } from './mutations';
 import { evaluateObjectives } from './objectives';
 import { cloneState } from './state';
-import { BOSS_RETREAT_SHARE, BOSS_WOUND_CAP, computeRates, FOOD_EPS, globalModifiers, stageSafety, troopLevel, troopStats, zone, type Rates } from './stats';
+import { BOSS_RETREAT_SHARE, BOSS_WOUND_CAP, computeRates, FOOD_EPS, globalModifiers, stageSafety, troopLevel, troopStats, troopXpForLevel, zone, type Rates } from './stats';
 import { RESOURCES, type Content, type GameEvent, type GameState } from './types';
 
 const MAX_STEPS = 100_000;
@@ -104,7 +103,7 @@ function pendingEvents(state: GameState, rates: Rates, content: Content): Pendin
   for (const t of state.troops) {
     const xpRate = rates.xpPerSec[t.id] ?? 0;
     if (xpRate <= 0) continue;
-    const next = xpForLevel(troopLevel(t, content) + 1, content.constants.xpBase, content.constants.xpExponent);
+    const next = troopXpForLevel(troopLevel(t, content) + 1, content);
     const id = t.id;
     out.push({
       t: (next - t.xp) / xpRate,

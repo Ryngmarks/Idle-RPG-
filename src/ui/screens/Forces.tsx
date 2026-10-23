@@ -13,7 +13,7 @@ import {
   trainBlocker,
   trainCost,
   troopStats,
-  xpForLevel,
+  troopXpForLevel,
   type ActivityKind,
   type GameState,
   type Limiter,
@@ -233,8 +233,8 @@ function TroopCard({ troop, state, rates, hero }: { troop: TroopState; state: Ga
   const [name, setName] = useState(troop.name);
   const stats = troopStats(state, troop, content);
   const c = content.constants;
-  const lvlFrom = xpForLevel(stats.level, c.xpBase, c.xpExponent);
-  const lvlTo = xpForLevel(stats.level + 1, c.xpBase, c.xpExponent);
+  const lvlFrom = troopXpForLevel(stats.level, content);
+  const lvlTo = troopXpForLevel(stats.level + 1, content);
   const lvlUps = useRise(stats.level);
   const unlocked = ACTIVITIES.filter((a) => state.unlocks.includes(`activity:${a}`));
   const canRecruit = state.unlocks.includes('recruit');

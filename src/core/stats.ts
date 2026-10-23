@@ -2,7 +2,7 @@
 // Nothing here is stored in the save; it is always recomputed from state + content.
 
 import { averageWeaponPower, weaponGroups } from './equipment';
-import { damagePerHit, dpsAgainst, killsPerSecond, levelForXp, resolveStat } from './formulas';
+import { damagePerHit, dpsAgainst, killsPerSecond, levelForXp, resolveStat, xpForLevel } from './formulas';
 import type {
   ActivityKind,
   Content,
@@ -137,7 +137,14 @@ export function availableSites(state: GameState, content: Content, activity: Act
 }
 
 export function troopLevel(troop: TroopState, content: Content): number {
-  return levelForXp(troop.xp, content.constants.xpBase, content.constants.xpExponent);
+  const c = content.constants;
+  return levelForXp(troop.xp, c.xpBase, c.xpExponent, c.xpKneeLevel, c.xpExponentLate);
+}
+
+/** Total XP needed to reach a troop level (includes the steeper curve above the knee). */
+export function troopXpForLevel(level: number, content: Content): number {
+  const c = content.constants;
+  return xpForLevel(level, c.xpBase, c.xpExponent, c.xpKneeLevel, c.xpExponentLate);
 }
 
 export interface TroopStats {

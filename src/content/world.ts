@@ -19,11 +19,11 @@ interface Role { hp: number; armour: number; attack: number; xp: number }
 
 /** By level mod 5: light, normal, heavy, armoured, elite (the boss-level family). */
 const ROLES: Record<number, Role> = {
-  1: { hp: 0.85, armour: -1, attack: 1.0, xp: 0.8 },
-  2: { hp: 1.0, armour: 0, attack: 1.0, xp: 1.0 },
-  3: { hp: 1.2, armour: 1, attack: 1.15, xp: 1.2 },
+  1: { hp: 0.85, armour: -1, attack: 1.0, xp: 1.0 },
+  2: { hp: 1.0, armour: 0, attack: 1.0, xp: 1.05 },
+  3: { hp: 1.2, armour: 1, attack: 1.15, xp: 1.1 },
   4: { hp: 1.0, armour: 2, attack: 0.9, xp: 1.1 },
-  0: { hp: 1.15, armour: 1, attack: 1.1, xp: 1.5 },
+  0: { hp: 1.15, armour: 1, attack: 1.1, xp: 1.2 },
 };
 
 /** Bands of five levels with the family names in role order (light, normal, heavy, armoured, elite). */
@@ -42,8 +42,8 @@ const BANDS: { name: string; families: string[] }[] = [
 const KILLS: { normal: number; boss: number }[] = [
   { normal: 12, boss: 8 },
   { normal: 12, boss: 8 },
-  { normal: 14, boss: 10 },
-  { normal: 16, boss: 12 },
+  { normal: 16, boss: 11 },
+  { normal: 18, boss: 13 },
   { normal: 40, boss: 25 },
   { normal: 56, boss: 35 },
   { normal: 80, boss: 50 },
@@ -72,12 +72,12 @@ function hpGrowth(level: number): number {
 }
 
 /**
- * M13 tuning (docs/BALANCE_LOG.md pass 13). XP of generated enemies is scaled to a tenth of the first draft and
- * grows 3 % per level (not 6 %), so troop levels stay readable (about 45 at level 40); the HP of levels 6-40 is
- * 2.4x the first draft, which with the larger kill counts gives levels 6-20 their 10-15 minutes.
+ * M13 tuning (docs/BALANCE_LOG.md pass 13). Enemy XP starts at the level-5 boar (18) and grows 5 % per level, so it
+ * reads as rising; troop growth is slowed by the XP knee in the troop level curve (constants), not here. The HP of
+ * levels 6-40 is 2.4x the first draft, which with the larger kill counts gives levels 6-20 their 10-15 minutes.
  */
-const XP_SCALE = 0.1;
-const XP_GROWTH = 1.03;
+const XP_SCALE = 1;
+const XP_GROWTH = 1.04;
 const HP_SCALE = 2.4;
 
 /** The generated enemy of a level (6-40) in a band of five; anchored on the old boar at level 5. */
@@ -104,7 +104,7 @@ const bossTable: { id: string; level: number; name: string; hp: number; armour: 
   { id: 'crowFoot', level: 15, name: 'Kråkfot, rövarhövdingen', hp: 1100, armour: 9, attack: 4.8, timeLimitSec: 120 },
   { id: 'mossWife', level: 20, name: 'Mossfrun', hp: 1500, armour: 11, attack: 6.6, timeLimitSec: 120 },
   { id: 'bailiffBlackfire', level: 25, name: 'Fogde Svartbrand', hp: 2700, armour: 12, attack: 9.2, timeLimitSec: 120 },
-  { id: 'trollGrymstorp', level: 30, name: 'Stentrollet Grymstorp', hp: 14400, armour: 13, attack: 13.0, timeLimitSec: 150 },
+  { id: 'trollGrymstorp', level: 30, name: 'Stentrollet Grymstorp', hp: 16000, armour: 13, attack: 13.0, timeLimitSec: 150 },
   { id: 'captainIronhand', level: 35, name: 'Kapten Järnhand', hp: 25200, armour: 15, attack: 18.2, timeLimitSec: 150 },
   { id: 'lordSharpmark', level: 40, name: 'Borgherre Skarpmark', hp: 37000, armour: 17, attack: 25.6, timeLimitSec: 150 },
 ];

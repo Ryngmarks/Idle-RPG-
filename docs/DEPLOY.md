@@ -2,6 +2,15 @@
 
 > Goal: play the prototype on a phone without running a server and without ongoing costs.
 
+## Current setup: GitHub Pages ✅
+
+The repository is **public** (owner decision, 2026-10-23), so GitHub Pages is free.
+
+- **URL:** https://ryngmarks.github.io/Idle-RPG-/
+- **Workflow:** `.github/workflows/pages.yml` on `master`. It runs on every push to `master`, and on demand (Actions → *Deploy game to GitHub Pages* → *Run workflow*, with an optional branch input).
+- GitHub Pages only accepts deployments from the default branch, so the workflow **runs on `master` but builds `GAME_REF`**, which is currently `m3-playable-ui`. After the UI branch is merged, change `GAME_REF` to `master`.
+- Each deploy also runs the tests. A failing test means no deploy.
+
 ## Quick preview (available now)
 
 A single-file build of branch `m3-playable-ui` is published as a private claude.ai artifact: https://claude.ai/artifact/754PwvoYfLyR29b2eVg3h5. Open it on the phone while logged in to claude.ai. Saves use that page's browser storage, so use **Meny → Exportera** before switching to another URL. It is a snapshot: it updates only when it is republished, not on every push.
@@ -15,7 +24,7 @@ A single-file build of branch `m3-playable-ui` is published as a private claude.
 | Netlify (Free) | ✅ | Netlify account (sign in with GitHub) | ✅ + deploy previews | Equally good. 300 build minutes/month on the free plan. |
 | Cloudflare Pages | ✅ | Cloudflare account | ✅ | Also fine |
 
-**Recommendation: Vercel.** It needs no config files in the repo: Vite is auto-detected, the build command is `npm run build`, and the output is `dist/`. Every push to any branch gets its own preview URL, which suits "test this branch on my phone".
+**Alternative if the repo goes private again: Vercel.** It needs no config files in the repo: Vite is auto-detected, the build command is `npm run build`, and the output is `dist/`. Every push to any branch gets its own preview URL, which suits "test this branch on my phone".
 
 ## One-time setup (owner, ~5 minutes, on phone or desktop)
 

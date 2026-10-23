@@ -39,4 +39,4 @@ npm run sim         # Humans vs Orcs, two strategies, milestone summary
 npm run sim -- --race orcs --strategy balanced --log   # full timeline for one run
 ```
 
-Preview on a phone: see [docs/DEPLOY.md](docs/DEPLOY.md) (Vercel, free, no server).
+**Play:** https://ryngmarks.github.io/Idle-RPG-/ (GitHub Pages; see [docs/DEPLOY.md](docs/DEPLOY.md)).

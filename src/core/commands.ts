@@ -5,7 +5,7 @@ import { autoEquipAll, equipBest, unequipAll } from './equipment';
 import { canAfford, gain, hasUnlock, moveSoldiers, openTroopSlot, pay } from './mutations';
 import { evaluateObjectives } from './objectives';
 import { cloneState } from './state';
-import { availableSites, computeRates, enemy, freeBeds, race, soldierCount, zone } from './stats';
+import { availableSites, computeRates, enemy, feastActive, freeBeds, race, soldierCount, zone } from './stats';
 import type { ActivityKind, Content, Cost, GameEvent, GameState } from './types';
 
 export type Command =
@@ -22,6 +22,8 @@ export type Command =
   | { type: 'setAutoEquip'; troopId: string; on: boolean }
   | { type: 'startConstruction'; buildingId: string }
   | { type: 'buyUpgrade'; upgradeId: string }
+  /** Throw a Feast: temporary work and attack bonus (docs/PROGRESSION_V2.md §18.3). */
+  | { type: 'startFeast' }
   | { type: 'challengeBoss' }
   | { type: 'selectStage'; stageIndex: number }
   | { type: 'renameTroop'; troopId: string; name: string };
@@ -80,6 +82,16 @@ export function recipeAvailable(state: GameState, recipeId: string, content: Con
     hasUnlock(state, 'crafting') &&
     hasUnlock(state, `tier:${recipe.tier}`)
   );
+}
+
+/** Why the Feast can't start right now, or null if it can. */
+export function feastBlocker(state: GameState, content: Content): 'locked' | 'active' | 'cooldown' | 'resources' | null {
+  const f = content.constants.feast;
+  if ((state.buildings[f.requiresBuilding] ?? 0) < 1) return 'locked';
+  if (feastActive(state)) return 'active';
+  if (state.clock + 1e-9 < state.feast.readyAt) return 'cooldown';
+  if (!canAfford(state, f.cost)) return 'resources';
+  return null;
 }
 
 export function dispatch(input: GameState, cmd: Command, content: Content): CommandResult {
@@ -188,6 +200,17 @@ export function dispatch(input: GameState, cmd: Command, content: Content): Comm
       if (!canAfford(state, def.cost)) return fail('Not enough resources');
       pay(state, def.cost);
       state.upgrades[def.id] = 1;
+      break;
+    }
+    case 'startFeast': {
+      const blocker = feastBlocker(state, content);
+      if (blocker === 'locked') return fail('The feast is locked');
+      if (blocker === 'active') return fail('A feast is already on');
+      if (blocker === 'cooldown') return fail('The feast is not ready yet');
+      if (blocker === 'resources') return fail('Not enough resources');
+      const f = content.constants.feast;
+      pay(state, f.cost);
+      state.feast = { until: state.clock + f.durationSec, readyAt: state.clock + f.cooldownSec };
       break;
     }
     case 'challengeBoss': {

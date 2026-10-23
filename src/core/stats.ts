@@ -83,6 +83,11 @@ export const HUNGER_WORK_PENALTY = 0.4;
 export const HUNGER_ATTACK_PENALTY = 0.25;
 export const FOOD_EPS = 1e-9;
 
+/** The Feast is running (clock seconds; its end is an event boundary in `advance`). */
+export function feastActive(state: GameState): boolean {
+  return state.feast.until > state.clock + 1e-9;
+}
+
 /** Food per second the army eats. Recruits in training are not soldiers yet and do not eat. */
 export function upkeepPerSec(state: GameState, content: Content): number {
   const n = Math.max(0, soldierCount(state) - FREE_SOLDIERS);
@@ -151,10 +156,17 @@ export function troopStats(state: GameState, troop: TroopState, content: Content
 
   // Racial traits that depend on the troop itself.
   const troopMods: Modifier[] = [];
-  if (r.traits.includes('horde')) {
-    // A horde hits harder the more of it there is: up to +50 % at ten or more in one group.
-    const fullness = Math.min(1, troop.size / 10);
-    troopMods.push({ stat: 'attack', op: 'mult', value: 0.5 * fullness, source: 'trait:horde' });
+  const horde = r.traitParams?.horde;
+  if (r.traits.includes('horde') && horde) {
+    // A horde hits harder the more of it there is in one group (Orcs: +12.5 % per comrade, full +50 % at five).
+    const bonus = Math.min(horde.cap, horde.perSoldier * (troop.size - 1));
+    if (bonus > 0) troopMods.push({ stat: 'attack', op: 'mult', value: bonus, source: 'trait:horde' });
+  }
+  const adaptable = r.traitParams?.adaptable;
+  if (r.traits.includes('adaptable') && adaptable && troop.size <= adaptable.maxSize) {
+    // Small troops adapt fast: more food and building skill (Humans).
+    troopMods.push({ stat: 'skill.food', op: 'mult', value: adaptable.bonus, source: 'trait:adaptable' });
+    troopMods.push({ stat: 'skill.construction', op: 'mult', value: adaptable.bonus, source: 'trait:adaptable' });
   }
   const all = troopMods.length ? [...mods, ...troopMods] : mods;
 
@@ -217,6 +229,10 @@ export interface Rates {
   /** Multipliers hunger puts on work speed (not food sites) and attack; 1 when not hungry. */
   workMult: number;
   attackMult: number;
+  /** The Feast is on; its work (all work, food sites too) and attack multipliers, 1 when off. They multiply with the hunger ones. */
+  feastActive: boolean;
+  feastWorkMult: number;
+  feastAttackMult: number;
   /** Per-troop output, useful for UI and the simulator. */
   perTroop: Record<string, { killsPerSec: number; bossDps: number; output: Partial<Resources>; work: number; working: number; siteId: string | null }>;
 }
@@ -227,7 +243,10 @@ export function emptyResources(): Resources {
 
 export function computeRates(state: GameState, content: Content): Rates {
   const upkeep = upkeepPerSec(state, content);
-  let rates = computeBase(state, content, 1, 1);
+  const feast = feastActive(state);
+  const fw = feast ? content.constants.feast.workMult : 1;
+  const fa = feast ? content.constants.feast.attackMult : 1;
+  let rates = computeBase(state, content, 1, 1, fw, fa);
   rates.upkeepPerSec = upkeep;
   const stock = state.resources.food;
   if (upkeep > 0 && stock <= FOOD_EPS && rates.income.food < upkeep - 1e-12) {
@@ -240,7 +259,7 @@ export function computeRates(state: GameState, content: Content): Rates {
     const c = Math.max(0, Math.min(1, (sites + (1 - a) * loot) / (upkeep - a * loot)));
     const workMult = 1 - HUNGER_WORK_PENALTY * (1 - c);
     const attackMult = 1 - a * (1 - c);
-    rates = computeBase(state, content, workMult, attackMult);
+    rates = computeBase(state, content, workMult, attackMult, fw, fa);
     rates.upkeepPerSec = upkeep;
     rates.hungry = true;
     rates.coverage = c;
@@ -255,7 +274,7 @@ export function computeRates(state: GameState, content: Content): Rates {
   return rates;
 }
 
-function computeBase(state: GameState, content: Content, workMult: number, attackMult: number): Rates {
+function computeBase(state: GameState, content: Content, hungerWork: number, hungerAttack: number, feastWork: number, feastAttack: number): Rates {
   const c = content.constants;
   const r = race(state, content);
   const mods = globalModifiers(state, content);
@@ -276,8 +295,13 @@ function computeBase(state: GameState, content: Content, workMult: number, attac
     coverage: 1,
     workMult: 1,
     attackMult: 1,
+    feastActive: feastWork !== 1 || feastAttack !== 1,
+    feastWorkMult: feastWork,
+    feastAttackMult: feastAttack,
     perTroop: {},
   };
+  const workMult = hungerWork * feastWork;
+  const attackMult = hungerAttack * feastAttack;
   const foe = currentEnemy(state, content);
   const boss = state.combat.boss ? enemy(zone(state, content).boss.enemyId, content) : null;
   const fighting = state.troops.filter((t) => t.activity === 'combat');
@@ -317,7 +341,7 @@ function computeBase(state: GameState, content: Content, workMult: number, attac
         entry.siteId = site.id;
         entry.working = take(site.id, t.size);
         // Each working soldier finishes a cycle every cycleSec / (work × skill) seconds.
-        const cycles = (entry.working * s.work * s.skills[t.activity] * (t.activity === 'food' ? 1 : workMult)) / site.cycleSec;
+        const cycles = (entry.working * s.work * s.skills[t.activity] * (t.activity === 'food' ? feastWork : workMult)) / site.cycleSec;
         rates.siteCycles[site.id] = (rates.siteCycles[site.id] ?? 0) + cycles;
         for (const [res, v] of Object.entries(site.yield) as [keyof Resources, number][]) entry.output[res] = v * cycles;
         addXp(t.id, cycles * c.workXp);

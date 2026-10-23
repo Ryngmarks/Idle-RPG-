@@ -290,7 +290,7 @@ export const objectives: ObjectiveDef[] = [
   {
     id: 'tent2',
     text: 'Res ett andra tält: fler sängar, fler soldater.',
-    requires: ['twoTroops'],
+    requires: ['train1'],
     condition: { kind: 'buildingLevel', buildingId: 'tents', level: 2 },
     rewards: { resources: { wood: 30 }, unlocks: ['building:woodshed'] },
   },
@@ -342,6 +342,20 @@ export const objectives: ObjectiveDef[] = [
     requires: ['gear1'],
     condition: { kind: 'buildingLevel', buildingId: 'forge', level: 2 },
     rewards: { resources: { food: 30 } },
+  },
+  {
+    id: 'raid1',
+    text: 'Plundra gårdarna: besegra 60 fiender.',
+    requires: ['stage3'],
+    condition: { kind: 'kills', amount: 60 },
+    rewards: { resources: { wood: 45, stone: 25 } },
+  },
+  {
+    id: 'raid2',
+    text: 'Hjordens byte: besegra 150 fiender.',
+    requires: ['raid1'],
+    condition: { kind: 'kills', amount: 150 },
+    rewards: { resources: { food: 40, ore: 6 } },
   },
   {
     id: 'zoneCleared',

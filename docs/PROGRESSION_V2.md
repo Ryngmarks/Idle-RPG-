@@ -488,7 +488,7 @@ Implemented as specified, with these tunings and owner decisions (see [Balance L
 
 ## 17. M11 food upkeep spec (✅ approved by the owner 2026-10-23, D-55)
 
-Status: **proposal**. Not decided, not built. Owner decisions it builds on: path A (soldiers eat; no food means slower, never dead), D-35 / D-36 (no losses, online or offline), D-13 (Humans better at food), D-50 (soldier targets), D-54 (food floor 4 % until upkeep). Out of scope: feasts and rations (surplus sink), new regions. **Every number marked (guess) is a starting point for QA to tune with `npm run sim`.**
+Status: **approved** with the recommendations (D-57): horde full at 5, Humans trait for food and building only, feast as specified. Owner decisions it builds on: path A (soldiers eat; no food means slower, never dead), D-35 / D-36 (no losses, online or offline), D-13 (Humans better at food), D-50 (soldier targets), D-54 (food floor 4 % until upkeep). Out of scope: feasts and rations (surplus sink), new regions. **Every number marked (guess) is a starting point for QA to tune with `npm run sim`.**
 
 Baseline (balanced bot, 70 min sim, M10b): Humans food 4 % of troop-time, 2 / 4 / 5 soldiers at 15 / 30 / 40, boss 44:31; Orcs food 9 %, 2 / 5 / 6, boss 50:35 (+14 %). Food stock is often idle (Humans 77 at 30 min, 142 at 35). Food skill: Humans 1.4, Orcs 0.8. Per forager: berries 2 per 20 s (6 per min at skill 1), fields 9 per 60 s; so a Human forager gives about 8.4 per min on berries, an Orc about 4.8.
 
@@ -567,9 +567,9 @@ The extra food time is taken mostly from mining and wood, so the boss slips by 1
 
 ---
 
-## 18. M12 gameplay polish spec (proposal, awaiting the owner's approval)
+## 18. M12 gameplay polish spec (approved, D-57)
 
-Status: **proposal**. Not decided, not built. Builds on D-08 / D-13 (race identity, Humans food, Orcs wood), D-50 (soldier targets stay), D-53 / D-54 (event-gap guards), D-55 (food upkeep, §17 on branch `m11-food-upkeep`; this section is written to merge after it), R-05 and R-14 in IDLE_RESEARCH.md. **Every number marked (guess) is a starting point for QA to tune with `npm run sim`.** Measured baseline (balanced bot, M10b): Orcs events at 29:31 (stage 3) then 36:06 (tent 2) = **6.6 min gap**, and 37:57 to 42:31 = 4.5 min; Orcs soldiers 2 / 5 / 6 at 15 / 30 / 40, boss 50:35 (+14 % vs Humans 44:31).
+Status: **approved** with the recommendations (D-57): horde full at 5, Humans trait for food and building only, feast as specified. Builds on D-08 / D-13 (race identity, Humans food, Orcs wood), D-50 (soldier targets stay), D-53 / D-54 (event-gap guards), D-55 (food upkeep, §17 on branch `m11-food-upkeep`; this section is written to merge after it), R-05 and R-14 in IDLE_RESEARCH.md. **Every number marked (guess) is a starting point for QA to tune with `npm run sim`.** Measured baseline (balanced bot, M10b): Orcs events at 29:31 (stage 3) then 36:06 (tent 2) = **6.6 min gap**, and 37:57 to 42:31 = 4.5 min; Orcs soldiers 2 / 5 / 6 at 15 / 30 / 40, boss 50:35 (+14 % vs Humans 44:31).
 
 ### 18.1 Small-army race traits (R-05)
 
@@ -651,3 +651,13 @@ Status: **proposal**. Not decided, not built. Builds on D-08 / D-13 (race identi
 1. **Orc horde:** is full +50 % at five soldiers (instead of ten) right, even though it makes splitting an Orc army costly and the boss a few minutes faster?
 2. **Humans trait scope:** food and building only for troops of 3 or fewer (recommended, safe), or also a small work-speed bonus (stronger, may push the Humans boss toward the 40 min lower limit)?
 3. **Feast strength:** +15 % work and +10 % attack for 10 min, 20 min cooldown, 50 food + 15 wood. Milder, stronger, or should it scale its cost with army size?
+
+### 18.7 As built (balance pass 12, D-58)
+
+The (guess) numbers above were tuned with the simulator; these are the shipped values:
+- `raid1` 80 kills (was 60), `raid2` 130 kills (was 150). Rewards unchanged.
+- Feast: **+25 % work and +25 % attack** (was +15 % / +10 %). With the guessed values the feast saved only 0.2–1.4 % of boss time, because its food cost eats the gain; the spec's own target is 3–10 %. Cost, duration and cooldown unchanged.
+- The feast bot feasts when food ≥ 70 and wood ≥ 15 (was food > 100).
+- `tent2.requires` is `['train1']`.
+- Horde (+12.5 %/soldier, cap 50 %) and adaptable (+25 %, size ≤ 3) unchanged.
+- Bot fixes: forage first when a recruit waits only for food; woodshed before farm 1.

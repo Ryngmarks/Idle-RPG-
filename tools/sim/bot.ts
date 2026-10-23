@@ -27,8 +27,9 @@ import {
 /**
  * `balanced`: a careful active player (also watches the food). `economy`: builds first and only fights when
  * nothing is missing. `careless`: like balanced but never reacts to hunger (proves hunger cannot lock the game).
+ * `feast`: balanced, plus a Feast whenever it is ready and food is above 100 (the balanced bot never feasts).
  */
-export type Strategy = 'balanced' | 'economy' | 'careless';
+export type Strategy = 'balanced' | 'economy' | 'careless' | 'feast';
 
 type Wish =
   | { kind: 'upgrade'; id: string }
@@ -43,8 +44,8 @@ const WISHLIST: Wish[] = [
   { kind: 'building', id: 'trainingCamp', level: 1 },
   { kind: 'building', id: 'forge', level: 1 },
   { kind: 'building', id: 'tents', level: 2 },
-  { kind: 'building', id: 'farm', level: 1 },
   { kind: 'building', id: 'woodshed', level: 1 },
+  { kind: 'building', id: 'farm', level: 1 },
   { kind: 'building', id: 'forge', level: 2 },
   { kind: 'upgrade', id: 'sharpenedAxes2' },
   { kind: 'building', id: 'farm', level: 2 },
@@ -56,6 +57,9 @@ const WISHLIST: Wish[] = [
 
 /** The bot sends a group to food when the stock lasts less than this. */
 const FOOD_BUFFER_SEC = 180;
+
+/** The feast bot feasts when food covers the feast cost (50) plus a small buffer. */
+const FEAST_BUFFER_FOOD = 20;
 
 export interface LogEntry {
   t: number;
@@ -212,6 +216,8 @@ function decide(
     }
   }
 
+  // 1b. Feast whenever it is ready and there is food to spare.
+
   // 2. Buy the next wish when affordable.
   const wish = WISHLIST.find((w) => !wishDone(w, state) && wishUnlocked(w, state) && !(w.kind === 'building' && state.construction));
   let goal: Cost = {};
@@ -229,6 +235,14 @@ function decide(
     refresh();
   } else if (blocker === null || blocker === 'food') {
     goal.food = (goal.food ?? 0) + trainFood;
+  }
+
+  // 3b. Feast: the balanced bot never does; the feast bot does it as soon as the cost plus a small buffer is in stock.
+  if (strategy === 'feast') {
+    const cost = content.constants.feast.cost;
+    if (state.resources.food >= (cost.food ?? 0) + FEAST_BUFFER_FOOD && state.resources.wood >= (cost.wood ?? 0)) {
+      if (exec({ type: 'startFeast' })) refresh();
+    }
   }
 
   // 4. Forge: weapons for unarmed soldiers only (racing to the boss, not grinding quality).
@@ -263,6 +277,8 @@ function decide(
     return site ? (site.yield[r] ?? 0) / site.cycleSec : 0;
   };
   missing.sort((a, b) => b.gap / Math.max(1e-6, perSec(b.r)) - a.gap / Math.max(1e-6, perSec(a.r)));
+  // A recruit that waits only for food: foraging comes first (a player sees "needs 25 food" and sends a group).
+  if (blocker === 'food' && state.troops.length >= 2) missing.sort((a, b) => (b.r === 'food' ? 1 : 0) - (a.r === 'food' ? 1 : 0));
   type Job = { activity: ActivityKind; siteId?: string };
   const econ: Job[] = [];
   // Food watch (not for the careless player): send a group to food when it is empty or about to run out.

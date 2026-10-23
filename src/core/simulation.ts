@@ -65,6 +65,12 @@ function pendingEvents(state: GameState, rates: Rates, content: Content): Pendin
     }
   }
 
+  // The Feast ends at an exact moment: rates change there, so it is an event boundary.
+  if (rates.feastActive) {
+    const until = state.feast.until;
+    out.push({ t: until - state.clock, snap: (s) => (s.clock = until) });
+  }
+
   const order = state.crafting.queue[0];
   const recipe = order ? content.equipment.recipes[order.recipeId] : undefined;
   if (recipe && rates.craftWorkPerSec > 0) {
@@ -186,6 +192,11 @@ function processEvents(state: GameState, content: Content, levelsBefore: Map<str
         events.push({ type: 'troopRetreated', at: state.clock, troopId: t.id, reason: 'losses' });
       }
     }
+  }
+
+  if (state.feast.until > 0 && state.feast.until <= state.clock + EPS) {
+    state.feast.until = 0;
+    events.push({ type: 'feastEnded', at: state.clock });
   }
 
   if (state.training && state.training.secLeft <= EPS) {

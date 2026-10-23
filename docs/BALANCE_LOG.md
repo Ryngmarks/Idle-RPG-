@@ -330,3 +330,43 @@ Upkeep per soldier but the first: Humans 0.5, Orcs 0.6 food/min. Balanced bot, 9
 | Careless bot (ignores food) | boss 46:16 (+2.8 %), 3.6 min hungry | — |
 
 Raising Human upkeep to 0.8–1.0 did not lift their food share above ~5 % and slowed soldier growth, so it was reverted. Humans are the better farmers (D-13): a short stint on the fields feeds them. **Owner-delegated decision (D-56):** the food floor in the balance guard is per race, Humans 4 %, Orcs 8 %.
+
+## Pass 12: 2026-10-23, M12 gameplay polish (D-57, D-58)
+
+**Starting point**
+- Boss: Humans 40:56, Orcs 49:21.
+- Orc gap: 4.4 min, from `twoTroops` at 15:15 to recruit 3 at 19:40.
+- Orc food share: 7.1 %, under the 8 % floor.
+- Feast bot: only 1.6 % faster.
+
+**Findings**
+- The Orc gap lies before raid1 can fire, since raid1 requires stage3.
+- The bot sent troop 2 mining while a recruit waited only for food.
+- With the guessed feast (+15 % work / +10 % attack), the feast bot saved only 0.2 % (Orcs) and 1.4 % (Humans), because the food cost eats the gain.
+
+**Changes**
+- Bot:
+  - forage first when a recruit is blocked only by food;
+  - woodshed before farm 1;
+  - the feast bot feasts at food ≥ 70 and wood ≥ 15.
+- Content:
+  - raid1 60 → 80 kills;
+  - raid2 150 → 130 kills;
+  - feast +25 % work / +25 % attack.
+- Unchanged: horde cap 0.5, adaptable 0.25, feast cost and timers.
+
+**Result, balanced bot**
+
+| | Boss | Soldiers 15/30/40 | Gap 15–45 | Food share |
+|---|---|---|---|---|
+| Humans | 40:31 | 2/4/6 | 3.3 min | 7 % |
+| Orcs | 47:31 | 2/5/6 | 3.3 min | 17 % |
+
+- Orc/Human boss ratio: 1.17.
+- Feast bot: Humans −4.5 % (38:41), Orcs −3.9 % (45:41).
+- The balanced bot never feasts.
+
+**Margins**
+- The Humans boss is only 31 s above the 40-minute floor.
+- The Orc feast gain is close to its 3 % floor.
+- Results are chaotic, so re-run the sim after any bot or content change.

@@ -73,6 +73,15 @@ export interface RaceDef {
   };
   modifiers: Modifier[];
   traits: TraitId[];
+  /** Numbers behind the traits (docs/PROGRESSION_V2.md §18.1). A trait without parameters has no troop-size effect. */
+  traitParams?: {
+    /** Attack +perSoldier per soldier beyond the first in one troop, capped at `cap`. */
+    horde?: { perSoldier: number; cap: number };
+    /** Troops of `maxSize` or fewer get `bonus` more food and construction skill. */
+    adaptable?: { maxSize: number; bonus: number };
+  };
+  /** Swedish trait descriptions shown to the player. */
+  traitTexts?: Partial<Record<TraitId, string>>;
   /** Every troop of this race uses this weapon type (D-26). */
   weaponTypeId: string;
   /** Default name for troop N (1-based). */
@@ -251,7 +260,21 @@ export interface Content {
     levelBonus: number;
     startZoneId: string;
     startUnlocks: Unlock[];
+    /** The Feast (docs/PROGRESSION_V2.md §18.3). */
+    feast: FeastConfig;
   };
+}
+
+export interface FeastConfig {
+  cost: Cost;
+  durationSec: number;
+  /** Seconds from the start of one feast until the next may start. */
+  cooldownSec: number;
+  /** Multipliers on work speed (all work, food sites included) and attack while it lasts. */
+  workMult: number;
+  attackMult: number;
+  /** Building that must be built before the feast is available. */
+  requiresBuilding: string;
 }
 
 // ---------------------------------------------------------------- state
@@ -325,6 +348,8 @@ export interface GameState {
     /** Deterministic quality distribution carry per mastery key (see equipment.ts). */
     carry: Record<string, number[]>;
   };
+  /** The Feast, in clock seconds: active while clock < until; may start again once clock >= readyAt. 0 = none. */
+  feast: { until: number; readyAt: number };
   unlocks: Unlock[];
   objectivesCompleted: string[];
   stats: {
@@ -361,4 +386,5 @@ export type GameEvent =
   | { type: 'objectiveCompleted'; at: number; objectiveId: string }
   /** Hunger starts (food stock 0 and average income below upkeep) / ends. Only emitted on transitions. */
   | { type: 'foodEmpty'; at: number }
-  | { type: 'foodRestored'; at: number };
+  | { type: 'foodRestored'; at: number }
+  | { type: 'feastEnded'; at: number };

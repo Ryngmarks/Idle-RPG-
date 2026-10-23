@@ -6,6 +6,7 @@ import {
   availableSites,
   beds,
   capacity,
+  race as raceOf,
   limiters,
   secondsToNextCycle,
   soldierCount,
@@ -205,6 +206,26 @@ function LifeChip({ troop, rates, hpPerSoldier }: { troop: TroopState; rates: Ra
   return <Chip tone="ok"><Icon name="heal" size={13} /> Frisk</Chip>;
 }
 
+/** Racial trait feedback for one troop. Display only: the numbers come from the race's traitParams. */
+function TraitChips({ troop, state }: { troop: TroopState; state: GameState }) {
+  const r = raceOf(state, content);
+  const horde = r.traitParams?.horde;
+  const adaptable = r.traitParams?.adaptable;
+  const hordeBonus = r.traits.includes('horde') && horde ? Math.min(horde.cap, horde.perSoldier * (troop.size - 1)) : 0;
+  const small = r.traits.includes('adaptable') && adaptable && troop.size <= adaptable.maxSize;
+  if (hordeBonus <= 0 && !small) return null;
+  return (
+    <div className="trait-chips">
+      {hordeBonus > 0 && horde && (
+        <Chip tone="gold" title={r.traitTexts?.horde}>
+          <Icon name="strength" size={14} /> Hjordmod +{Math.round(hordeBonus * 100)} %{hordeBonus >= horde.cap ? ' (max)' : ''}
+        </Chip>
+      )}
+      {small && <Chip tone="gold" title={r.traitTexts?.adaptable}><Icon name="wheat" size={14} /> Anpassningsbara</Chip>}
+    </div>
+  );
+}
+
 function TroopCard({ troop, state, rates, hero }: { troop: TroopState; state: GameState; rates: Rates; hero: boolean }) {
   const store = useStore();
   const [error, setError] = useState<string | null>(null);
@@ -255,6 +276,7 @@ function TroopCard({ troop, state, rates, hero }: { troop: TroopState; state: Ga
         )}
         <span key={lvlUps} className={`badge badge--lvl ${lvlUps > 0 ? 'badge--flare' : ''}`} title={`${Math.floor(troop.xp)} / ${lvlTo} XP`}><Icon name="star" size={13} /> Nv {stats.level}</span>
         <LifeChip troop={troop} rates={rates} hpPerSoldier={stats.hp} />
+        {rates.feastActive && <span className="chip chip--feast"><Icon name="tankard" size={14} /> Fest</span>}
       </header>
       <div className="troop__mini">
         <span className="stat"><Icon name="soldier" size={18} /><strong>{troop.size}</strong><span className="sr-only">{troop.size === 1 ? 'soldat' : 'soldater'}</span></span>
@@ -265,6 +287,7 @@ function TroopCard({ troop, state, rates, hero }: { troop: TroopState; state: Ga
       <Bar value={stats.maxHp - troop.wounds} max={stats.maxHp} tone="life" label="Liv" />
       <Bar value={troop.xp - lvlFrom} max={lvlTo - lvlFrom} tone="xp" label="Erfarenhet" />
       <LifeStatus troop={troop} rates={rates} hpPerSoldier={stats.hp} />
+      <TraitChips troop={troop} state={state} />
 
       <CycleHero troop={troop} state={state} rates={rates} />
 

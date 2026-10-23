@@ -164,7 +164,7 @@ describe('food upkeep (docs/PROGRESSION_V2.md §17)', () => {
   it('coverage 0.5 gives work x0.8 and attack x0.875', () => {
     // 1 forager makes 0.14/s; 10 eaters at 1.68/min eat 0.28/s: exactly half covered.
     const humans = baseContent.races.humans!;
-    const c: Content = { ...baseContent, races: { ...baseContent.races, humans: { ...humans, population: { ...humans.population, upkeep: 1.68 } } } };
+    const c: Content = { ...baseContent, races: { ...baseContent.races, humans: { ...humans, traits: [], population: { ...humans.population, upkeep: 1.68 } } } };
     const s = newGame('humans', c);
     s.unlocks = ['activity:woodcutting', 'activity:food'];
     s.objectivesCompleted = c.objectives.map((o) => o.id);

@@ -92,6 +92,15 @@ const migrations: Record<number, (s: Record<string, unknown>) => Record<string, 
     if (done.includes('stage3') && (combat.cleared || combat.unlockedStage + 1 >= 5) && !done.includes('rescue2')) done.push('rescue2');
     return { ...s, objectivesCompleted: done, unlocks };
   },
+  // v8 → v9: M12 polish (docs/PROGRESSION_V2.md §18). The Feast starts unused. The new raid objectives
+  // that the old save already satisfies are marked done silently, with no rewards.
+  8: (s) => {
+    const done = [...(s.objectivesCompleted as string[])];
+    const kills = (s.stats as { totalKills?: number }).totalKills ?? 0;
+    if (done.includes('stage3') && !done.includes('raid1') && kills >= 80) done.push('raid1');
+    if (done.includes('raid1') && !done.includes('raid2') && kills >= 130) done.push('raid2');
+    return { ...s, objectivesCompleted: done, feast: { until: 0, readyAt: 0 } };
+  },
 };
 
 export function serialize(state: GameState): string {

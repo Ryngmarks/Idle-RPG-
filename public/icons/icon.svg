@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="38%" r="75%"><stop offset="0" stop-color="#2a2218"/><stop offset="1" stop-color="#0f0d10"/></radialGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e6c670"/><stop offset="1" stop-color="#9a7a2e"/></linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
+  <path d="M256 66 L411 130 V259 C411 345 349 411 256 446 C163 411 101 345 101 259 V130 Z" fill="#17131a" stroke="url(#gold)" stroke-width="22" stroke-linejoin="round"/>
+  <path d="M256 104 L376 153 V259 C376 324 330 373 256 402 C182 373 136 324 136 259 V153 Z" fill="none" stroke="#c9a24a" stroke-opacity=".45" stroke-width="5"/>
+  <!-- outpost tower -->
+  <path d="M206 318 V212 H220 V190 H238 V212 H274 V190 H292 V212 H306 V318 Z" fill="url(#gold)"/>
+  <path d="M206 190 H224 V172 H238 V190 H274 V172 H288 V190 H306 V168 H206 Z" fill="#c9a24a" transform="translate(0 -6)"/>
+  <path d="M242 318 V270 a14 14 0 0 1 28 0 V318 Z" fill="#0f0d10"/>
+  <rect x="249" y="226" width="14" height="26" rx="7" fill="#0f0d10"/>
+  <path d="M256 168 V122 L292 136 L256 150" fill="#c9a24a"/>
+  <path d="M186 318 H326 V336 H186 Z" fill="#c9a24a"/>
+</svg>

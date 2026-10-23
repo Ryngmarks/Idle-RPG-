@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import type { AwayReport } from '../../app/store';
 import { RESOURCES, type GameState } from '../../core';
 import { Icon } from '../art/icons';
@@ -7,6 +7,13 @@ import { fmtAmount, fmtClock, fmtDuration, fmtInt } from '../format';
 import { useStore } from '../game';
 import { buildLabel, checkForUpdate, reloadToLatest, type UpdateStatus } from '../update';
 import { RESOURCE_LABEL, eventText } from '../labels';
+
+type InstallPrompt = Event & { prompt: () => Promise<void> };
+let deferredInstall: InstallPrompt | null = null;
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredInstall = e as InstallPrompt; });
+  window.addEventListener('appinstalled', () => { deferredInstall = null; });
+}
 
 function Modal({ title, children, onClose }: { title: string; children: ReactNode; onClose: () => void }) {
   return (
@@ -65,6 +72,13 @@ export function MenuModal({ state, storageOk, onClose }: { state: GameState; sto
   const [message, setMessage] = useState<string | null>(null);
   const [confirmReset, setConfirmReset] = useState(false);
   const [update, setUpdate] = useState<UpdateStatus | 'checking' | null>(null);
+  const [canInstall, setCanInstall] = useState(deferredInstall !== null);
+  useEffect(() => {
+    const on = () => setCanInstall(deferredInstall !== null);
+    window.addEventListener('beforeinstallprompt', on);
+    window.addEventListener('appinstalled', on);
+    return () => { window.removeEventListener('beforeinstallprompt', on); window.removeEventListener('appinstalled', on); };
+  }, []);
 
   return (
     <Modal title="Meny" onClose={onClose}>
@@ -124,6 +138,14 @@ export function MenuModal({ state, storageOk, onClose }: { state: GameState; sto
             {update === 'new' ? 'Uppdatera nu' : 'Ladda om'}
           </button>
         </div>
+      </section>
+
+      <section className="menu-section">
+        <h3>Installera</h3>
+        <p className="small muted">Installera: välj Dela → Lägg till på hemskärmen (iPhone) eller menyn → Installera app (Android).</p>
+        {canInstall && (
+          <button className="btn btn--primary" onClick={() => { const d = deferredInstall; deferredInstall = null; setCanInstall(false); void d?.prompt(); }}>Installera</button>
+        )}
       </section>
 
       <section className="menu-section">

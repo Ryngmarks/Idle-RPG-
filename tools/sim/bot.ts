@@ -269,7 +269,7 @@ function decide(
   if (strategy !== 'careless' && can('food')) {
     const fb = foodBalance(state, content);
     const foodJob = gatherJob(state, content, 'food');
-    if (foodJob && state.troops.length > 1 && (fb.hungry || (fb.net < 0 && fb.secondsLeft < FOOD_BUFFER_SEC))) econ.push(foodJob);
+    if (foodJob && (fb.hungry || (fb.net < 0 && fb.secondsLeft !== null && fb.secondsLeft < FOOD_BUFFER_SEC))) econ.push(foodJob);
   }
   if (state.construction && can('construction')) econ.push({ activity: 'construction' });
   if (state.crafting.queue.length > 0 && can('smithing')) econ.push({ activity: 'smithing' });

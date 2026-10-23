@@ -45,11 +45,16 @@ export const BUILDING_ICON: Record<string, UiIconName> = {
 };
 
 export const TRAIT_LABEL: Record<TraitId, string> = {
-  horde: 'Horde: starkare ju fullare truppen är',
+  horde: 'Hjordmod: +12,5 % anfall per kamrat i truppen, max +50 % vid fem.',
   raiders: 'Plundrare: mer mat och malm från strid',
   deepDelvers: 'Djupgruvor: mer malm',
-  adaptable: 'Anpassningsbara: allround, bäst på mat',
+  adaptable: 'Anpassningsbara: små trupper bygger och samlar mat 25 % snabbare (tre eller färre).',
 };
+
+/** Race card text: prefers the content's own wording, falls back to the generic label. */
+export function traitText(r: { traitTexts?: Partial<Record<TraitId, string>> }, t: TraitId): string {
+  return r.traitTexts?.[t] ?? TRAIT_LABEL[t];
+}
 
 const STAT_LABEL: Record<Modifier['stat'], string> = {
   attack: 'Styrka',
@@ -167,6 +172,8 @@ export function eventText(e: GameEvent, state: GameState): string | null {
       const r = content.equipment.recipes[e.recipeId];
       return `⚒️ Smedjan är klar med beställningen: T${r?.tier ?? 1} ${content.equipment.weaponTypes[r?.weaponTypeId ?? '']?.name.toLowerCase() ?? ''}`;
     }
+    case 'feastEnded':
+      return 'Festen är över.';
     case 'masteryLevelUp':
       return `⚒️ Smideskunskap (${content.equipment.weaponTypes[e.weaponTypeId]?.name.toLowerCase() ?? ''} T${e.tier}) nådde nivå ${e.level}: bättre kvalitet`;
   }

@@ -13,7 +13,7 @@ export type UiIconName =
   | 'target' | 'tent' | 'trainingCamp' | 'farm' | 'woodshed' | 'barracks'
   | 'menu' | 'lock' | 'crown' | 'check' | 'warning' | 'hourglass' | 'flag' | 'skull'
   | 'heal' | 'zzz' | 'soldier' | 'horn' | 'pencil' | 'close' | 'arrow' | 'tree' | 'clock'
-  | 'dotSafe' | 'dotRisky' | 'dotDeadly';
+  | 'tankard' | 'dotSafe' | 'dotRisky' | 'dotDeadly';
 
 const STEEL = '#c4ccd9';
 const GOLD = PAL.gold;
@@ -225,6 +225,15 @@ const SHAPES: Record<UiIconName, () => ReactElement> = {
       <Sh d="M16 3.5 L29.5 27 H2.5 Z" fill="#e0a43a" sw={1.7} hi />
       <path d="M16 11 V19" stroke={INK} strokeWidth="2.8" strokeLinecap="round" />
       <circle cx="16" cy="23.2" r="1.7" fill={INK} />
+    </>
+  ),
+  tankard: () => (
+    <>
+      <path d="M23 10 H27 Q30 10 30 14 V19 Q30 23 26 23 H23" fill="none" stroke={INK} strokeWidth="4.2" strokeLinecap="round" />
+      <path d="M23 10 H27 Q30 10 30 14 V19 Q30 23 26 23 H23" fill="none" stroke={STEEL} strokeWidth="2" strokeLinecap="round" />
+      <Sh d="M5 8 H23 V26 Q23 29 20 29 H8 Q5 29 5 26 Z" fill={PAL.wood} sw={1.6} hi />
+      <path d="M5 14 H23 M5 22 H23" stroke={GOLD} strokeWidth="1.8" />
+      <Sh d="M4 8 Q4 3 9 4 Q11 1.5 14 3.5 Q18 1.5 20 4.5 Q24 5 24 8 Z" fill="#f6efd8" sw={1.4} hi />
     </>
   ),
   hourglass: () => (

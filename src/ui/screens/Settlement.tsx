@@ -4,6 +4,7 @@ import { content } from '../../content';
 import { canAfford, race, type BuildingDef, type GameState, type Rates } from '../../core';
 import { Icon } from '../art/icons';
 import { VillageScene } from '../art/village';
+import { FeastPanel } from '../components/Feast';
 import { Bar, CostList, Panel } from '../components/common';
 import { fmtDuration, fmtInt } from '../format';
 import { useStore } from '../game';
@@ -91,6 +92,7 @@ export function Settlement({ state, rates }: { state: GameState; rates: Rates })
         <VillageScene buildings={state.buildings} construction={state.construction} unlocks={state.unlocks} />
         <p className="muted">{stage.text}</p>
       </Panel>
+      <FeastPanel state={state} />
       <div className="plots">
         {visible.map((b) => <BuildingPlot key={b.id} def={b} state={state} rates={rates} />)}
         {Array.from({ length: Math.min(MAX_EMPTY_SHOWN, Math.max(0, PLOTS - visible.length)) }, (_, i) => (

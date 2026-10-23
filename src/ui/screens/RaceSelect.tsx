@@ -3,7 +3,7 @@ import type { LabourActivity, RaceDef } from '../../core';
 import { RaceEmblem } from '../art';
 import { Icon } from '../art/icons';
 import { useStore } from '../game';
-import { ACTIVITY_LABEL, TRAIT_LABEL } from '../labels';
+import { ACTIVITY_LABEL, traitText } from '../labels';
 
 const FLAVOUR: Record<string, string> = {
   humans: 'Anpassningsbara kungariken. Stadiga arméer och den bästa matförsörjningen.',
@@ -45,7 +45,7 @@ export function RaceSelect() {
             </ul>
             {r.traits.length > 0 && (
               <ul className="race-card__traits">
-                {r.traits.map((t) => <li key={t}>{TRAIT_LABEL[t]}</li>)}
+                {r.traits.map((t) => <li key={t}>{traitText(r, t)}</li>)}
               </ul>
             )}
             {r.playable ? (

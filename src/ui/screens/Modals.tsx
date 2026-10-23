@@ -142,7 +142,7 @@ export function MenuModal({ state, storageOk, onClose }: { state: GameState; sto
 
       <section className="menu-section">
         <h3>Installera</h3>
-        <p className="small muted">Installera: välj Dela → Lägg till på hemskärmen (iPhone) eller menyn → Installera app (Android).</p>
+        <p className="small muted">Välj Dela → Lägg till på hemskärmen (iPhone) eller menyn → Installera app (Android).</p>
         {canInstall && (
           <button className="btn btn--primary" onClick={() => { const d = deferredInstall; deferredInstall = null; setCanInstall(false); void d?.prompt(); }}>Installera</button>
         )}

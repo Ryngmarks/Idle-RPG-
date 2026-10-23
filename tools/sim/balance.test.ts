@@ -195,3 +195,73 @@ describe('Gårdarna pacing, progression v2 (balanced bot, docs/PROGRESSION_V2.md
     }
   });
 });
+
+// M13 (docs/PROGRESSION_V2.md §19.3, D-59): zone 1 grows to level 40. The check-in player (acts every 45 minutes
+// after the first two hours, sleeps 8 h per day) should take about 32 h; the window is 24-40 h.
+describe('M13 zone 1 to level 40 (checkin bot, docs/PROGRESSION_V2.md §19.3)', () => {
+  const runCheckin = (raceId: string) =>
+    runBot(newGame(raceId, content), content, {
+      raceId,
+      strategy: 'checkin',
+      maxSeconds: 60 * 3600,
+      tickSeconds: 5,
+      snapshotEverySeconds: 3600,
+      stopAtBoss: 8,
+    });
+  const humans = runCheckin('humans');
+  const orcs = runCheckin('orcs');
+  const HOUR = 3600;
+  /** The army when the fight that won the boss started (the first fight if only one was needed). */
+  const startOf = (r: ReturnType<typeof runCheckin>, boss: number) => {
+    const starts = r.bossStarts.filter((x) => x.boss === boss);
+    return starts.find((x) => !x.failed) ?? starts[starts.length - 1]!;
+  };
+  const medianLevelMinutes = (r: ReturnType<typeof runCheckin>) => {
+    const per: number[] = [];
+    for (let l = 6; l <= 20; l++) per.push((r.levelTimes[l + 1]! - r.levelTimes[l]!) / 60);
+    per.sort((a, b) => a - b);
+    return per[Math.floor(per.length / 2)]!;
+  };
+
+  it('both races beat the level-40 boss at 24-40 h of game time', () => {
+    for (const [name, r] of [['humans', humans], ['orcs', orcs]] as const) {
+      const t = r.bossTimes[7];
+      expect(t, `${name} boss 8`).not.toBeNull();
+      expect(t! / HOUR, name).toBeGreaterThanOrEqual(24);
+      expect(t! / HOUR, name).toBeLessThanOrEqual(40);
+    }
+  });
+
+  it('levels 6-20 take a median of 8-18 minutes each', () => {
+    for (const [name, r] of [['humans', humans], ['orcs', orcs]] as const) {
+      const m = medianLevelMinutes(r);
+      expect(m, name).toBeGreaterThanOrEqual(8);
+      expect(m, name).toBeLessThanOrEqual(18);
+    }
+  });
+
+  it('22-35 soldiers, at least 60 % of the armed on T2 and troop level at most 60 when the last boss fight starts', () => {
+    for (const [name, r] of [['humans', humans], ['orcs', orcs]] as const) {
+      const s = startOf(r, 8);
+      expect(s.soldiers, `${name} soldiers`).toBeGreaterThanOrEqual(22);
+      expect(s.soldiers, `${name} soldiers`).toBeLessThanOrEqual(35);
+      expect(s.t2Armed / s.armed, `${name} T2 ${s.t2Armed}/${s.armed}`).toBeGreaterThanOrEqual(0.6);
+      expect(s.troopLevel, `${name} troop level`).toBeLessThanOrEqual(60);
+    }
+  });
+
+  it('Orcs finish level 40 within 0.85-1.25x of the Humans time', () => {
+    const ratio = orcs.bossTimes[7]! / humans.bossTimes[7]!;
+    expect(ratio, `ratio ${ratio.toFixed(2)}`).toBeGreaterThanOrEqual(0.85);
+    expect(ratio, `ratio ${ratio.toFixed(2)}`).toBeLessThanOrEqual(1.25);
+  });
+
+  it('no wait between two consecutive bosses is longer than 12 h', () => {
+    for (const [name, r] of [['humans', humans], ['orcs', orcs]] as const) {
+      for (let i = 1; i < 8; i++) {
+        const gap = (r.bossTimes[i]! - r.bossTimes[i - 1]!) / HOUR;
+        expect(gap, `${name} boss ${i} to ${i + 1}`).toBeLessThanOrEqual(12);
+      }
+    }
+  });
+});

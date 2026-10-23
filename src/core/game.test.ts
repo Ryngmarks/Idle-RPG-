@@ -4,7 +4,8 @@ import { dispatch, trainBlocker, trainCost, type Command } from './commands';
 import { deserialize, serialize } from './save';
 import { advance, catchUp } from './simulation';
 import { newGame } from './state';
-import { beds, computeRates, freeBeds, stageSafety, troopStats } from './stats';
+import { xpForLevel } from './formulas';
+import { beds, capacity, computeRates, freeBeds, stageSafety, troopStats } from './stats';
 import type { GameState } from './types';
 
 function run(state: GameState, ...cmds: Command[]): GameState {
@@ -462,7 +463,7 @@ describe('save', () => {
     v6.buildings = { trainingCamp: 1 };
     v6.objectivesCompleted = ['sendWood', 'wood30', 'wood60', 'kill5', 'recruit1'];
     const s = deserialize(JSON.stringify(v6));
-    expect(s.version).toBe(7);
+    expect(s.version).toBe(8);
     expect(s.troops[0]).toMatchObject({ size: 40, siteId: 'oldQuarry' });
     expect(s.troopSlots).toBe(1);
     expect(s.objectivesCompleted).toContain('rescue');
@@ -488,7 +489,7 @@ describe('save', () => {
     v1.combat.stageIndex = 2;
     delete v1.combat.unlockedStage;
     const s = deserialize(JSON.stringify(v1));
-    expect(s.version).toBe(7);
+    expect(s.version).toBe(8);
     expect(s.troops[0]).toMatchObject({ siteId: null });
     expect(s.troopSlots).toBe(1);
     expect(s.stats).toMatchObject({ soldiersLost: 0, bossDefeatedAt: null, weaponsByQuality: { normal: 0, masterpiece: 0 } });
@@ -500,5 +501,141 @@ describe('save', () => {
     expect(s.unlocks).toEqual(expect.arrayContaining(['crafting', 'tier:1', 'activity:smithing']));
     expect(s.crafting).toEqual({ queue: [], progress: 0, crafted: {}, carry: {} });
     expect(advance(s, 60, content).state.clock).toBeGreaterThan(0);
+  });
+});
+
+describe('M10b first hour (docs/PROGRESSION_V2.md §16)', () => {
+  const xpFor = (level: number) => xpForLevel(level, content.constants.xpBase, content.constants.xpExponent);
+
+  /** An early-game state with the chain up to `twoTroops` done and the matching unlocks. */
+  function afterTwoTroops(): GameState {
+    const s = sandbox('humans', 5);
+    s.objectivesCompleted = ['sendWood', 'wood30', 'wood60', 'kill5', 'rescue', 'stone20', 'trainingCamp', 'twoTroops'];
+    s.unlocks = ['activity:woodcutting', 'activity:mining', 'activity:construction', 'building:tents', 'building:trainingCamp'];
+    s.buildings = { trainingCamp: 1, tents: 1 };
+    return s;
+  }
+
+  it('twoTroops unlocks the forge and the forge objective follows at once', () => {
+    let s = newGame('humans', content);
+    s.objectivesCompleted = ['sendWood', 'wood30', 'wood60', 'kill5', 'rescue', 'stone20', 'trainingCamp'];
+    s.troopSlots = 2;
+    s.troops.push({ ...s.troops[0]!, id: 'troop2', name: 'Andra', activity: null });
+    s.troops[0]!.activity = 'woodcutting';
+    s.troops[1]!.activity = 'woodcutting';
+    s = advance(s, 1, content).state;
+    expect(s.objectivesCompleted).toContain('twoTroops');
+    expect(s.unlocks).toContain('building:forge');
+    const ids = (c = content) => c.objectives.find((o) => o.id === 'forge')!.requires;
+    expect(ids()).toEqual(['twoTroops']);
+    expect(content.objectives.find((o) => o.id === 'farm')!.rewards.unlocks).toBeUndefined();
+  });
+
+  it('rescue2 gives +1 soldier at stage 5 even with no free bed', () => {
+    const s = afterTwoTroops();
+    s.objectivesCompleted.push('stage3');
+    s.troops[0]!.size = beds(s, content); // all beds taken
+    expect(freeBeds(s, content)).toBe(0);
+    const before = s.troops.reduce((n, t) => n + t.size, 0);
+    s.combat.unlockedStage = 4; // stage 5 reached = stages 1-4 cleared
+    const r = advance(s, 1, content);
+    expect(r.state.objectivesCompleted).toContain('rescue2');
+    expect(r.state.troops.reduce((n, t) => n + t.size, 0)).toBe(before + 1);
+    expect(r.events.map((e) => e.type)).toContain('soldiersJoined');
+  });
+
+  it('stage 5 needs 8 kills; the new ore loot is in place', () => {
+    const stages = content.zones.farmsteads!.stages;
+    expect(stages[4]).toMatchObject({ enemyId: 'oldBoar', killsToClear: 8 });
+    expect(content.enemies.fox!.loot.ore).toBe(0.5);
+    expect(content.enemies.wildBoar!.loot.ore).toBe(1.5);
+    expect(content.enemies.oldBoar!.loot.ore).toBe(2.5);
+  });
+
+  it('tent2 -> woodshed chain unlocks the building and Sharp axes II; ore10 unlocks Stone picks II', () => {
+    let s = afterTwoTroops();
+    s.resources = { food: 0, wood: 0, stone: 0, ore: 0 };
+    s.buildings.tents = 2;
+    s = advance(s, 1, content).state;
+    expect(s.objectivesCompleted).toContain('tent2');
+    expect(s.resources.wood).toBe(30);
+    expect(s.unlocks).toContain('building:woodshed');
+    s.buildings.woodshed = 1;
+    s = advance(s, 1, content).state;
+    expect(s.objectivesCompleted).toContain('woodshed');
+    expect(s.unlocks).toContain('upgrade:sharpenedAxes2');
+    s.stats.gathered.ore = 10;
+    s = advance(s, 1, content).state;
+    expect(s.objectivesCompleted).toContain('ore10');
+    expect(s.resources.food).toBe(20);
+    expect(s.unlocks).toContain('upgrade:stonePicks2');
+  });
+
+  it('Forge II adds a smithing slot, Farm II a field slot, the woodshed a grove slot', () => {
+    const s = sandbox('humans', 5);
+    s.buildings = { forge: 1, farm: 1, woodshed: 0 };
+    const smith = capacity(s, content, 'smithing');
+    const fields = capacity(s, content, 'fields');
+    const grove = capacity(s, content, 'birchGrove');
+    s.buildings = { forge: 2, farm: 2, woodshed: 1 };
+    expect(capacity(s, content, 'smithing')).toBe(smith + 1);
+    expect(capacity(s, content, 'fields')).toBe(fields + 1);
+    expect(capacity(s, content, 'birchGrove')).toBe(grove + 1);
+    expect(capacity(s, content, 'fields')).toBe(4);
+    expect(capacity(s, content, 'birchGrove')).toBe(4);
+  });
+
+  it('the two new upgrades raise woodcutting and mining skill', () => {
+    const s = sandbox('humans', 5);
+    s.upgrades = {};
+    const skill = (k: 'woodcutting' | 'mining') => troopStats(s, s.troops[0]!, content).skills[k];
+    const w = skill('woodcutting');
+    const m = skill('mining');
+    s.upgrades = { sharpenedAxes2: 1, stonePicks2: 1 };
+    expect(skill('woodcutting')).toBeCloseTo(w * (1 + 0.3), 6);
+    expect(skill('mining')).toBeCloseTo(m * (1 + 0.25), 6);
+  });
+
+  it('levelStep fires once at level 5 and once at 10, and offline equals online', () => {
+    for (const [from, step] of [[4, 5], [9, 10]] as const) {
+      let s = atStage(sandbox('humans', 12), 0);
+      s.troops[0]!.xp = xpFor(from + 1) - 1;
+      const count = (evs: { type: string; level?: number }[]) => evs.filter((e) => e.type === 'levelStep' && e.level === step).length;
+      const once = advance(s, 1800, content);
+      expect(count(once.events)).toBe(1);
+      let n = 0;
+      let many = s;
+      for (let i = 0; i < 180; i++) {
+        const r = advance(many, 10, content);
+        many = r.state;
+        n += count(r.events);
+      }
+      expect(n).toBe(1);
+    }
+    // a save already at level 5 or higher is never notified on load or on later advances
+    const loaded = deserialize(serialize(atStage(Object.assign(sandbox('humans', 12), {}), 0)));
+    loaded.troops[0]!.xp = xpFor(7);
+    expect(advance(loaded, 60, content).events.some((e) => e.type === 'levelStep')).toBe(false);
+  });
+
+  it('migrates a v7 save: new objectives done silently, same soldiers and resources, forge unlocked', () => {
+    const v7 = JSON.parse(serialize(sandbox('humans', 6))) as Record<string, any>;
+    v7.version = 7;
+    v7.objectivesCompleted = ['sendWood', 'wood30', 'wood60', 'kill5', 'rescue', 'stone20', 'trainingCamp', 'twoTroops', 'stage3', 'farm'];
+    v7.unlocks = ['activity:woodcutting', 'building:tents', 'building:farm'];
+    v7.buildings = { tents: 2, trainingCamp: 1, farm: 1 };
+    v7.combat.unlockedStage = 4;
+    v7.stats.gathered.ore = 12;
+    v7.resources = { food: 11, wood: 22, stone: 33, ore: 4 };
+    const s = deserialize(JSON.stringify(v7));
+    expect(s.version).toBe(8);
+    expect(s.objectivesCompleted).toEqual(expect.arrayContaining(['tent2', 'ore10', 'rescue2']));
+    expect(s.objectivesCompleted).not.toContain('woodshed');
+    expect(s.unlocks).toEqual(expect.arrayContaining(['building:forge', 'building:woodshed', 'upgrade:stonePicks2']));
+    expect(s.troops.reduce((n, t) => n + t.size, 0)).toBe(6);
+    expect(s.resources).toEqual({ food: 11, wood: 22, stone: 33, ore: 4 });
+    const after = advance(s, 1, content).state;
+    expect(after.troops.reduce((n, t) => n + t.size, 0)).toBe(6);
+    expect(after.resources.wood).toBe(22);
   });
 });

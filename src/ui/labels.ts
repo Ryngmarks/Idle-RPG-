@@ -124,6 +124,12 @@ export function eventText(e: GameEvent, state: GameState): string | null {
       return `🏳️ ${content.zones[e.zoneId]?.name ?? ''}: alla steg rensade. Bossen väntar.`;
     case 'troopLevelUp':
       return `⭐ ${state.troops.find((t) => t.id === e.troopId)?.name ?? ''} nådde nivå ${e.level}`;
+    case 'levelStep': {
+      const name = state.troops.find((t) => t.id === e.troopId)?.name ?? '';
+      return e.level === 5
+        ? `🎖️ ${name} når nivå 5: veteraner. Alla i gruppen har +40 % kraft.`
+        : `🎖️ ${name} når nivå 10: eliter. Alla i gruppen har +90 % kraft.`;
+    }
     case 'bossDefeated':
       return '👑 Gamle Betarn är besegrad!';
     case 'bossFailed':

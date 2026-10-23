@@ -68,6 +68,30 @@ const migrations: Record<number, (s: Record<string, unknown>) => Record<string, 
     if (buildings.trainingCamp && !unlocks.includes('recruit')) unlocks.push('recruit');
     return { ...s, troops, troopSlots: troops.length, training: null, siteProgress: {}, objectivesCompleted: done, unlocks, buildings };
   },
+  // v7 → v8: M10b first hour (docs/PROGRESSION_V2.md §16). New objectives the old save already
+  // satisfies are marked done silently: only their unlocks are granted, no resources and no rescue soldier.
+  // The forge now unlocks with twoTroops instead of the farm.
+  7: (s) => {
+    const done = [...(s.objectivesCompleted as string[])];
+    const unlocks = [...(s.unlocks as string[])];
+    const buildings = s.buildings as Record<string, number>;
+    const stats = s.stats as { gathered?: Record<string, number> };
+    const combat = s.combat as { cleared?: boolean; unlockedStage: number };
+    const give = (u: string) => {
+      if (!unlocks.includes(u)) unlocks.push(u);
+    };
+    if (done.includes('twoTroops')) give('building:forge');
+    if (done.includes('twoTroops') && (buildings.tents ?? 0) >= 2 && !done.includes('tent2')) {
+      done.push('tent2');
+      give('building:woodshed');
+    }
+    if (done.includes('twoTroops') && (stats.gathered?.ore ?? 0) >= 10 && !done.includes('ore10')) {
+      done.push('ore10');
+      give('upgrade:stonePicks2');
+    }
+    if (done.includes('stage3') && (combat.cleared || combat.unlockedStage + 1 >= 5) && !done.includes('rescue2')) done.push('rescue2');
+    return { ...s, objectivesCompleted: done, unlocks };
+  },
 };
 
 export function serialize(state: GameState): string {

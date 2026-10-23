@@ -1,6 +1,8 @@
 // Presentation text and icons. No game rules here: numbers always come from the core/content.
 
 import { content } from '../content';
+import type { IconId } from './art/resources';
+import type { UiIconName } from './art/icons';
 import type { ActivityKind, Effect, GameEvent, GameState, Modifier, ObjectiveCondition, QualityId, ResourceId, TraitId } from '../core';
 
 /** Quality colours (grey → green → blue → purple → gold), readable on the dark theme. */
@@ -17,20 +19,20 @@ export function qualityName(q: QualityId): string {
   return content.equipment.qualities.find((x) => x.id === q)?.name ?? q;
 }
 
-export const RESOURCE_LABEL: Record<ResourceId, { name: string; icon: string }> = {
-  food: { name: 'Mat', icon: '🌾' },
-  wood: { name: 'Ved', icon: '🪵' },
-  stone: { name: 'Sten', icon: '🪨' },
-  ore: { name: 'Malm', icon: '⛓️' },
+export const RESOURCE_LABEL: Record<ResourceId, { name: string }> = {
+  food: { name: 'Mat' },
+  wood: { name: 'Ved' },
+  stone: { name: 'Sten' },
+  ore: { name: 'Malm' },
 };
 
-export const ACTIVITY_LABEL: Record<ActivityKind, { name: string; icon: string; verb: string }> = {
-  combat: { name: 'Strid', icon: '⚔️', verb: 'Strider' },
-  mining: { name: 'Gruva', icon: '⛏️', verb: 'Bryter sten och malm' },
-  woodcutting: { name: 'Ved', icon: '🪓', verb: 'Hugger ved' },
-  food: { name: 'Mat', icon: '🌾', verb: 'Odlar och samlar mat' },
-  construction: { name: 'Bygge', icon: '🔨', verb: 'Bygger' },
-  smithing: { name: 'Smide', icon: '⚒️', verb: 'Smider vapen' },
+export const ACTIVITY_LABEL: Record<ActivityKind, { name: string; icon: UiIconName | IconId; verb: string }> = {
+  combat: { name: 'Strid', icon: 'swords', verb: 'Strider' },
+  mining: { name: 'Gruva', icon: 'pickaxe', verb: 'Bryter sten och malm' },
+  woodcutting: { name: 'Ved', icon: 'axe', verb: 'Hugger ved' },
+  food: { name: 'Mat', icon: 'wheat', verb: 'Odlar och samlar mat' },
+  construction: { name: 'Bygge', icon: 'hammer', verb: 'Bygger' },
+  smithing: { name: 'Smide', icon: 'anvil', verb: 'Smider vapen' },
 };
 
 export const TRAIT_LABEL: Record<TraitId, string> = {

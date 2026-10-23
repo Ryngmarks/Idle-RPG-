@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import type { Cost, GameState, ResourceId } from '../../core';
 import { fmtCost } from '../format';
+import { Icon } from '../art/icons';
 import { ResIcon } from '../art/resources';
 import { RESOURCE_LABEL } from '../labels';
 
@@ -21,11 +22,11 @@ export function Chip({ tone, children, title }: { tone?: 'ok' | 'warn' | 'slow' 
 }
 
 /** Limited places as dots: filled = used. */
-export function Slots({ used, total, icon = '👤', label }: { used: number; total: number; icon?: string; label: string }) {
+export function Slots({ used, total, label }: { used: number; total: number; label: string }) {
   const n = Math.max(0, Math.min(12, Math.round(total)));
   return (
     <span className="slots" role="img" aria-label={label}>
-      {Array.from({ length: n }, (_, i) => <i key={i} className={i < used ? 'slots__f' : ''}>{i < used ? icon : '·'}</i>)}
+      {Array.from({ length: n }, (_, i) => <i key={i} className={i < used ? 'slots__f' : ''}>{i < used ? <Icon name="soldier" size={15} /> : '·'}</i>)}
     </span>
   );
 }
@@ -58,4 +59,9 @@ export function CostList({ cost, state }: { cost: Cost; state: GameState }) {
       ))}
     </span>
   );
+}
+
+/** Resource icon followed by an amount (inline, e.g. loot and rewards). */
+export function ResAmount({ r, v }: { r: ResourceId; v: ReactNode }) {
+  return <span className="amount"><ResIcon id={r} size={16} />{v}<span className="sr-only"> {RESOURCE_LABEL[r].name}</span></span>;
 }

@@ -2,16 +2,19 @@
 // See docs/ARCHITECTURE.md §6.
 
 import { autoEquipAll, equipBest, unequipAll } from './equipment';
-import { canAfford, gain, hasUnlock, pay } from './mutations';
+import { canAfford, gain, hasUnlock, moveSoldiers, openTroopSlot, pay } from './mutations';
 import { evaluateObjectives } from './objectives';
 import { cloneState } from './state';
-import { recruitFoodCost, resolveStat, soldierFoodCost } from './formulas';
-import { currentCap, enemy, globalModifiers, race, zone } from './stats';
+import { availableSites, enemy, freeBeds, race, soldierCount, zone } from './stats';
 import type { ActivityKind, Content, Cost, GameEvent, GameState } from './types';
 
 export type Command =
-  | { type: 'assignTroop'; troopId: string; activity: ActivityKind | null }
-  | { type: 'recruit'; troopId: string; count: number }
+  /** `siteId` picks the work site for woodcutting, mining or food (default: the troop's or the first one). */
+  | { type: 'assignTroop'; troopId: string; activity: ActivityKind | null; siteId?: string }
+  /** Train one soldier at the Training Camp; they join `troopId` when ready. */
+  | { type: 'trainRecruit'; troopId: string }
+  /** Move soldiers between groups; `toTroopId` null forms a new group in an open slot. */
+  | { type: 'transferSoldiers'; fromTroopId: string; toTroopId: string | null; count: number }
   | { type: 'queueCraft'; recipeId: string; count: number }
   | { type: 'cancelCraft'; index: number }
   | { type: 'equipTroop'; troopId: string }
@@ -29,29 +32,24 @@ export type CommandResult =
 
 const fail = (error: string): CommandResult => ({ ok: false, error });
 
-export function recruitCost(state: GameState, troopId: string, count: number, content: Content): Cost {
-  const troop = state.troops.find((t) => t.id === troopId);
-  const r = race(state, content);
-  const base = resolveStat(r.population.foodPerSoldier, 'foodPerSoldier', globalModifiers(state, content));
-  const food = recruitFoodCost(base, troop?.size ?? 0, count, r.population.recruitScaleSize, content.constants.recruitExponent);
-  return { food };
+/** Food and training time for the next soldier. Both grow with every soldier the army has (D-45). */
+export function trainCost(state: GameState, content: Content): { food: number; sec: number } {
+  const p = race(state, content).population;
+  const c = content.constants;
+  const n = soldierCount(state) + (state.training ? 1 : 0);
+  return {
+    food: Math.round(p.trainFood * Math.pow(c.trainFoodGrowth, n - 2)),
+    sec: Math.round(p.trainSec * Math.pow(c.trainTimeGrowth, n - 2)),
+  };
 }
 
-/** Largest number of soldiers the player can recruit into a troop right now. */
-export function maxRecruitable(state: GameState, troopId: string, content: Content): number {
-  const troop = state.troops.find((t) => t.id === troopId);
-  if (!troop) return 0;
-  const room = Math.max(0, currentCap(state, content) - troop.size);
-  const r = race(state, content);
-  const base = resolveStat(r.population.foodPerSoldier, 'foodPerSoldier', globalModifiers(state, content));
-  let n = 0;
-  let food = 0;
-  while (n < room) {
-    food += soldierFoodCost(base, troop.size + n, r.population.recruitScaleSize, content.constants.recruitExponent);
-    if (food > state.resources.food + 1e-9) break;
-    n++;
-  }
-  return n;
+/** Why a recruit can't be trained right now, or null if they can. */
+export function trainBlocker(state: GameState, content: Content): 'locked' | 'busy' | 'noBed' | 'food' | null {
+  if (!hasUnlock(state, 'recruit')) return 'locked';
+  if (state.training) return 'busy';
+  if (freeBeds(state, content) <= 0) return 'noBed';
+  if (state.resources.food + 1e-9 < trainCost(state, content).food) return 'food';
+  return null;
 }
 
 /** Materials for `count` weapons of a recipe. */
@@ -93,22 +91,41 @@ export function dispatch(input: GameState, cmd: Command, content: Content): Comm
       const troop = state.troops.find((t) => t.id === cmd.troopId);
       if (!troop) return fail('Unknown troop');
       if (cmd.activity && !hasUnlock(state, `activity:${cmd.activity}`)) return fail(`Activity ${cmd.activity} is locked`);
+      let siteId: string | null = null;
+      if (cmd.activity === 'woodcutting' || cmd.activity === 'mining' || cmd.activity === 'food') {
+        const sites = availableSites(state, content, cmd.activity);
+        const site = sites.find((x) => x.id === (cmd.siteId ?? troop.siteId)) ?? (cmd.siteId ? undefined : sites[0]);
+        if (!site) return fail('No such work site here');
+        siteId = site.id;
+      }
       if (cmd.activity === 'combat' && troop.activity !== 'combat') troop.engagedSize = troop.size;
       troop.activity = cmd.activity;
+      troop.siteId = siteId;
       break;
     }
-    case 'recruit': {
-      const troop = state.troops.find((t) => t.id === cmd.troopId);
-      if (!troop) return fail('Unknown troop');
-      if (!hasUnlock(state, 'recruit')) return fail('Recruitment is locked');
+    case 'trainRecruit': {
+      if (!state.troops.some((t) => t.id === cmd.troopId)) return fail('Unknown troop');
+      const blocker = trainBlocker(state, content);
+      if (blocker === 'locked') return fail('Training is locked');
+      if (blocker === 'busy') return fail('A recruit is already in training');
+      if (blocker === 'noBed') return fail('No free bed');
+      if (blocker === 'food') return fail('Not enough food');
+      const cost = trainCost(state, content);
+      pay(state, { food: cost.food });
+      state.training = { troopId: cmd.troopId, secLeft: cost.sec, totalSec: cost.sec };
+      break;
+    }
+    case 'transferSoldiers': {
+      const from = state.troops.find((t) => t.id === cmd.fromTroopId);
+      if (!from) return fail('Unknown troop');
       if (!Number.isInteger(cmd.count) || cmd.count <= 0) return fail('Count must be a positive integer');
-      if (troop.size + cmd.count > currentCap(state, content)) return fail('Troop is at its cap');
-      const cost = recruitCost(state, troop.id, cmd.count, content);
-      if (!canAfford(state, cost)) return fail('Not enough resources');
-      pay(state, cost);
-      troop.size += cmd.count;
-      if (troop.activity === 'combat') troop.engagedSize += cmd.count;
-      state.stats.recruited += cmd.count;
+      if (from.size - cmd.count < 1) return fail('A group keeps at least one soldier');
+      let to = null;
+      if (cmd.toTroopId !== null) {
+        to = state.troops.find((t) => t.id === cmd.toTroopId);
+        if (!to || to === from) return fail('Unknown target troop');
+      } else if (!openTroopSlot(state)) return fail('No free troop slot');
+      moveSoldiers(state, content, from, to ?? null, cmd.count, events);
       break;
     }
     case 'queueCraft': {

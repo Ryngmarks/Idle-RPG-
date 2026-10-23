@@ -1,11 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { content } from '../content';
-import { dispatch, maxRecruitable, recruitCost, type Command } from './commands';
-import { recruitFoodCost } from './formulas';
+import { dispatch, trainBlocker, trainCost, type Command } from './commands';
 import { deserialize, serialize } from './save';
 import { advance, catchUp } from './simulation';
 import { newGame } from './state';
-import { computeRates, currentCap, stageSafety, troopStats } from './stats';
+import { beds, computeRates, freeBeds, stageSafety, troopStats } from './stats';
 import type { GameState } from './types';
 
 function run(state: GameState, ...cmds: Command[]): GameState {
@@ -22,7 +21,7 @@ function sandbox(raceId = 'humans', size = 5): GameState {
   const s = newGame(raceId, content);
   s.unlocks = [
     'activity:combat', 'activity:mining', 'activity:woodcutting', 'activity:food', 'activity:construction',
-    'recruit', 'building:trainingCamp', 'building:barracks', 'building:farm', 'building:forge', 'gear:1',
+    'recruit', 'building:tents', 'building:trainingCamp', 'building:barracks', 'building:farm', 'building:forge',
   ];
   // Mark the tutorial chain as done so objectives don't interfere.
   s.objectivesCompleted = content.objectives.map((o) => o.id);
@@ -38,11 +37,12 @@ function atStage(s: GameState, index: number): GameState {
 }
 
 describe('new game', () => {
-  it('starts with a single soldier and only woodcutting unlocked', () => {
+  it('starts with a single soldier, one group and only woodcutting unlocked', () => {
     const s = newGame('humans', content);
     expect(s.troops).toHaveLength(1);
-    expect(s.troops[0]).toMatchObject({ name: 'Norra Väktarna', size: 1, activity: null, wounds: 0 });
-    expect(currentCap(s, content)).toBe(20);
+    expect(s.troops[0]).toMatchObject({ name: 'Norra Väktarna', size: 1, activity: null, wounds: 0, siteId: null });
+    expect(s.troopSlots).toBe(1);
+    expect(beds(s, content)).toBe(2);
     expect(s.unlocks).toEqual(['activity:woodcutting']);
     const stats = troopStats(s, s.troops[0]!, content);
     expect(stats.strength).toBe(1);
@@ -50,10 +50,10 @@ describe('new game', () => {
     expect(stats.maxHp).toBe(10);
   });
 
-  it('Orcs also start with one soldier but have a bigger cap', () => {
+  it('Orcs also start with one soldier but have more beds', () => {
     const s = newGame('orcs', content);
     expect(s.troops[0]!.size).toBe(1);
-    expect(currentCap(s, content)).toBe(40);
+    expect(beds(s, content)).toBe(3);
   });
 
   it('locked races cannot be chosen', () => {
@@ -61,12 +61,65 @@ describe('new game', () => {
   });
 });
 
-describe('activities', () => {
-  it('one Human cuts 1 wood every 10 seconds, five cut 5', () => {
-    let s = run(newGame('humans', content), { type: 'assignTroop', troopId: 'troop1', activity: 'woodcutting' });
-    expect(advance(s, 10, content).state.resources.wood).toBeCloseTo(1);
-    s = run(sandbox(), { type: 'assignTroop', troopId: 'troop1', activity: 'woodcutting' });
-    expect(advance(s, 10, content).state.resources.wood).toBeCloseTo(5);
+describe('work cycles (docs/PROGRESSION_V2.md §4–5)', () => {
+  const grove = content.sites.birchGrove!;
+
+  it('a felled tree pays its wood when the cycle completes, not before', () => {
+    const s = run(newGame('humans', content), { type: 'assignTroop', troopId: 'troop1', activity: 'woodcutting' });
+    expect(s.troops[0]!.siteId).toBe('birchGrove');
+    expect(advance(s, grove.cycleSec - 1, content).state.resources.wood).toBe(0);
+    expect(advance(s, grove.cycleSec, content).state.resources.wood).toBe(grove.yield.wood);
+    expect(advance(s, grove.cycleSec * 3, content).state.resources.wood).toBe(3 * grove.yield.wood!);
+  });
+
+  it('soldiers work in parallel up to the site capacity; the rest wait', () => {
+    const s = run(sandbox('humans', 5), { type: 'assignTroop', troopId: 'troop1', activity: 'woodcutting' });
+    const r = computeRates(s, content);
+    expect(r.perTroop.troop1!.working).toBe(grove.capacity);
+    expect(advance(s, grove.cycleSec, content).state.resources.wood).toBe(grove.capacity * grove.yield.wood!);
+  });
+
+  it('two groups share a site in troop order', () => {
+    let s = sandbox('humans', 3);
+    s.troopSlots = 2;
+    s = run(s, { type: 'transferSoldiers', fromTroopId: 'troop1', toTroopId: null, count: 1 });
+    s = run(s, { type: 'assignTroop', troopId: 'troop1', activity: 'woodcutting' }, { type: 'assignTroop', troopId: 'troop2', activity: 'woodcutting' });
+    s.troops[0]!.size = 3; // troop1 fills the grove
+    const r = computeRates(s, content);
+    expect(r.perTroop.troop1!.working).toBe(3);
+    expect(r.perTroop.troop2!.working).toBe(0);
+  });
+
+  it('mining picks a site: the quarry gives stone, the vein gives ore', () => {
+    const quarry = content.sites.oldQuarry!;
+    const vein = content.sites.oreVein!;
+    let s = run(sandbox('humans', 1), { type: 'assignTroop', troopId: 'troop1', activity: 'mining' });
+    expect(s.troops[0]!.siteId).toBe('oldQuarry');
+    expect(advance(s, quarry.cycleSec, content).state.resources).toMatchObject({ stone: quarry.yield.stone, ore: 0 });
+    s = run(s, { type: 'assignTroop', troopId: 'troop1', activity: 'mining', siteId: 'oreVein' });
+    expect(advance(s, vein.cycleSec, content).state.resources).toMatchObject({ stone: 0, ore: vein.yield.ore });
+  });
+
+  it('a site of another activity or a locked site is rejected', () => {
+    const s = sandbox();
+    expect(dispatch(s, { type: 'assignTroop', troopId: 'troop1', activity: 'mining', siteId: 'birchGrove' }, content).ok).toBe(false);
+    expect(dispatch(s, { type: 'assignTroop', troopId: 'troop1', activity: 'food', siteId: 'fields' }, content).ok).toBe(false);
+    s.unlocks.push('site:fields');
+    expect(dispatch(s, { type: 'assignTroop', troopId: 'troop1', activity: 'food', siteId: 'fields' }, content).ok).toBe(true);
+  });
+
+  it('skill speeds up cycles: Humans are better at food, Orcs at wood (D-13)', () => {
+    const cycles = (raceId: string, activity: 'food' | 'woodcutting') => {
+      const s = run(sandbox(raceId, 1), { type: 'assignTroop', troopId: 'troop1', activity });
+      return Object.values(computeRates(s, content).siteCycles)[0]!;
+    };
+    expect(cycles('humans', 'food')).toBeGreaterThan(cycles('orcs', 'food'));
+    expect(cycles('orcs', 'woodcutting')).toBeGreaterThan(cycles('humans', 'woodcutting'));
+  });
+
+  it('every finished cycle teaches the group a little', () => {
+    const s = run(newGame('humans', content), { type: 'assignTroop', troopId: 'troop1', activity: 'woodcutting' });
+    expect(advance(s, grove.cycleSec * 10, content).state.troops[0]!.xp).toBeCloseTo(10 * content.constants.workXp);
   });
 
   it('locked activities are rejected', () => {
@@ -74,15 +127,15 @@ describe('activities', () => {
     expect(r.ok).toBe(false);
   });
 
-  it('Humans are better at food, Orcs at wood (D-13), compared at each race\'s cap', () => {
-    const output = (raceId: string, activity: 'food' | 'woodcutting') => {
-      const s = run(sandbox(raceId), { type: 'assignTroop', troopId: 'troop1', activity });
-      s.troops[0]!.size = currentCap(s, content);
-      const r = computeRates(s, content);
-      return activity === 'food' ? r.gathered.food : r.gathered.wood;
-    };
-    expect(output('humans', 'food')).toBeGreaterThan(output('orcs', 'food'));
-    expect(output('orcs', 'woodcutting')).toBeGreaterThan(output('humans', 'woodcutting'));
+  it('construction is limited to a crew of builders', () => {
+    const camp = content.buildings.trainingCamp!.levels[0]!;
+    let s = sandbox('humans', 6);
+    s.resources = { food: 100, wood: 100, stone: 100, ore: 0 };
+    s = run(s, { type: 'startConstruction', buildingId: 'trainingCamp' }, { type: 'assignTroop', troopId: 'troop1', activity: 'construction' });
+    const r = computeRates(s, content);
+    expect(r.perTroop.troop1!.working).toBe(content.constants.crews.construction);
+    expect(r.constructionWorkPerSec).toBeCloseTo(3 * 1.2);
+    expect(advance(s, camp.work / 3.6 + 1, content).state.buildings.trainingCamp).toBe(1);
   });
 });
 
@@ -94,11 +147,12 @@ describe('combat progression', () => {
     let s = run(sandbox(), { type: 'assignTroop', troopId: 'troop1', activity: 'combat' });
     const secPerKill = chicken.hp / 5; // 5 soldiers × 1 damage
     s = advance(s, secPerKill * stage1.killsToClear, content).state;
+    // Level 2 comes during the stage (+10 % attack), so the stage clears a little early.
     expect(s.combat.unlockedStage).toBe(1);
     expect(s.combat.stageIndex).toBe(0);
-    expect(s.stats.totalKills).toBeCloseTo(stage1.killsToClear);
-    expect(s.resources.food).toBeCloseTo(stage1.killsToClear * chicken.loot.food!);
-    expect(s.troops[0]!.xp).toBeCloseTo(stage1.killsToClear * chicken.xp);
+    expect(s.stats.totalKills).toBeGreaterThanOrEqual(stage1.killsToClear);
+    expect(s.resources.food).toBeCloseTo(s.stats.totalKills * chicken.loot.food!);
+    expect(s.troops[0]!.xp).toBeCloseTo(s.stats.totalKills * chicken.xp);
     s = run(s, { type: 'selectStage', stageIndex: 1 });
     expect(s.combat.stageIndex).toBe(1);
   });
@@ -128,15 +182,15 @@ describe('life, casualties and retreat', () => {
   });
 
   it('a too-hard stage kills soldiers until half the troop has fallen, then it retreats', () => {
-    const s = atStage(sandbox('humans', 6), 3); // boars
-    const safety = stageSafety(s, content, { stageIndex: 3 });
+    const s = atStage(sandbox('humans', 4), 4); // old boars
+    const safety = stageSafety(s, content, { stageIndex: 4 });
     expect(safety.risk).toBe('deadly');
     const r = advance(s, 600, content);
     const t = r.state.troops[0]!;
-    expect(t.size).toBe(3); // lost half of 6
+    expect(t.size).toBe(2); // lost half of 4
     expect(t.activity).toBeNull();
-    expect(r.events.filter((e) => e.type === 'soldierLost')).toHaveLength(3);
-    expect(r.state.stats.soldiersLost).toBe(3);
+    expect(r.events.filter((e) => e.type === 'soldierLost')).toHaveLength(2);
+    expect(r.state.stats.soldiersLost).toBe(2);
     expect(r.events.some((e) => e.type === 'troopRetreated')).toBe(true);
   });
 
@@ -159,10 +213,10 @@ describe('life, casualties and retreat', () => {
 
 describe('offline safety (no losses while away)', () => {
   it('falls back to the highest safe stage before simulating offline time', () => {
-    const s = atStage(sandbox('humans', 6), 3);
+    const s = atStage(sandbox('humans', 4), 4);
     const r = catchUp(s, 3600, 8 * 3600, content);
-    expect(r.state.combat.stageIndex).toBeLessThan(3);
-    expect(r.state.troops[0]!.size).toBe(6);
+    expect(r.state.combat.stageIndex).toBeLessThan(4);
+    expect(r.state.troops[0]!.size).toBe(4);
     expect(r.events.some((e) => e.type === 'stageChanged')).toBe(true);
     expect(r.events.some((e) => e.type === 'soldierLost')).toBe(false);
   });
@@ -180,60 +234,110 @@ describe('offline safety (no losses while away)', () => {
   });
 });
 
-describe('recruitment', () => {
-  it('costs escalating food per soldier and respects the cap', () => {
-    let s = sandbox();
+describe('beds and training (D-45)', () => {
+  function campReady(raceId = 'humans', size = 2): GameState {
+    const s = sandbox(raceId, size);
+    s.buildings.trainingCamp = 1;
+    s.troopSlots = 2;
     s.resources.food = 1000;
-    const scale = content.races.humans!.population.recruitScaleSize;
-    expect(recruitCost(s, 'troop1', 1, content).food).toBe(5); // still at the flat base cost
-    const cost15 = recruitFoodCost(5, 5, 15, scale, content.constants.recruitExponent);
-    expect(cost15).toBeGreaterThan(15 * 5);
-    s = run(s, { type: 'recruit', troopId: 'troop1', count: 15 });
-    expect(s.troops[0]!.size).toBe(20);
-    expect(s.resources.food).toBeCloseTo(1000 - cost15);
-    expect(dispatch(s, { type: 'recruit', troopId: 'troop1', count: 1 }, content).ok).toBe(false);
+    return s;
+  }
+
+  it('trains one recruit at a time for food and time; they join when ready', () => {
+    let s = campReady('humans', 2);
+    const cost = trainCost(s, content);
+    const pop = content.races.humans!.population;
+    expect(cost).toEqual({ food: pop.trainFood, sec: pop.trainSec });
+    s = run(s, { type: 'trainRecruit', troopId: 'troop1' });
+    expect(s.resources.food).toBe(1000 - pop.trainFood);
+    expect(trainBlocker(s, content)).toBe('busy');
+    expect(advance(s, cost.sec - 1, content).state.troops.reduce((n, t) => n + t.size, 0)).toBe(2);
+    const done = advance(s, cost.sec, content);
+    expect(done.state.training).toBeNull();
+    expect(done.state.stats.recruited).toBe(1);
+    expect(done.events.map((e) => e.type)).toContain('recruitTrained');
+    // A group slot was open, so the recruit forms group 2.
+    expect(done.state.troops).toHaveLength(2);
+    expect(done.state.troops[1]!.size).toBe(1);
   });
 
-  it('the first recruits of a lone soldier cost the flat base price', () => {
-    const s = sandbox('humans', 1);
-    expect(recruitCost(s, 'troop1', 3, content).food).toBe(15);
+  it('every soldier costs more food and time than the last', () => {
+    const s = campReady('humans', 2);
+    const a = trainCost(s, content);
+    s.troops[0]!.size = 4;
+    const b = trainCost(s, content);
+    expect(b.food).toBeGreaterThan(a.food);
+    expect(b.sec).toBeGreaterThan(a.sec);
   });
 
-  it('maxRecruitable matches what recruit accepts', () => {
-    for (const food of [0, 4, 5, 30, 100, 1000]) {
-      const s = sandbox();
-      s.resources.food = food;
-      const n = maxRecruitable(s, 'troop1', content);
-      if (n > 0) expect(dispatch(s, { type: 'recruit', troopId: 'troop1', count: n }, content).ok).toBe(true);
-      if (n < 15) expect(dispatch(s, { type: 'recruit', troopId: 'troop1', count: n + 1 }, content).ok).toBe(false);
-    }
+  it('needs a free bed: the camp has 2 + 1, tents add more (Orcs get double)', () => {
+    const s = campReady('humans', 3);
+    expect(beds(s, content)).toBe(3);
+    expect(freeBeds(s, content)).toBe(0);
+    expect(trainBlocker(s, content)).toBe('noBed');
+    s.buildings.tents = 2;
+    expect(beds(s, content)).toBe(5);
+    expect(trainBlocker(s, content)).toBeNull();
+    const o = campReady('orcs', 3);
+    o.buildings.tents = 1;
+    expect(beds(o, content)).toBe(3 + 2 + 2);
   });
 
-  it('recruiting into a fighting troop raises its retreat threshold', () => {
-    let s = atStage(sandbox(), 0);
-    s.resources.food = 100;
-    s = run(s, { type: 'recruit', troopId: 'troop1', count: 2 });
-    expect(s.troops[0]!.engagedSize).toBe(7);
+  it('cannot train before the Training Camp unlocks recruitment', () => {
+    const s = newGame('humans', content);
+    expect(dispatch(s, { type: 'trainRecruit', troopId: 'troop1' }, content).ok).toBe(false);
   });
 
+  it('a recruit for a fighting troop raises its retreat threshold', () => {
+    let s = campReady('humans', 2);
+    s.troopSlots = 1;
+    s = atStage(s, 0);
+    s = run(s, { type: 'trainRecruit', troopId: 'troop1' });
+    s = advance(s, 90, content).state;
+    expect(s.troops[0]!.engagedSize).toBe(3);
+  });
 });
 
-describe('Training Camp milestone', () => {
-  it('pays materials, needs labour, then raises the cap and forms Troop 2', () => {
+describe('troop groups (D-46)', () => {
+  it('the Training Camp opens group 2 and moves a soldier into it when one can be spared', () => {
     const camp = content.buildings.trainingCamp!.levels[0]!;
-    let s = sandbox();
+    let s = sandbox('humans', 2);
     s.resources = { food: 0, wood: 0, stone: 0, ore: 0, ...camp.cost };
     s = run(s, { type: 'startConstruction', buildingId: 'trainingCamp' }, { type: 'assignTroop', troopId: 'troop1', activity: 'construction' });
-    expect(s.resources).toEqual({ food: 0, wood: 0, stone: 0, ore: 0 });
-    // 5 Humans × 1.2 = 6 work/s
-    const { state, events } = advance(s, camp.work / 6 + 1, content);
+    const { state, events } = advance(s, camp.work / 2.4 + 1, content);
     expect(state.buildings.trainingCamp).toBe(1);
-    expect(currentCap(state, content)).toBe(40);
-    expect(state.troops).toHaveLength(2);
-    expect(state.troops[1]).toMatchObject({ name: 'Skogsarbetarna', size: content.races.humans!.population.newTroopSize });
+    expect(state.troopSlots).toBe(2);
+    expect(state.troops.map((t) => t.size)).toEqual([1, 1]);
+    expect(state.troops[1]!.name).toBe('Skogsarbetarna');
+    expect(state.unlocks).toContain('recruit');
     expect(events.map((e) => e.type)).toContain('troopFormed');
-    const done = events.find((e) => e.type === 'constructionCompleted');
-    expect(done?.at).toBeCloseTo(camp.work / 6);
+  });
+
+  it('a lone soldier keeps the slot open; the next soldier forms the group', () => {
+    let s = sandbox('humans', 1);
+    s.buildings.trainingCamp = 1;
+    s.troopSlots = 2;
+    s.resources.food = 100;
+    s = run(s, { type: 'trainRecruit', troopId: 'troop1' });
+    expect(s.troops).toHaveLength(1);
+    s = advance(s, 120, content).state;
+    expect(s.troops.map((t) => t.size)).toEqual([1, 1]);
+  });
+
+  it('soldiers move between groups; a group keeps at least one, and their weapons go to the armoury', () => {
+    let s = sandbox('humans', 4);
+    s.troopSlots = 2;
+    s.troops[0]!.autoEquip = false;
+    s.troops[0]!.equipment = [{ tier: 1, quality: 'good', count: 4 }];
+    s = run(s, { type: 'transferSoldiers', fromTroopId: 'troop1', toTroopId: null, count: 2 });
+    expect(s.troops.map((t) => t.size)).toEqual([2, 2]);
+    // The moving soldiers leave their weapons; the new group (Auto on) picks them up again.
+    expect(s.troops[0]!.equipment).toEqual([{ tier: 1, quality: 'good', count: 2 }]);
+    expect(s.troops[1]!.equipment).toEqual([{ tier: 1, quality: 'good', count: 2 }]);
+    s = run(s, { type: 'transferSoldiers', fromTroopId: 'troop2', toTroopId: 'troop1', count: 1 });
+    expect(s.troops.map((t) => t.size)).toEqual([3, 1]);
+    expect(dispatch(s, { type: 'transferSoldiers', fromTroopId: 'troop2', toTroopId: 'troop1', count: 1 }, content).ok).toBe(false);
+    expect(dispatch(s, { type: 'transferSoldiers', fromTroopId: 'troop1', toTroopId: null, count: 1 }, content).ok).toBe(false);
   });
 });
 
@@ -241,17 +345,28 @@ describe('objectives drive the tutorial', () => {
   it('woodcutting unlocks upgrades, then combat', () => {
     let s = run(newGame('humans', content), { type: 'assignTroop', troopId: 'troop1', activity: 'woodcutting' });
     expect(s.objectivesCompleted).toContain('sendWood');
-    s = advance(s, 150, content).state; // 15 wood
+    s = advance(s, 90, content).state; // 15 wood
     expect(s.unlocks).toContain('upgrade:sharpenedAxes');
     expect(s.unlocks).not.toContain('activity:combat');
-    s = advance(s, 150, content).state; // 30 wood
+    s = advance(s, 90, content).state; // 30 wood
     expect(s.unlocks).toContain('activity:combat');
+  });
+
+  it('clearing the first stage rescues soldier 2', () => {
+    let s = newGame('humans', content);
+    s.objectivesCompleted = ['sendWood', 'wood30', 'wood60', 'kill5'];
+    s.unlocks.push('activity:combat');
+    s = run(s, { type: 'assignTroop', troopId: 'troop1', activity: 'combat' });
+    const r = advance(s, 600, content);
+    expect(r.state.troops[0]!.size).toBe(2);
+    expect(r.events.map((e) => e.type)).toContain('soldiersJoined');
+    expect(r.state.unlocks).toContain('building:tents');
   });
 });
 
 describe('boss', () => {
   it('can be won or lost within the time limit, and fighting it costs soldiers', () => {
-    let s = sandbox('humans', 20);
+    let s = sandbox('humans', 2);
     s.unlocks.push('boss');
     s = run(s, { type: 'assignTroop', troopId: 'troop1', activity: 'combat' }, { type: 'challengeBoss' });
     const lost = advance(s, 120, content);
@@ -265,23 +380,42 @@ describe('boss', () => {
     expect(won.state.combat.bossDefeated).toBe(true);
     expect(won.state.stats.bossDefeatedAt).toBe(won.events.find((e) => e.type === 'bossDefeated')!.at);
   });
+
+  it('the boss frees two prisoners who form a new group', () => {
+    let s = sandbox('humans', 6);
+    s.objectivesCompleted = s.objectivesCompleted.filter((id) => id !== 'boss');
+    s.unlocks.push('boss');
+    s.troops[0]!.size = 200;
+    s.troops[0]!.engagedSize = 200;
+    s = run(s, { type: 'assignTroop', troopId: 'troop1', activity: 'combat' }, { type: 'challengeBoss' });
+    const r = advance(s, 90, content).state;
+    expect(r.troopSlots).toBe(2);
+    expect(r.troops).toHaveLength(2);
+    expect(r.troops[1]!.size).toBe(2);
+  });
 });
 
 describe('offline equivalence', () => {
-  it('one long advance equals many short ones', () => {
-    let s = sandbox('orcs', 10);
+  it('one long advance equals many short ones (cycles, training, construction)', () => {
+    let s = sandbox('orcs', 6);
+    s.buildings.trainingCamp = 1;
+    s.buildings.tents = 1;
+    s.troopSlots = 2;
     s.resources = { food: 200, wood: 100, stone: 100, ore: 0 };
     s = run(
       s,
-      { type: 'recruit', troopId: 'troop1', count: 30 },
-      { type: 'startConstruction', buildingId: 'trainingCamp' },
+      { type: 'transferSoldiers', fromTroopId: 'troop1', toTroopId: null, count: 3 },
+      { type: 'trainRecruit', troopId: 'troop2' },
+      { type: 'startConstruction', buildingId: 'farm' },
       { type: 'assignTroop', troopId: 'troop1', activity: 'construction' },
+      { type: 'assignTroop', troopId: 'troop2', activity: 'woodcutting' },
     );
     const once = advance(s, 1800, content).state;
     let many = s;
     for (let i = 0; i < 1800; i++) many = advance(many, 1, content).state;
     expect(many.buildings).toEqual(once.buildings);
     expect(many.troops.map((t) => t.size)).toEqual(once.troops.map((t) => t.size));
+    expect(many.troops.map((t) => t.xp)).toEqual(once.troops.map((t) => expect.closeTo(t.xp, 6)));
     for (const r of ['food', 'wood', 'stone', 'ore'] as const) {
       expect(many.resources[r]).toBeCloseTo(once.resources[r], 6);
     }
@@ -317,6 +451,26 @@ describe('save', () => {
     expect(() => deserialize('{}')).toThrow();
   });
 
+  it('migrates a v6 save to work cycles: every soldier kept, gatherers get a site, no second rescue', () => {
+    const v6 = JSON.parse(serialize(sandbox('humans', 40))) as Record<string, any>;
+    v6.version = 6;
+    v6.troops[0].activity = 'mining';
+    delete v6.troops[0].siteId;
+    delete v6.troopSlots;
+    delete v6.training;
+    delete v6.siteProgress;
+    v6.buildings = { trainingCamp: 1 };
+    v6.objectivesCompleted = ['sendWood', 'wood30', 'wood60', 'kill5', 'recruit1'];
+    const s = deserialize(JSON.stringify(v6));
+    expect(s.version).toBe(7);
+    expect(s.troops[0]).toMatchObject({ size: 40, siteId: 'oldQuarry' });
+    expect(s.troopSlots).toBe(1);
+    expect(s.objectivesCompleted).toContain('rescue');
+    expect(s.unlocks).toEqual(expect.arrayContaining(['recruit', 'building:tents']));
+    expect(trainBlocker(s, content)).toBe('noBed');
+    expect(advance(s, 60, content).state.troops[0]!.size).toBe(40);
+  });
+
   it('migrates a version 1 save (before combat with life and real weapons)', () => {
     const v1 = JSON.parse(serialize(sandbox('orcs', 12))) as Record<string, any>;
     v1.version = 1;
@@ -334,7 +488,9 @@ describe('save', () => {
     v1.combat.stageIndex = 2;
     delete v1.combat.unlockedStage;
     const s = deserialize(JSON.stringify(v1));
-    expect(s.version).toBe(6);
+    expect(s.version).toBe(7);
+    expect(s.troops[0]).toMatchObject({ siteId: null });
+    expect(s.troopSlots).toBe(1);
     expect(s.stats).toMatchObject({ soldiersLost: 0, bossDefeatedAt: null, weaponsByQuality: { normal: 0, masterpiece: 0 } });
     expect(s.troops[0]!.autoEquip).toBe(true);
     expect(s.troops[0]).toMatchObject({ wounds: 0, engagedSize: 12, weaponTypeId: 'cleaver' });

@@ -1,7 +1,8 @@
 // Objectives: the tutorial, the unlock gates and the "what next?" list in one system.
 // See docs/FIRST_15_MINUTES.md §4.
 
-import { addUnlock, gain } from './mutations';
+import { autoEquipAll } from './equipment';
+import { addSoldiers, addUnlock, gain } from './mutations';
 import type { Content, GameEvent, GameState, ObjectiveCondition, ObjectiveDef } from './types';
 
 export function conditionMet(state: GameState, c: ObjectiveCondition): boolean {
@@ -20,8 +21,8 @@ export function conditionMet(state: GameState, c: ObjectiveCondition): boolean {
       return (state.buildings[c.buildingId] ?? 0) >= c.level;
     case 'upgradeBought':
       return (state.upgrades[c.upgradeId] ?? 0) > 0;
-    case 'troopSizeAtLeast':
-      return state.troops.some((t) => t.size >= c.size);
+    case 'soldiersAtLeast':
+      return state.troops.reduce((n, t) => n + t.size, 0) >= c.count;
     case 'stageReached':
       // stage is 1-based; reaching stage N means stages 1..N-1 are cleared.
       return state.combat.cleared || state.combat.unlockedStage + 1 >= c.stage;
@@ -52,6 +53,12 @@ export function evaluateObjectives(state: GameState, content: Content, events: G
       for (const u of o.rewards.unlocks ?? []) addUnlock(state, u);
       if (o.rewards.resources) gain(state, o.rewards.resources);
       events.push({ type: 'objectiveCompleted', at: state.clock, objectiveId: o.id });
+      if (o.rewards.troopSlots) state.troopSlots += o.rewards.troopSlots;
+      if (o.rewards.soldiers) {
+        const troop = addSoldiers(state, content, o.rewards.soldiers, events, state.troops[0]?.id);
+        events.push({ type: 'soldiersJoined', at: state.clock, troopId: troop.id, count: o.rewards.soldiers });
+        autoEquipAll(state, content);
+      }
     }
   }
 }

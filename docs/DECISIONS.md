@@ -49,11 +49,19 @@
 | D-40 | Combat uses each troop's actual equipment; the ×1.4 placeholder is removed; T1 quality must take a long time to max out | 2026-10-23 | Owner, M5 |
 | D-41 | **Troops do the smithing:** a sixth activity *Smithing* (unlocked by the forge). The forge only works while a troop smiths and an order is queued; speed = soldiers × work × race smithing skill × 0.1. Humans skill 1, Orcs 0.4 (Dwarves 3 later). | 2026-10-23 | Owner, M6 |
 | D-42 | **Auto-equip per troop** (on by default): troops with Auto pool their weapons with the armoury and the fighting troops get the best first. Emptying a troop by hand turns Auto off. Runs after every command and every finished weapon, so offline equals online. | 2026-10-23 | Owner, M7 |
-| D-43 | **The forge matters before the boss:** T1 metal weapons cost ore only (2 ore, no wood); `smithRate` 0.1 → 0.3; mastery steps 8 → 20 weapons, so maxing T1 quality still takes ~2,000 weapons | 2026-10-23 | Owner, M8 |
+| D-43 | **The forge matters before the boss:** T1 metal weapons cost ore only (2 ore, no wood); `smithRate` 0.1 → 0.3 (M10a: one smith per anvil with `smithRate` 1 and 60 work per sword, D-47); mastery steps 8 → 20 weapons, so maxing T1 quality still takes ~2,000 weapons | 2026-10-23 | Owner, M8 |
 | D-44 | **Chronicle statistics:** play time, boss time, kills, soldiers, recruited, fallen and weapons per quality. Stored in `state.stats` (save v6); losses and qualities count from v6 on. | 2026-10-23 | Owner, M9 |
+| D-45 | **Soldiers come from beds and training, not a buy button:** a free bed (buildings), food and a short training time, one recruit at a time; both cost and time grow with every soldier. Plus rescues as milestones. | 2026-10-23 | Owner, progression v2 |
+| D-46 | **Troop groups are slots, separate from soldiers:** the Training Camp opens group 2 (~15 min), the first boss frees two prisoners who form group 3. Soldiers can be moved between groups (each keeps ≥ 1). | 2026-10-23 | Owner, progression v2 |
+| D-47 | **Activities are work cycles at work sites with capacity** (a tree, a block, a vein): the reward comes when the cycle completes; extra soldiers beyond a site's room do nothing there. Mining has two sites (stone / ore). Food = berries, fields (Farm) and hunting through combat loot. Builders and smiths have crew limits. | 2026-10-23 | Owner, progression v2 |
+| D-48 | Every finished work cycle gives the group a little XP, so working groups develop too | 2026-10-23 | Owner, progression v2 |
+| D-49 | Combat in Gårdarna is tuned for a handful of soldiers: the rat swarm becomes a fox, the boss has 500 HP and a 90 s limit | 2026-10-23 | Owner, progression v2 |
+| D-50 | **Supersedes** D-14 (~12 soldiers after 15 min), D-16 (troop starts at ~5 / cap 20) and D-24 (Troop 2 forms with free soldiers). Target: ~2 soldiers at 15 min, 3–5 (Humans) at 30–40 min. | 2026-10-23 | Owner, progression v2 |
 | D-51 | **Working method with agents:** the lead proposes a work split (task, agent, why, result, order, risks, cost) and waits for the owner's approval before starting agents or implementation. Agents: Game Designer, Game Systems, UI/UX, QA & Balance (sonnet), Research (haiku). See CLAUDE.md. | 2026-10-23 | Owner |
 
 ## Proposed 💡 (awaiting confirmation)
+
+> **Progression v2 (2026-10-23):** approved and recorded as D-45–D-50; see [PROGRESSION_V2.md](PROGRESSION_V2.md).
 
 | ID | Proposal | Details |
 |---|---|---|

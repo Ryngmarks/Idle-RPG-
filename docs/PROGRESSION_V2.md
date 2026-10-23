@@ -665,9 +665,9 @@ The (guess) numbers above were tuned with the simulator; these are the shipped v
 
 ---
 
-## 19. M13 zone 1 to level 40 (proposal)
+## 19. M13 zone 1 to level 40 (approved, D-59)
 
-Status: **proposal, nothing here is decided.** Owner decisions it builds on (approved in the brief): zone 1 grows to **level 40** with a boss every 5 levels (5 … 35 mini-bosses, 40 the final boss); zone 1 takes **1–2 days** of play, offline counts; zone 2 later reaches about level 100 (outline only, §19.9). Lead decisions: the tuned first hour stays untouched, Gamle Betarn becomes the level-5 mini-boss, players who beat him continue at level 6. Lessons applied from [IDLE_RESEARCH.md](IDLE_RESEARCH.md) §6 (R-17 to R-21): readable numbers (about 1.1x HP per level), walls are checks on the army and never plain waiting, a failed boss sends you back to farm and nobody dies (D-15), no classic prestige, soldiers are never reset (D-04). **Every number marked (guess) is a starting point for QA to tune with `npm run sim`.**
+Status: **approved by the owner (D-59)** with these changes to the first draft: (a) about 32 h to boss 40 (window 24-40 h) with the check-in rhythm; (b) a gentler recruit curve after soldier 8; (c) 8 h offline cap kept with a visible notice, bosses never auto-start offline; (d) boss fights non-lethal, 2 extra work sites stay; (e) **faster early tempo**: levels 6-20 take about 10-15 min each (bosses included), per-level time grows afterwards, levels 1-5 exactly as today; (f) **T2 arrives in zone 1 at boss 20** (not zone 2), via a new iron site at boss 15 and T2 recipes at boss 20; no refining step (moves to T3 in zone 2). Owner decisions it builds on: zone 1 grows to **level 40** with a boss every 5 levels (5 … 35 mini-bosses, 40 the final boss); zone 1 takes **1–2 days** of play, offline counts; zone 2 later reaches about level 100 (outline only, §19.9). Lead decisions: the tuned first hour stays untouched, Gamle Betarn becomes the level-5 mini-boss, players who beat him continue at level 6. Lessons applied from [IDLE_RESEARCH.md](IDLE_RESEARCH.md) §6 (R-17 to R-21): readable numbers (about 1.1x HP per level), walls are checks on the army and never plain waiting, a failed boss sends you back to farm and nobody dies (D-15), no classic prestige, soldiers are never reset (D-04). **Every number marked (guess) is a starting point for QA to tune with `npm run sim`.**
 
 Findings from the current code that shape the spec:
 - Recruit cost is `trainFood x 1.5^(n-2)` and time `trainSec x 1.35^(n-2)` (`trainCost`). That is right for 8 soldiers but breaks beyond: soldier 16 would cost about 11,700 food and 100 min, soldier 20 about 59,000 food and 9 h. **Reaching 20-30 soldiers is impossible without a gentler curve after soldier 8** (§19.5).
@@ -681,14 +681,17 @@ A **level** is one existing `stage`: kill N enemies of that level's family, then
 | Levels | Kills per level (guess) | Boss level |
 |---|---|---|
 | 1-5 | 12 / 12 / 12 / 12 / 8 (as today) | 8 kills, then Gamle Betarn |
-| 6-15 | 25 | 12 |
-| 16-25 | 30 | 15 |
-| 26-35 | 35 | 18 |
-| 36-40 | 40 | 20 |
+| 6-10 | 12 | 8 |
+| 11-15 | 14 | 10 |
+| 16-20 | 16 | 12 |
+| 21-25 | 26 | 16 |
+| 26-30 | 32 | 20 |
+| 31-35 | 38 | 24 |
+| 36-40 | 44 | 28 |
 
-Total about 1,000 kills in the zone. Auto-advance: after a level is cleared the troops move to the next one **only if it is `safe`** (stageSafety); otherwise they keep farming and the strip shows the wall (§19.6).
+Total about 900 kills in the zone (cumulative at boss 5/10/15/20/25/30/35/40: 56 / 112 / 178 / 254 / 374 / 522 / 698 / 902). Few kills early plus gentle HP growth makes levels 6-20 fly by; the bigger counts and steeper HP later make levels slow down. Auto-advance: after a level is cleared the troops move to the next one **only if it is `safe`** (stageSafety); otherwise they keep farming and the strip shows the wall (§19.6).
 
-**Enemy generator, levels 6-40** (`m = 1.10^(L-5)`, anchored on the old boar at level 5: hp 130, armour 3, attack 1.1, xp 18, food 3, ore 2.5):
+**Enemy generator, levels 6-40** (`m = 1.065^(L-5)` for L <= 20, then `m = 1.065^15 x 1.12^(L-20)`; the two-stage growth is the tempo knob, early levels barely get harder; anchored on the old boar at level 5: hp 130, armour 3, attack 1.1, xp 18, food 3, ore 2.5):
 
 | Value | Formula (guess) |
 |---|---|
@@ -721,18 +724,18 @@ Bands and Swedish family names (roles in order 1-2-3-4-5; names are content, the
 | 31-35 | Gränsmarken | Gränsspejare, Järnvarg, Krigshund, Pansarknekt, Svartrockskaptenens garde |
 | 36-40 | Svartborgen | Borgvakt, Murbrytare, Svartrocksveteran, Skuggryttare, Borgens elit |
 
-Sample values (readable check: hp grows 32x from level 5 to 40 and 330x from the chicken; numbers stay under 5 digits; the player sees "Pansrad, 190 HP, rustning 6" not exponents):
+Sample values (readable check: elite hp grows 28x from level 5 to 40 and 300x from the chicken; numbers stay under 5 digits; the player sees "Pansrad, 190 HP, rustning 6" not exponents; hp below recomputed for the two-stage growth, armour/attack/xp/loot unchanged):
 
 | Level | Enemy | hp | armour | attack | xp | food / ore |
 |---|---|---|---|---|---|---|
 | 1 | Vild kyckling (today) | 12 | 0 | 0.12 | 3 | 1 / 0 |
 | 5 | Gammal galt (today) | 130 | 3 | 1.1 | 18 | 3 / 2.5 |
-| 10 | Vargalfa (elit) | 240 | 5 | 1.7 | 36 | 3.6 / 2.9 |
-| 20 | Dimvakt (elit) | 620 | 9 | 3.3 | 65 | 5.4 / 3.9 |
-| 30 | Kullkung (elit) | 1,600 | 11 | 6.5 | 116 | 8.0 / 5.2 |
-| 40 | Borgens elit | 4,200 | 15 | 12.8 | 208 | 11.8 / 7.0 |
+| 10 | Vargalfa (elit) | 205 | 5 | 1.7 | 36 | 3.6 / 2.9 |
+| 20 | Dimvakt (elit) | 385 | 9 | 3.3 | 65 | 5.4 / 3.9 |
+| 30 | Kullkung (elit) | 1,190 | 11 | 6.5 | 116 | 8.0 / 5.2 |
+| 40 | Borgens elit | 3,710 | 15 | 12.8 | 208 | 11.8 / 7.0 |
 
-Notes for QA: the role table makes level 6 (120 hp) slightly weaker than level 5 (130), which is intended as a breather; add a guard that the 5-level moving average of hp and armour never falls. Time to kill at the top is the real pacing knob: HP growth range to tune is **1.09-1.11**; 1.12 is the researched ceiling.
+Notes for QA: the role table makes level 6 (about 100 hp) weaker than level 5 (130), which is intended as a breather; add a guard that the 5-level moving average of hp and armour never falls. Time to kill is the real pacing knob: tune early growth in **1.05-1.08** and late growth in **1.10-1.12**; 1.12 is the researched ceiling.
 
 ### 19.2 Bosses
 
@@ -741,13 +744,13 @@ Boss HP = 4 x the boss-level elite's hp (Gamle Betarn keeps his 500). Armour = e
 | # | Level | Boss | HP | Armour | Atk | Timer | Needed dps | Reward (after victory) | What it checks |
 |---|---|---|---|---|---|---|---|---|---|
 | 1 | 5 | Gamle Betarn (today) | 500 | 3 | 1.2 | 90 s | 5.6 | As today: 2 prisoners, group slot 3, Barracks I, Drill ground unlocked. **Remove the `region:2` unlock** (moves to boss 8) | First weapons, 5-6 soldiers |
-| 2 | 10 | Gråpäls, flockens ledare | 960 | 7 | 3.4 | 90 s | 10.7 | 2 prisoners; unlock **Ekskogen** (wood site) | Armed ratio, drill 1 |
-| 3 | 15 | Kråkfot, rövarhövdingen | 1,550 | 9 | 4.8 | 120 s | 12.9 | 1 prisoner; **group slot 4**; unlock Djupa brottet (stone/ore site) | Second fighting group |
-| 4 | 20 | Mossfrun | 2,500 | 11 | 6.6 | 120 s | 20.8 | Resources (150 ore, 300 wood); unlock **Forge III-V** | Weapon quality, mastery 2 |
-| 5 | 25 | Fogde Svartbrand | 4,000 | 12 | 9.2 | 120 s | 33.3 | 2 prisoners; unlock Barracks III | Troop level, 3 weapons groups |
-| 6 | 30 | Stentrollet Grymstorp | 6,400 | 13 | 13.0 | 150 s | 42.7 | 1 prisoner; **group slot 5**; 400 stone, 40 ore | Big front army, food upkeep |
-| 7 | 35 | Kapten Järnhand | 10,400 | 15 | 18.2 | 150 s | 69.3 | 1 prisoner + 1 officer troop gets +1 level step; **T2 blueprint becomes visible** (locked, §19.5) | Nearly everyone fights |
-| 8 | 40 | Borgherre Skarpmark | 16,800 | 17 | 25.6 | 150 s | 112 | 2 prisoners; **unlock region 2**; Skarpmarks nyckel (bridge, §19.9) | The whole army, armed, fed, feast |
+| 2 | 10 | Gråpäls, flockens ledare | 820 | 7 | 3.4 | 90 s | 9.1 | 2 prisoners; unlock **Ekskogen** (wood site) | Armed ratio, drill 1 |
+| 3 | 15 | Kråkfot, rövarhövdingen | 1,100 | 9 | 4.8 | 120 s | 9.3 | 1 prisoner; **group slot 4**; unlock **Järngruvan** (iron + stone site, §19.5) | Second fighting group |
+| 4 | 20 | Mossfrun | 1,500 | 11 | 6.6 | 120 s | 12.8 | Resources (150 ore, 300 wood); unlock **Forge III** and the **T2 recipes** (gated by T1 mastery 2, §19.5) | Weapon quality, mastery 2 |
+| 5 | 25 | Fogde Svartbrand | 2,700 | 12 | 9.2 | 120 s | 22.5 | 2 prisoners; unlock Barracks III | Troop level, first T2 weapons (about 20 % of armed) |
+| 6 | 30 | Stentrollet Grymstorp | 4,800 | 13 | 13.0 | 150 s | 32 | 1 prisoner; **group slot 5**; 400 stone, 40 ore | Big front army, food upkeep, T2 on about 45 % |
+| 7 | 35 | Kapten Järnhand | 8,400 | 15 | 18.2 | 150 s | 56 | 1 prisoner + 1 officer troop gets +1 level step; 200 iron + 100 ore (T2 stockpile for the final push) | Nearly everyone fights, T2 on about 70 % |
+| 8 | 40 | Borgherre Skarpmark | 14,800 | 17 | 25.6 | 150 s | 99 | 2 prisoners; **unlock region 2**; Skarpmarks nyckel (bridge, §19.9) | The whole army, armed, T2 on about 85 %, fed, feast |
 
 Prisoners per boss: 2, 2, 1, 0, 2, 1, 1, 2 (about half of the late soldier growth comes from rescues, the rest from beds and training; guess).
 
@@ -763,26 +766,30 @@ Boss times (check-in bot, Humans, game time; Orcs +15-20 %, as in pass 12; guess
 
 | Boss | 5 | 10 | 15 | 20 | 25 | 30 | 35 | 40 |
 |---|---|---|---|---|---|---|---|---|
-| Time | 0:41 (today) | 2:30 | 5:00 | 8:30 | 13:00 | 18:30 | 25:00 | 32:00 |
-| Gap to previous | | 1:50 | 2:30 | 3:30 | 4:30 | 5:30 | 6:30 | 7:00 |
-| Active bot (about x0.72) | 0:41 | 1:50 | 3:40 | 6:10 | 9:20 | 13:20 | 18:00 | 23:00 |
+| Time | 0:41 (today) | 1:36 | 2:36 | 3:46 | 6:31 | 11:31 | 19:31 | 31:30 |
+| Gap to previous | | 0:55 | 1:00 | 1:10 | 2:45 | 5:00 | 8:00 | 12:00 |
+| Per level (avg) | 8 min | 11 min | 12 min | 14 min | 33 min | 60 min | 96 min | 144 min |
+| Active bot | 0:41 | 1:20 | 2:10 | 3:10 | 4:50 | 8:20 | 14:10 | 22:40 |
 
-Gaps grow because bosses are heavier and the late recruit curve is steeper; a wall of 1.5-2.5 h of build-up before each late boss is the intent, with something to buy every 30-60 min (§19.5). Level 1-5 numbers stay: Humans boss 40-48 min (existing guard).
+Tempo curve: levels 6-20 take 10-15 min each, bosses included (Clicker-Heroes-like quick start); the gap per level then grows about x2.3 at 21-25 and keeps growing (the T2 spike at boss 20 keeps 21-25 from feeling like a cliff). Late gaps include the nightly 8 h offline window, so a late boss is a "build, sleep, challenge" cycle; something to buy every 30-60 min (§19.5). Level 1-5 numbers stay: Humans boss 40-48 min (existing guard).
 
 Army at each boss (Humans; soldiers counted when the fight starts, then after the reward; guess):
 
 | Boss | 5 | 10 | 15 | 20 | 25 | 30 | 35 | 40 |
 |---|---|---|---|---|---|---|---|---|
-| Soldiers at start | 6 | 10 | 13 | 16 | 19 | 23 | 26 | 29 |
-| After rewards | 8 | 12 | 14 | 16 | 21 | 24 | 27 | 31 |
+| Soldiers at start | 6 | 9 | 12 | 15 | 19 | 23 | 26 | 29 |
+| After rewards | 8 | 11 | 13 | 15 | 21 | 24 | 27 | 31 |
 | Groups | 2 -> 3 | 3 | 4 | 4 | 4 | 5 | 5 | 5 |
-| Armed | 5/6 | 9/10 | 12/13 | 15/16 | 18/19 | 21/23 | 24/26 | 27/29 |
+| Armed | 5/6 | 8/9 | 11/12 | 14/15 | 18/19 | 21/23 | 24/26 | 27/29 |
+| **T2 armed share (target)** | 0 | 0 | 0 | 0 (unlocks) | 4/18 (about 20 %) | 10/21 (about 45 %) | 17/24 (about 70 %) | 23/27 (about 85 %) |
 | Fighting troop level (about) | 9 | 12 | 15 | 18 | 21 | 24 | 27 | 30 |
-| Weapons crafted (cumulative) | 8 | 25 | 60 | 120 | 200 | 300 | 420 | 560 |
+| Weapons crafted (cumulative, T1+T2) | 8 | 25 | 60 | 120 | 190 | 280 | 390 | 520 |
+
+T2 share rule: the player replaces T1 weapons with T2 by crafting (the old weapon is kept as a spare for new recruits, no refund); the targets assume the iron site is staffed and the first T2 weapon is crafted within 30 min of boss 20. Unarmed or T1 soldiers are the cheap way to "lose" a boss, which is the point.
 
 Orcs: 1.2-1.3x the soldiers (more beds per building, higher upkeep), boss times +15-20 %. Soldiers stay readable: 6 -> 29 in a day and a half, never more than 5 groups; recruits per boss are 2-3, so the player sees roughly one new soldier every 1-2 hours.
 
-Guards for `tools/sim/balance.test.ts` (new): boss times inside +-20 % of the row above for `checkin`, and +-30 % for `balanced`; soldiers at start within +-2 of the row; armed ratio >= 0.85 at every boss; event gap <= 60 min between boss 10 and 40 (`checkin`: <= 60 min between **bot actions' results**, i.e. there is always something finished or purchasable at each check-in); first 45 min unchanged (existing guards).
+Guards for `tools/sim/balance.test.ts` (new): boss times inside +-20 % of the row above for `checkin`, and +-30 % for `balanced`; **levels 6-20: median time per level 8-18 min**; soldiers at start within +-2 of the row; armed ratio >= 0.85 at every boss; **T2 armed share at bosses 25/30/35/40 within +-15 points of the row** (bot crafts T2 as soon as allowed); event gap <= 60 min between boss 10 and 40 (`checkin`: <= 60 min between **bot actions' results**, i.e. there is always something finished or purchasable at each check-in); first 45 min unchanged (existing guards).
 
 ### 19.4 Walls as army checks
 

@@ -12,7 +12,7 @@ export function Upgrades({ state }: { state: GameState }) {
   const list = Object.values(content.upgrades).filter((u) => state.unlocks.includes(`upgrade:${u.id}`));
   return (
     <div className="screen">
-      <Panel title="Förbättringar">
+      <Panel icon="scroll" title="Förbättringar">
         {list.length === 0 && <p className="muted">Inga förbättringar tillgängliga än.</p>}
         <ul className="upgrade-list">
           {list.map((u) => {

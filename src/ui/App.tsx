@@ -100,13 +100,13 @@ export function App() {
     <div className="app">
       <header className="topbar">
         <div className="topbar__brand">
-          <RaceEmblem raceId={state.raceId} size={34} />
+          <span className="crest"><RaceEmblem raceId={state.raceId} size={34} /></span>
           <div className="topbar__title">
             <span className="eyebrow">{race?.name}</span>
             <h1 className="title title--small">Utposten</h1>
           </div>
         </div>
-        <button className="btn btn--small" onClick={() => setMenuOpen(true)} aria-label="Meny"><Icon name="menu" size={18} /> Meny</button>
+        <button className="btn btn--small btn--menu" onClick={() => setMenuOpen(true)} aria-label="Meny"><Icon name="menu" size={18} /> Meny</button>
       </header>
       <ResourceBar state={state} rates={rates} />
       {!snap.storageOk && <p className="warning"><Icon name="warning" size={18} /> Sparning är inte tillgänglig i den här webbläsaren. Se Meny → Exportera.</p>}

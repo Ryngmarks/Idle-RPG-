@@ -76,7 +76,7 @@ export function Settlement({ state, rates }: { state: GameState; rates: Rates })
   const stage = settlementStage(built);
   return (
     <div className="screen">
-      <Panel title={stage.name} className="settlement-head">
+      <Panel icon="castle" title={stage.name} className="settlement-head">
         <SettlementScene buildings={state.buildings} />
         <p className="muted">{stage.text}</p>
       </Panel>

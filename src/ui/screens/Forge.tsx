@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { content } from '../../content';
+import { Icon } from '../art/icons';
 import {
   canAfford,
   craftCost,
@@ -56,7 +57,7 @@ export function Forge({ state, rates, log }: { state: GameState; rates: Rates; l
 
   return (
     <div className="screen">
-      <Panel hero title="Smedjan" aside={<span className="battle-head">{smiths.length > 0 && <Chip tone="gold"><Icon name="anvil" size={14} /> {smiths.length}</Chip>}<Chip>Kö {queue.length}</Chip>{speed > 0 && <span className="muted small">{fmtRate(60 / secPerItem)}/min</span>}</span>}>
+      <Panel hero icon="anvil" title="Smedjan" aside={<span className="battle-head">{smiths.length > 0 && <Chip tone="gold"><Icon name="anvil" size={14} /> {smiths.length}</Chip>}<Chip>Kö {queue.length}</Chip>{speed > 0 && <span className="muted small">{fmtRate(60 / secPerItem)}/min</span>}</span>}>
         <div className="recipe">
           <WeaponIcon weaponTypeId={weaponTypeId} quality="normal" size={44} />
           <div className="recipe__info">
@@ -69,8 +70,8 @@ export function Forge({ state, rates, log }: { state: GameState; rates: Rates; l
         {available && (
           <p className={`small ${smiths.length > 0 ? '' : 'warn'}`}>
             {smiths.length > 0
-              ? `${smiths.map((t) => t.name).join(', ')} smider · ${fmtDuration(secPerItem)} per vapen${queue.length === 0 ? ' · väntar på beställning' : ''}`
-              : 'Ingen trupp smider. Ge en trupp aktiviteten Smide under Styrkor.'}
+              ? <><Icon name="anvil" size={16} /> {smiths.map((t) => t.name).join(', ')} smider · {fmtDuration(secPerItem)} per vapen{queue.length === 0 ? ' · väntar på beställning' : ''}</>
+              : <><Icon name="warning" size={16} /> Ingen trupp smider. Ge en trupp aktiviteten Smide under Styrkor.</>}
           </p>
         )}
         {available ? (

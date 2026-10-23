@@ -18,7 +18,7 @@ function Stats({ state }: { state: GameState }) {
   ];
   const byQuality = QUALITY_IDS.map((q) => ({ q, n: s.weaponsByQuality[q] })).filter((x) => x.n > 0).reverse();
   return (
-    <Panel title="Statistik">
+    <Panel icon="star" title="Statistik">
       <dl className="stat-grid">
         {tiles.map((t) => (
           <div key={t.label} className="stat-tile">
@@ -48,7 +48,7 @@ export function Chronicle({ state, log }: { state: GameState; log: GameEvent[] }
   return (
     <>
       <Stats state={state} />
-      <Panel title="Krönika" className="chronicle">
+      <Panel icon="book" title="Krönika" className="chronicle">
         {entries.length === 0 ? (
           <p className="muted small">Inget har hänt än. Ge dina trupper order.</p>
         ) : (

@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import type { Cost, GameState, ResourceId } from '../../core';
 import { fmtCost } from '../format';
-import { Icon } from '../art/icons';
+import { Icon, type UiIconName } from '../art/icons';
 import { ResIcon } from '../art/resources';
 import { RESOURCE_LABEL } from '../labels';
 
@@ -32,12 +32,12 @@ export function Slots({ used, total, label }: { used: number; total: number; lab
 }
 
 /** `hero` = the one primary card of a screen (gold edge); other panels stay secondary. */
-export function Panel({ title, children, className = '', aside, hero }: { title?: ReactNode; children: ReactNode; className?: string; aside?: ReactNode; hero?: boolean }) {
+export function Panel({ title, children, className = '', aside, hero, icon }: { title?: ReactNode; children: ReactNode; className?: string; aside?: ReactNode; hero?: boolean; icon?: UiIconName }) {
   return (
     <section className={`panel ${hero ? 'panel--hero' : ''} ${className}`}>
       {title !== undefined && (
         <header className="panel__head">
-          <h2 className="panel__title">{title}</h2>
+          <h2 className="panel__title">{icon && <Icon name={icon} size={22} />}<span>{title}</span></h2>
           {aside}
         </header>
       )}

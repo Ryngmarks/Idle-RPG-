@@ -40,7 +40,7 @@ function rewardText(o: ObjectiveDef): ReactNode {
     const t = effectText({ type: 'unlock', unlock: u } as never);
     if (t) parts.push(<span key={u}>{t.toLowerCase()}</span>);
   }
-  return parts.map((p, i) => <span key={i} className="rw">{p}</span>);
+  return parts.length ? parts.map((p, i) => <span key={i} className="rw">{p}</span>) : null;
 }
 
 export function Objectives({ state }: { state: GameState }) {

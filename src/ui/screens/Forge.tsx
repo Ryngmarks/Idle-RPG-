@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { content } from '../../content';
+import { Icon } from '../art/icons';
 import {
   canAfford,
   craftCost,
@@ -56,21 +57,21 @@ export function Forge({ state, rates, log }: { state: GameState; rates: Rates; l
 
   return (
     <div className="screen">
-      <Panel hero title="Smedjan" aside={<span className="battle-head">{smiths.length > 0 && <Chip tone="gold">⚒️ {smiths.length}</Chip>}<Chip>Kö {queue.length}</Chip>{speed > 0 && <span className="muted small">{fmtRate(60 / secPerItem)}/min</span>}</span>}>
+      <Panel hero icon="anvil" title="Smedjan" aside={<span className="battle-head">{smiths.length > 0 && <Chip tone="gold"><Icon name="anvil" size={14} /> {smiths.length}</Chip>}<Chip>Kö {queue.length}</Chip>{speed > 0 && <span className="muted small">{fmtRate(60 / secPerItem)}/min</span>}</span>}>
         <div className="recipe">
           <WeaponIcon weaponTypeId={weaponTypeId} quality="normal" size={44} />
           <div className="recipe__info">
             <h3 className="recipe__name">T1 {weapon.name}</h3>
             <p className="small muted">
-              <CostList cost={recipe.materials} state={state} /> · {fmtInt(recipe.workPerItem)} arbete · ⚔ ×{fmtRate(weaponPower(1, 'normal', content))}
+              <CostList cost={recipe.materials} state={state} /> · {fmtInt(recipe.workPerItem)} arbete · <Icon name="strength" size={14} /> ×{fmtRate(weaponPower(1, 'normal', content))}
             </p>
           </div>
         </div>
         {available && (
           <p className={`small ${smiths.length > 0 ? '' : 'warn'}`}>
             {smiths.length > 0
-              ? `⚒️ ${smiths.map((t) => t.name).join(', ')} smider · ${fmtDuration(secPerItem)} per vapen${queue.length === 0 ? ' · väntar på beställning' : ''}`
-              : '⚒️ Ingen trupp smider. Ge en trupp aktiviteten Smide under Styrkor.'}
+              ? <><Icon name="anvil" size={16} /> {smiths.map((t) => t.name).join(', ')} smider · {fmtDuration(secPerItem)} per vapen{queue.length === 0 ? ' · väntar på beställning' : ''}</>
+              : <><Icon name="warning" size={16} /> Ingen trupp smider. Ge en trupp aktiviteten Smide under Styrkor.</>}
           </p>
         )}
         {available ? (
@@ -83,7 +84,7 @@ export function Forge({ state, rates, log }: { state: GameState; rates: Rates; l
             <button className="btn btn--small" disabled={maxN <= 0} onClick={() => order(maxN)}>Max{maxN > 0 ? ` (+${maxN})` : ''}</button>
           </div>
         ) : (
-          <p className="muted small">🔒 Bygg smedjan i bosättningen för att börja smida.</p>
+          <p className="muted small"><Icon name="lock" size={16} /> Bygg smedjan i bosättningen för att börja smida.</p>
         )}
         {queue.length > 0 && (
           <div className="queue">
@@ -93,13 +94,13 @@ export function Forge({ state, rates, log }: { state: GameState; rates: Rates; l
                 <b>T1 {weapon.name} × {fmtInt(queue[0]!.remaining)}</b>
                 <Bar value={state.crafting.progress} max={recipe.workPerItem} tone="gold" label="Smider" inside={rates.craftWorkPerSec > 0 ? `Smider · ${fmtDuration((recipe.workPerItem - state.crafting.progress) / rates.craftWorkPerSec)}` : 'Väntar på smed'} />
               </div>
-              <button className="btn btn--small" aria-label="Avbryt beställning" onClick={() => setError(store.command({ type: 'cancelCraft', index: 0 }))}>✕</button>
+              <button className="btn btn--small" aria-label="Avbryt beställning" onClick={() => setError(store.command({ type: 'cancelCraft', index: 0 }))}><Icon name="close" size={14} /></button>
             </div>
             {queue.slice(1).map((o, i) => (
               <div key={i} className="forge-next">
                 <span className="hex"><WeaponIcon weaponTypeId={weaponTypeId} quality={null} size={22} /></span>
                 <span style={{ flex: 1 }}>Näst: T1 {weapon.name} × {fmtInt(o.remaining)}</span>
-                <button className="btn btn--small btn--ghost" aria-label="Avbryt beställning" onClick={() => setError(store.command({ type: 'cancelCraft', index: i + 1 }))}>✕</button>
+                <button className="btn btn--small btn--ghost" aria-label="Avbryt beställning" onClick={() => setError(store.command({ type: 'cancelCraft', index: i + 1 }))}><Icon name="close" size={14} /></button>
               </div>
             ))}
             <span className="small muted">{fmtInt(queued)} vapen kvar · {rates.craftWorkPerSec > 0 ? `klart om ${fmtDuration(((queued - 1) * recipe.workPerItem + (recipe.workPerItem - state.crafting.progress)) / rates.craftWorkPerSec)}` : 'står still utan smeder'}</span>
@@ -161,8 +162,8 @@ export function Forge({ state, rates, log }: { state: GameState; rates: Rates; l
           {content.equipment.tiers.map((t) => (
             <li key={t.tier} className={`tier ${t.tier === 1 ? 'tier--open' : ''}`}>
               <strong>T{t.tier}</strong>
-              <span className="small">⚔ ×{fmtRate(t.powerMult)}</span>
-              <span className="small muted">{t.tier === 1 ? 'Öppen' : '🔒'}</span>
+              <span className="small"><Icon name="strength" size={14} /> ×{fmtRate(t.powerMult)}</span>
+              <span className="small muted">{t.tier === 1 ? 'Öppen' : <Icon name="lock" size={14} label="Låst" />}</span>
             </li>
           ))}
         </ol>

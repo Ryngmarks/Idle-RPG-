@@ -2,8 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { content } from '../content';
 import { computeRates, foodBalance, RESOURCES, type GameEvent, type GameState, type Rates, type ResourceId } from '../core';
 import { RaceEmblem } from './art';
+import { Icon, type UiIconName } from './art/icons';
 import { ResIcon } from './art/resources';
 import { fmtAmount, fmtRate } from './format';
+import { useRise } from './fx';
 import { useSnapshot, useStore } from './game';
 import { QUALITY_COLOR, RESOURCE_LABEL, eventText, qualityName } from './labels';
 import { RARE } from './components/equipment';
@@ -18,13 +20,13 @@ import { Upgrades } from './screens/Upgrades';
 
 type Tab = 'forces' | 'battle' | 'settlement' | 'forge' | 'upgrades' | 'chronicle';
 
-const TABS: { id: Tab; label: string; icon: string; unlock?: string }[] = [
-  { id: 'forces', label: 'Styrkor', icon: '🛡️' },
-  { id: 'battle', label: 'Strid', icon: '⚔️', unlock: 'tab:battle' },
-  { id: 'settlement', label: 'Bosättning', icon: '🏰', unlock: 'tab:settlement' },
-  { id: 'forge', label: 'Smedja', icon: '⚒️', unlock: 'tab:forge' },
-  { id: 'upgrades', label: 'Förbättra', icon: '📜', unlock: 'tab:upgrades' },
-  { id: 'chronicle', label: 'Krönika', icon: '📖' },
+const TABS: { id: Tab; label: string; icon: UiIconName; unlock?: string }[] = [
+  { id: 'forces', label: 'Styrkor', icon: 'shield' },
+  { id: 'battle', label: 'Strid', icon: 'swords', unlock: 'tab:battle' },
+  { id: 'settlement', label: 'Bosättning', icon: 'castle', unlock: 'tab:settlement' },
+  { id: 'forge', label: 'Smedja', icon: 'anvil', unlock: 'tab:forge' },
+  { id: 'upgrades', label: 'Förbättra', icon: 'scroll', unlock: 'tab:upgrades' },
+  { id: 'chronicle', label: 'Krönika', icon: 'book' },
 ];
 
 /** Rate per minute; food shows its net after upkeep (D-55) and warns when it runs out. */
@@ -38,20 +40,25 @@ function ResourceRate({ r, state, rates }: { r: ResourceId; state: GameState; ra
   return <span className={`resource__rate ${tone}`}>{text}</span>;
 }
 
+function ResourceTile({ r, state, rates }: { r: ResourceId; state: GameState; rates: Rates }) {
+  const bumps = useRise(state.resources[r], 1);
+  return (
+    <div className={`resource ${bumps > 0 ? 'resource--bump' : ''}`} key={bumps}>
+      <span className="resource__icon" aria-hidden><ResIcon id={r} size={30} /></span>
+      <span className="resource__amount">{fmtAmount(state.resources[r])}</span>
+      <ResourceRate r={r} state={state} rates={rates} />
+      <span className="sr-only">{RESOURCE_LABEL[r].name}</span>
+    </div>
+  );
+}
+
 function ResourceBar({ state, rates }: { state: GameState; rates: Rates }) {
   const shown = RESOURCES.filter(
     (r) => r === 'wood' || state.resources[r] > 0 || state.stats.gathered[r] > 0 || rates.income[r] > 0,
   );
   return (
     <div className="resources" aria-label="Resurser">
-      {shown.map((r) => (
-        <div key={r} className="resource">
-          <span className="resource__icon" aria-hidden><ResIcon id={r} size={30} /></span>
-          <span className="resource__amount">{fmtAmount(state.resources[r])}</span>
-          <ResourceRate r={r} state={state} rates={rates} />
-          <span className="sr-only">{RESOURCE_LABEL[r].name}</span>
-        </div>
-      ))}
+      {shown.map((r) => <ResourceTile key={r} r={r} state={state} rates={rates} />)}
     </div>
   );
 }
@@ -78,7 +85,7 @@ function useToast(log: GameEvent[], state: GameState | null): Toast | null {
     if (important) setToast({ text: eventText(important, state) ?? '' });
     else if (rare) {
       const weapon = content.equipment.weaponTypes[content.equipment.recipes[rare.recipeId]?.weaponTypeId ?? '']?.name.toLowerCase() ?? '';
-      setToast({ text: `✨ ${qualityName(rare.quality)} ${weapon} smitt!`, color: QUALITY_COLOR[rare.quality] });
+      setToast({ text: `${qualityName(rare.quality)} ${weapon} smitt!`, color: QUALITY_COLOR[rare.quality] });
     } else return;
     const id = setTimeout(() => setToast(null), 3500);
     return () => clearTimeout(id);
@@ -110,25 +117,27 @@ export function App() {
     <div className="app">
       <header className="topbar">
         <div className="topbar__brand">
-          <RaceEmblem raceId={state.raceId} size={34} />
+          <span className="crest"><RaceEmblem raceId={state.raceId} size={34} /></span>
           <div className="topbar__title">
             <span className="eyebrow">{race?.name}</span>
             <h1 className="title title--small">Utposten</h1>
           </div>
         </div>
-        <button className="btn btn--small" onClick={() => setMenuOpen(true)} aria-label="Meny">☰ Meny</button>
+        <button className="btn btn--small btn--menu" onClick={() => setMenuOpen(true)} aria-label="Meny"><Icon name="menu" size={18} /> Meny</button>
       </header>
       <ResourceBar state={state} rates={rates} />
-      {!snap.storageOk && <p className="warning">⚠️ Sparning är inte tillgänglig i den här webbläsaren. Se Meny → Exportera.</p>}
+      {!snap.storageOk && <p className="warning"><Icon name="warning" size={18} /> Sparning är inte tillgänglig i den här webbläsaren. Se Meny → Exportera.</p>}
 
       <div className="layout">
         <main className="layout__main">
-          {active === 'forces' && <Forces state={state} rates={rates} onGo={open} />}
-          {active === 'battle' && <Battle state={state} rates={rates} />}
-          {active === 'settlement' && <Settlement state={state} rates={rates} />}
-          {active === 'forge' && <Forge state={state} rates={rates} log={snap.log} />}
-          {active === 'upgrades' && <Upgrades state={state} />}
-          {active === 'chronicle' && <Chronicle state={state} log={snap.log} />}
+          <div key={active} className="pane">
+            {active === 'forces' && <Forces state={state} rates={rates} onGo={open} />}
+            {active === 'battle' && <Battle state={state} rates={rates} />}
+            {active === 'settlement' && <Settlement state={state} rates={rates} />}
+            {active === 'forge' && <Forge state={state} rates={rates} log={snap.log} />}
+            {active === 'upgrades' && <Upgrades state={state} />}
+            {active === 'chronicle' && <Chronicle state={state} log={snap.log} />}
+          </div>
         </main>
         <aside className="layout__aside">
           <Chronicle state={state} log={snap.log} />
@@ -138,7 +147,7 @@ export function App() {
       <nav className="tabbar" aria-label="Huvudmeny">
         {tabs.map((t) => (
           <button key={t.id} className={`tab ${active === t.id ? 'tab--on' : ''} ${t.id === 'chronicle' ? 'tab--mobile-only' : ''}`} onClick={() => open(t.id)} aria-current={active === t.id ? 'page' : undefined}>
-            <span className="tab__icon" aria-hidden>{t.icon}</span>
+            <span className="tab__icon" aria-hidden><Icon name={t.icon} size={26} /></span>
             <span className="tab__label">{t.label}</span>
             {!seen.has(t.id) && <span className="tab__new" aria-label="ny" />}
           </button>
@@ -147,7 +156,7 @@ export function App() {
 
       {toast && (
         <div className={`toast ${toast.color ? 'toast--quality' : ''}`} role="status" style={toast.color ? { ['--q' as string]: toast.color } : undefined}>
-          {toast.text}
+          {toast.color && <Icon name="star" size={18} />} {toast.text}
         </div>
       )}
       {snap.report && <AwayReportModal report={snap.report} state={state} onClose={() => store.dismissReport()} />}

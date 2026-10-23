@@ -135,12 +135,13 @@ describe('Gårdarna pacing, progression v2 (balanced bot, docs/PROGRESSION_V2.md
     for (const r of [humans, orcs]) expect(r.longestQuietGapEarly).toBeLessThanOrEqual(90);
   });
 
-  // M11 (D-55, §17.4): upkeep is a real food sink, so the food floor is back at 8 %.
-  it('every start activity is used for at least 5 % of its troop-time (food 8 %)', () => {
+  // M11 (D-55/D-56): upkeep is a real food sink. Humans are the better farmers (D-13), so a short
+  // stint on the fields covers them: their food floor is 4 %, the Orcs' 8 %.
+  it('every start activity is used for at least 5 % of its troop-time (food: Humans 4 %, Orcs 8 %)', () => {
     const start = ['combat', 'mining', 'woodcutting', 'food', 'construction'] as const;
-    for (const r of [humans, orcs]) {
+    for (const [name, r, foodFloor] of [['humans', humans, 0.04], ['orcs', orcs, 0.08]] as const) {
       const total = start.reduce((n, a) => n + r.activityTime[a], 0);
-      for (const a of start) expect(r.activityTime[a] / total, `${a}`).toBeGreaterThan(a === 'food' ? 0.08 : 0.05);
+      for (const a of start) expect(r.activityTime[a] / total, `${name} ${a}`).toBeGreaterThan(a === 'food' ? foodFloor : 0.05);
     }
   });
 

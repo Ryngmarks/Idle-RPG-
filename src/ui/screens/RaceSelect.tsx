@@ -1,6 +1,7 @@
 import { content } from '../../content';
 import type { LabourActivity, RaceDef } from '../../core';
 import { RaceEmblem } from '../art';
+import { Icon } from '../art/icons';
 import { useStore } from '../game';
 import { ACTIVITY_LABEL, TRAIT_LABEL } from '../labels';
 
@@ -30,17 +31,18 @@ export function RaceSelect() {
         {Object.values(content.races).map((r) => (
           <article key={r.id} className={`race-card ${r.playable ? '' : 'race-card--locked'}`}>
             <header className="race-card__head">
-              <RaceEmblem raceId={r.id} size={48} />
+              <RaceEmblem raceId={r.id} size={88} />
+              {!r.playable && <span className="race-card__lock"><Icon name="lock" size={22} /></span>}
               <h2 className="race-card__name">{r.name}</h2>
             </header>
             <p className="race-card__flavour">{FLAVOUR[r.id]}</p>
-            <dl className="race-card__stats">
-              <div><dt>Första truppen</dt><dd>{r.population.startSize} soldater</dd></div>
-              <div><dt>Max per trupp</dt><dd>{r.population.maxTroopSize}</dd></div>
-              <div><dt>Sängar från start</dt><dd>{r.population.startBeds}</dd></div>
-              <div><dt>Styrka/soldat</dt><dd>{r.soldier.attack}</dd></div>
-              <div><dt>Bäst på</dt><dd>{bestSkills(r)}</dd></div>
-            </dl>
+            <ul className="race-chips" aria-label="Nyckeltal">
+              <li className="race-chip" title="Första truppen"><Icon name="soldier" size={20} />{r.population.startSize} <small>soldater</small></li>
+              <li className="race-chip" title="Max per trupp"><Icon name="flag" size={20} />{r.population.maxTroopSize} <small>max</small></li>
+              <li className="race-chip" title="Sängar från start"><Icon name="tent" size={20} />{r.population.startBeds} <small>sängar</small></li>
+              <li className="race-chip" title="Styrka per soldat"><Icon name="strength" size={20} />{r.soldier.attack} <small>styrka</small></li>
+              <li className="race-chip" title="Bäst på"><Icon name="star" size={20} />{bestSkills(r)}</li>
+            </ul>
             {r.traits.length > 0 && (
               <ul className="race-card__traits">
                 {r.traits.map((t) => <li key={t}>{TRAIT_LABEL[t]}</li>)}
@@ -51,7 +53,7 @@ export function RaceSelect() {
                 Spela som {r.name.toLowerCase()}
               </button>
             ) : (
-              <button className="btn btn--block" disabled>🔒 Kommer senare</button>
+              <button className="btn btn--block" disabled><Icon name="lock" size={18} /> Kommer senare</button>
             )}
           </article>
         ))}

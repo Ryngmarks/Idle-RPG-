@@ -1,8 +1,11 @@
 import { useState, type ReactNode } from 'react';
 import type { AwayReport } from '../../app/store';
 import { RESOURCES, type GameState } from '../../core';
+import { Icon } from '../art/icons';
+import { ResIcon } from '../art/resources';
 import { fmtAmount, fmtClock, fmtDuration, fmtInt } from '../format';
 import { useStore } from '../game';
+import { buildLabel, checkForUpdate, reloadToLatest, type UpdateStatus } from '../update';
 import { RESOURCE_LABEL, eventText } from '../labels';
 
 function Modal({ title, children, onClose }: { title: string; children: ReactNode; onClose: () => void }) {
@@ -11,7 +14,7 @@ function Modal({ title, children, onClose }: { title: string; children: ReactNod
       <div className="modal__box panel" onClick={(e) => e.stopPropagation()}>
         <header className="panel__head">
           <h2 className="panel__title">{title}</h2>
-          <button className="btn btn--small" onClick={onClose} aria-label="Stäng">✕</button>
+          <button className="btn btn--small" onClick={onClose} aria-label="Stäng"><Icon name="close" size={16} /></button>
         </header>
         {children}
       </div>
@@ -36,11 +39,11 @@ export function AwayReportModal({ report, state, onClose }: { report: AwayReport
       {gained.length > 0 || crafted > 0 ? (
         <ul className="report-list">
           {gained.map((r) => (
-            <li key={r}>{RESOURCE_LABEL[r].icon} +{fmtAmount(report.resources[r])} {RESOURCE_LABEL[r].name.toLowerCase()}</li>
+            <li key={r}><ResIcon id={r} size={20} /> +{fmtAmount(report.resources[r])} {RESOURCE_LABEL[r].name.toLowerCase()}</li>
           ))}
-          {report.kills >= 1 && <li>⚔️ {fmtInt(Math.floor(report.kills))} fiender besegrade</li>}
-          {levelUps > 0 && <li>⭐ {levelUps} nivåhöjningar</li>}
-          {crafted > 0 && <li>⚒️ {crafted} vapen smidda</li>}
+          {report.kills >= 1 && <li><Icon name="swords" size={20} /> {fmtInt(Math.floor(report.kills))} fiender besegrade</li>}
+          {levelUps > 0 && <li><Icon name="star" size={20} /> {levelUps} nivåhöjningar</li>}
+          {crafted > 0 && <li><Icon name="anvil" size={20} /> {crafted} vapen smidda</li>}
         </ul>
       ) : (
         <p className="muted">Dina trupper hade inga order, så inget samlades in.</p>
@@ -61,6 +64,7 @@ export function MenuModal({ state, storageOk, onClose }: { state: GameState; sto
   const [importText, setImportText] = useState('');
   const [message, setMessage] = useState<string | null>(null);
   const [confirmReset, setConfirmReset] = useState(false);
+  const [update, setUpdate] = useState<UpdateStatus | 'checking' | null>(null);
 
   return (
     <Modal title="Meny" onClose={onClose}>
@@ -69,7 +73,7 @@ export function MenuModal({ state, storageOk, onClose }: { state: GameState; sto
         <p className="small muted">
           {storageOk
             ? 'Spelet sparas automatiskt i den här webbläsaren var tionde sekund och när du stänger appen.'
-            : '⚠️ Webbläsaren tillåter inte sparning (t.ex. privat läge). Använd export för att inte förlora framsteg.'}
+            : <><Icon name="warning" size={15} /> Webbläsaren tillåter inte sparning (t.ex. privat läge). Använd export för att inte förlora framsteg.</>}
         </p>
         <p className="small muted">Speltid: {fmtClock(state.clock)}</p>
         <div className="row">
@@ -104,6 +108,22 @@ export function MenuModal({ state, storageOk, onClose }: { state: GameState; sto
         >
           Importera
         </button>
+      </section>
+
+      <section className="menu-section">
+        <h3>Version</h3>
+        <p className="small muted">Byggd {buildLabel()}</p>
+        {update === 'new' && <p className="small warn">✨ En ny version finns. Spelet sparas innan det uppdateras.</p>}
+        {update === 'same' && <p className="small muted">Du har den senaste versionen.</p>}
+        {update === 'unknown' && <p className="small muted">Kunde inte kolla just nu. Du kan ändå ladda om.</p>}
+        <div className="row">
+          <button className="btn" disabled={update === 'checking'} onClick={() => { setUpdate('checking'); void checkForUpdate().then(setUpdate); }}>
+            {update === 'checking' ? 'Söker…' : 'Sök efter uppdatering'}
+          </button>
+          <button className={`btn ${update === 'new' ? 'btn--primary' : ''}`} onClick={() => { store.save(); reloadToLatest(); }}>
+            {update === 'new' ? 'Uppdatera nu' : 'Ladda om'}
+          </button>
+        </div>
       </section>
 
       <section className="menu-section">

@@ -332,12 +332,12 @@ describe('save', () => {
     v1.combat.stageIndex = 2;
     delete v1.combat.unlockedStage;
     const s = deserialize(JSON.stringify(v1));
-    expect(s.version).toBe(3);
+    expect(s.version).toBe(4);
     expect(s.troops[0]).toMatchObject({ wounds: 0, engagedSize: 12, weaponTypeId: 'cleaver' });
     expect(s.troops[0]!.equipment).toEqual([{ tier: 1, quality: 'normal', count: 12 }]);
     expect(s.troops[0]).not.toHaveProperty('gearTier');
     expect(s.combat.unlockedStage).toBe(2);
-    expect(s.unlocks).toEqual(expect.arrayContaining(['crafting', 'tier:1']));
+    expect(s.unlocks).toEqual(expect.arrayContaining(['crafting', 'tier:1', 'activity:smithing']));
     expect(s.crafting).toEqual({ queue: [], progress: 0, crafted: {}, carry: {} });
     expect(advance(s, 60, content).state.clock).toBeGreaterThan(0);
   });

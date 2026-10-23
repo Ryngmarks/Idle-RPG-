@@ -58,12 +58,12 @@ export const buildings: Record<string, BuildingDef> = {
     levels: [
       {
         cost: { wood: 80, stone: 80, ore: 10 },
-        work: 2500,
+        work: 3000,
         effects: [
           { kind: 'unlock', unlock: 'crafting' },
           { kind: 'unlock', unlock: 'tier:1' },
           { kind: 'unlock', unlock: 'tab:forge' },
-          { kind: 'craftSpeed', workPerSec: 1 },
+          { kind: 'unlock', unlock: 'activity:smithing' },
         ],
       },
     ],
@@ -227,6 +227,13 @@ export const objectives: ObjectiveDef[] = [
     text: 'Bygg en smedja.',
     requires: ['barracks1'],
     condition: { kind: 'buildingLevel', buildingId: 'forge', level: 1 },
+    rewards: {},
+  },
+  {
+    id: 'smith',
+    text: 'Smedjan står klar. Sätt en trupp att smida.',
+    requires: ['forge'],
+    condition: { kind: 'troopAssigned', activity: 'smithing' },
     rewards: {},
   },
   {

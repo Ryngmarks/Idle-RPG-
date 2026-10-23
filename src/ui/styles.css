@@ -158,7 +158,8 @@ p { margin: 0.35rem 0; }
 .troop__stats dt { font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
 .troop__stats dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; }
 .troop__output { color: var(--ok); font-size: 0.9rem; margin: 0; min-height: 1.3em; }
-.activity-picker { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.activity-picker { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 5px; }
+.warn { color: var(--gold-2); }
 .activity { min-height: 56px; border-radius: 8px; border: 1px solid var(--line); background: #1a161c; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 4px 2px; }
 .activity__icon { font-size: 1.2rem; }
 .activity__name { font-size: 0.72rem; }

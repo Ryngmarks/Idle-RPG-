@@ -4,7 +4,6 @@ import {
   canAfford,
   craftCost,
   craftedForMastery,
-  forgeSpeed,
   masteryKey,
   masteryLevel,
   maxCraftable,
@@ -13,6 +12,8 @@ import {
   qualityChances,
   race,
   recipeAvailable,
+  smithingWork,
+  troopStats,
   weaponPower,
   type GameState,
   type Rates,
@@ -30,7 +31,9 @@ export function Forge({ state, rates }: { state: GameState; rates: Rates }) {
   const weapon = content.equipment.weaponTypes[weaponTypeId]!;
   const recipe = Object.values(content.equipment.recipes).find((r) => r.weaponTypeId === weaponTypeId && r.tier === 1)!;
   const available = recipeAvailable(state, recipe.id, content);
-  const speed = forgeSpeed(state, content);
+  // Smiths work only while there is an order, so the speed shown is what the assigned troops give.
+  const smiths = state.troops.filter((t) => t.activity === 'smithing');
+  const speed = smiths.reduce((n, t) => n + smithingWork(troopStats(state, t, content), content), 0);
   const secPerItem = speed > 0 ? recipe.workPerItem / speed : Infinity;
   const mk = masteryKey(weaponTypeId, 1);
   const crafted = state.crafting.crafted[mk] ?? 0;
@@ -53,10 +56,17 @@ export function Forge({ state, rates }: { state: GameState; rates: Rates }) {
           <div className="recipe__info">
             <h3 className="recipe__name">T1 {weapon.name}</h3>
             <p className="small muted">
-              Per vapen: <CostList cost={recipe.materials} state={state} /> · {fmtDuration(secPerItem)} · ⚔ ×{fmtRate(weaponPower(1, 'normal', content))} (Normal)
+              Per vapen: <CostList cost={recipe.materials} state={state} /> · {fmtInt(recipe.workPerItem)} arbete · ⚔ ×{fmtRate(weaponPower(1, 'normal', content))} (Normal)
             </p>
           </div>
         </div>
+        {available && (
+          <p className={`small ${smiths.length > 0 ? '' : 'warn'}`}>
+            {smiths.length > 0
+              ? `⚒️ ${smiths.map((t) => t.name).join(', ')} smider · ${fmtDuration(secPerItem)} per vapen${queue.length === 0 ? ' · väntar på beställning' : ''}`
+              : '⚒️ Ingen trupp smider. Ge en trupp aktiviteten Smide under Styrkor.'}
+          </p>
+        )}
         {available ? (
           <div className="recruit__buttons">
             {[1, 10, 50].map((n) => (
@@ -71,7 +81,7 @@ export function Forge({ state, rates }: { state: GameState; rates: Rates }) {
         )}
         {queue.length > 0 && (
           <div className="queue">
-            <span className="recruit__label">Beställningar · {fmtInt(queued)} vapen kvar · klart om {fmtDuration(rates.craftWorkPerSec > 0 ? ((queued - 1) * recipe.workPerItem + (recipe.workPerItem - state.crafting.progress)) / rates.craftWorkPerSec : Infinity)}</span>
+            <span className="recruit__label">Beställningar · {fmtInt(queued)} vapen kvar · {rates.craftWorkPerSec > 0 ? `klart om ${fmtDuration(((queued - 1) * recipe.workPerItem + (recipe.workPerItem - state.crafting.progress)) / rates.craftWorkPerSec)}` : 'står still utan smeder'}</span>
             {queue.map((o, i) => (
               <div key={i} className="queue__row">
                 <span className="small">T1 {weapon.name} × {fmtInt(o.remaining)}</span>

@@ -69,18 +69,6 @@ export function capLevel(state: GameState, content: Content): number {
   return level;
 }
 
-/** Crafting work per second from built buildings with a craftSpeed effect. */
-export function forgeSpeed(state: GameState, content: Content): number {
-  let speed = 0;
-  for (const [id, built] of Object.entries(state.buildings)) {
-    const def = content.buildings[id];
-    for (let l = 0; l < built; l++) {
-      for (const e of def?.levels[l]?.effects ?? []) if (e.kind === 'craftSpeed') speed += e.workPerSec;
-    }
-  }
-  return speed;
-}
-
 export function currentCap(state: GameState, content: Content): number {
   return troopCap(race(state, content).population.maxTroopSize, capLevel(state, content), content.constants.capLevelFractions);
 }
@@ -107,6 +95,11 @@ export interface TroopStats {
   healPerSec: number;
 }
 
+/** Forge work per second a troop gives while smithing (with an order to work on). */
+export function smithingWork(stats: TroopStats, content: Content): number {
+  return stats.workTotal * stats.skills.smithing * content.constants.smithRate;
+}
+
 export function troopStats(state: GameState, troop: TroopState, content: Content, mods = globalModifiers(state, content)): TroopStats {
   const r = race(state, content);
   const c = content.constants;
@@ -131,6 +124,7 @@ export function troopStats(state: GameState, troop: TroopState, content: Content
     woodcutting: resolveStat(r.soldier.skills.woodcutting, 'skill.woodcutting', all),
     food: resolveStat(r.soldier.skills.food, 'skill.food', all),
     construction: resolveStat(r.soldier.skills.construction, 'skill.construction', all),
+    smithing: resolveStat(r.soldier.skills.smithing, 'skill.smithing', all),
   };
   const armourPen = Math.min(1, resolveStat(r.soldier.armourPen, 'armourPen', all));
   const hp = resolveStat(r.soldier.hp, 'hp', all) * levelMult;
@@ -184,7 +178,7 @@ export function computeRates(state: GameState, content: Content): Rates {
     constructionWorkPerSec: 0,
     bossDps: 0,
     xpPerSec: {},
-    craftWorkPerSec: state.crafting.queue.length > 0 ? forgeSpeed(state, content) : 0,
+    craftWorkPerSec: 0,
     woundsPerSec: {},
     perTroop: {},
   };
@@ -225,6 +219,11 @@ export function computeRates(state: GameState, content: Content): Rates {
       case 'construction':
         entry.work = state.construction ? t.size * s.work * s.skills.construction : 0;
         rates.constructionWorkPerSec += entry.work;
+        break;
+      case 'smithing':
+        // Troops at the forge do the smithing; without an order there is nothing to work on.
+        entry.work = state.crafting.queue.length > 0 ? smithingWork(s, content) : 0;
+        rates.craftWorkPerSec += entry.work;
         break;
       case null:
         break;

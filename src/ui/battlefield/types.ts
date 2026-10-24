@@ -12,7 +12,14 @@ export interface FieldTroop {
   /** Quality colour of the troop's best weapon, if any. */
   blade: string;
   weaponId: string;
+  /** Damage per second the current foe deals to this troop (before healing); drives the rhythm of enemy blows. */
+  incoming: number;
+  /** Net wounds per second: positive = this troop is actually losing health, negative = healing. */
+  wounding: number;
 }
+
+/** What a tap on the canvas hit. */
+export type FieldPick = { kind: 'troop'; id: string } | { kind: 'enemy' };
 
 export interface FieldBoss {
   hpLeft: number;
@@ -38,5 +45,8 @@ export interface FieldSnap {
   /** Strikes per soldier per second. */
   aps: number;
   bossDps: number;
+  /** Damage per second the foe deals to the whole fighting group, and the foe's HP-per-soldier reference for pacing. */
+  incoming: number;
+  hpPerSoldier: number;
   boss: FieldBoss | null;
 }

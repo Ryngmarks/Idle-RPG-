@@ -145,6 +145,14 @@ export function familyOf(name: string, boss: boolean): Family {
   return boss ? 'brute' : 'human';
 }
 
+/** Enemies that shoot or cast instead of closing in: arrows from archers, orbs from spirits. */
+export function rangedKind(name: string, boss: boolean): 'arrow' | 'orb' | null {
+  const n = name.toLowerCase();
+  if (/skytt|båge/.test(n)) return 'arrow';
+  if (familyOf(name, boss) === 'spirit') return 'orb';
+  return null;
+}
+
 export const ENEMY_W = 96;
 export const ENEMY_H = 90;
 const ENEMY_GROUND = 84;

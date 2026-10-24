@@ -3,8 +3,8 @@
 
 import { fmtRate } from '../format';
 import { BANDS, LOOT_COLOR, RESOURCE_ORDER, racePalette } from './palette';
-import { ENEMY_H, ENEMY_W, HAND_X, HAND_Y, SOLDIER_AX, SOLDIER_AY, SOLDIER_H, SOLDIER_W, enemySprite, familyOf, renderBackground, renderMist, soldierSprite, type Family } from './sprites';
-import type { FieldSnap, FieldTroop } from './types';
+import { ENEMY_H, ENEMY_W, HAND_X, HAND_Y, SOLDIER_AX, SOLDIER_AY, SOLDIER_H, SOLDIER_W, enemySprite, familyOf, rangedKind, renderBackground, renderMist, soldierSprite, type Family } from './sprites';
+import type { FieldPick, FieldSnap, FieldTroop } from './types';
 
 const MAX_FIG = 12;
 const POOL = 128;
@@ -17,6 +17,7 @@ const SPARK = 3;
 const MOTE = 4;
 const RING = 5;
 const TEXT = 6;
+const PROJ = 7;
 
 class Particle {
   active = false;
@@ -44,6 +45,14 @@ interface TroopVis {
   flash: number;
   cycle: number;
   wound: number;
+  /** When this troop was last struck by the foe, and the damage waiting to be shown as a number. */
+  hitAt: number;
+  pendingIn: number;
+  /** Real soldier count last seen (drawn figures are capped, this is not). */
+  size: number;
+  /** Smoothed figure positions, so the formation slides together when someone falls. */
+  fx: number[];
+  fy: number[];
   label: string;
   // layout
   cx: number;
@@ -53,6 +62,24 @@ interface TroopVis {
   spacing: number;
   /** Latest data. */
   data: FieldTroop;
+}
+
+/** A soldier who just fell: tips over and fades. */
+interface Faller {
+  active: boolean;
+  x: number;
+  y: number;
+  s: number;
+  t: number;
+  race: string;
+}
+
+/** A troop walking off the field (retreat). Keeps the formation it had. */
+interface Leaver {
+  active: boolean;
+  v: TroopVis | null;
+  t: number;
+  race: string;
 }
 
 interface Dying {
@@ -89,7 +116,14 @@ export class Scene {
   private order: TroopVis[] = [];
   private pool: Particle[] = Array.from({ length: POOL }, () => new Particle());
   private dying: Dying[] = Array.from({ length: 4 }, () => ({ active: false, id: '', name: '', boss: false, t: 0 }));
-  private enemy = { id: '', name: '', boss: false, born: -99, flinch: 0 };
+  private fallers: Faller[] = Array.from({ length: 8 }, () => ({ active: false, x: 0, y: 0, s: 1, t: 0, race: '' }));
+  private leavers: Leaver[] = Array.from({ length: 3 }, () => ({ active: false, v: null, t: 0, race: '' }));
+  private enemy = { id: '', name: '', boss: false, born: -99, flinch: 0, nextAtk: 0, atk: -1, atkDur: 0.45, target: '', fired: false, lunge: 0 };
+  private tap = { x: 0, y: 0, t: 9, kind: 0 };
+  private lastHurtNum = -9;
+  private lastBump = -9;
+  /** Loot handoff to the page: the icon leaves the canvas at (x, y) and lands on the resource tile. `fly` is false under reduced motion. */
+  onLoot: ((res: string, x: number, y: number, fly: boolean) => void) | null = null;
   private lastKills = -1;
   private pendingDmg = 0;
   private lastNum = -9;

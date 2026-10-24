@@ -821,7 +821,11 @@ body {
 
 .zone-progress { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
 .zone-progress__row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-family: var(--heading); color: var(--gold-2); }
-.levels { max-height: 236px; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: 8px; padding: 6px; margin-bottom: 8px; border: 1px solid var(--line-soft); border-radius: 10px; background: #120f14; scrollbar-width: thin; }
+.levels { display: flex; flex-direction: column; gap: 8px; padding: 6px; margin-bottom: 8px; border: 1px solid var(--line-soft); border-radius: 10px; background: #120f14; scrollbar-width: thin; }
+.band__head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.band__head .band__name { flex: 1; margin: 0; text-align: center; }
+.band__nav { width: 36px; height: 32px; padding: 0; border-radius: 8px; border: 1px solid var(--line-soft); background: #1b1720; color: var(--gold-2); font: 700 1.2rem/1 var(--body); cursor: pointer; }
+.band__nav:disabled { opacity: 0.3; cursor: default; }
 .band__name { margin: 0 0 4px; font: 600 0.78rem/1.2 var(--heading); letter-spacing: 0.05em; color: var(--gold-2); text-transform: uppercase; }
 .band__name .muted { font-family: var(--body); text-transform: none; letter-spacing: 0; }
 .band--locked .band__name { opacity: 0.5; }

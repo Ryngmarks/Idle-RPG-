@@ -38,53 +38,52 @@ function LevelPicker({ state, safetyAt, justOpened, onSelect }: { state: GameSta
   const c = state.combat;
   const bands = z.bands ?? [{ name: z.name, fromLevel: 1, toLevel: z.stages.length }];
   const bossAt = new Map(z.bosses.map((b, i) => [b.level, i] as const));
-  const box = useRef<HTMLDivElement>(null);
-  // Bring the current band into view when the screen opens.
-  useEffect(() => {
-    const el = box.current?.querySelector<HTMLElement>('[data-band="current"]');
-    const parent = box.current;
-    if (el && parent) parent.scrollTop = Math.max(0, el.offsetTop - parent.offsetTop - 6);
-  }, []);
+  // Only the band of the current level is shown; the arrows browse the other open bands.
+  const currentBand = Math.max(0, bands.findIndex((b) => c.stageIndex + 1 >= b.fromLevel && c.stageIndex + 1 <= b.toLevel));
+  const lastOpenBand = Math.max(0, bands.findIndex((b) => b.fromLevel - 1 > c.unlockedStage) - 1);
+  const maxBand = bands.findIndex((b) => b.fromLevel - 1 > c.unlockedStage) === -1 ? bands.length - 1 : lastOpenBand;
+  const [view, setView] = useState(currentBand);
+  useEffect(() => setView(currentBand), [currentBand]);
+  const b = bands[Math.min(view, bands.length - 1)]!;
+  const lvls = Array.from({ length: b.toLevel - b.fromLevel + 1 }, (_, k) => b.fromLevel + k);
   return (
-    <div className="levels" ref={box} role="group" aria-label="Välj nivå">
-      {bands.map((b) => {
-        const lvls = Array.from({ length: b.toLevel - b.fromLevel + 1 }, (_, k) => b.fromLevel + k);
-        const bandOpen = b.fromLevel - 1 <= c.unlockedStage;
-        return (
-          <section key={b.name} data-band={c.stageIndex + 1 >= b.fromLevel && c.stageIndex + 1 <= b.toLevel ? 'current' : undefined} className={`band ${bandOpen ? '' : 'band--locked'}`}>
-            <h3 className="band__name">{b.name} <span className="muted">{b.fromLevel}–{b.toLevel}</span></h3>
-            <div className="band__chips">
-              {lvls.map((lv) => {
-                const i = lv - 1;
-                const open = i <= c.unlockedStage;
-                const cleared = i < c.unlockedStage || (c.cleared && i === c.unlockedStage);
-                const current = i === c.stageIndex;
-                const highest = i === c.unlockedStage;
-                const bi = bossAt.get(lv);
-                const bossDone = bi !== undefined && bi < c.bossesDefeated;
-                const risk = open && !cleared ? safetyAt(i).risk : null;
-                const name = content.enemies[z.stages[i]!.enemyId]?.name ?? '';
-                return (
-                  <button
-                    key={lv}
-                    data-current={current}
-                    className={`lvl ${open ? '' : 'lvl--locked'} ${cleared ? 'lvl--cleared' : ''} ${current ? 'lvl--current' : ''} ${highest ? 'lvl--top' : ''} ${bi !== undefined ? 'lvl--boss' : ''} ${lv === justOpened ? 'lvl--new' : ''} ${risk ? `lvl--${risk}` : ''}`}
-                    disabled={!open || !!c.boss}
-                    aria-pressed={current}
-                    aria-label={`Nivå ${lv}: ${name}${bi !== undefined ? `, boss ${bi + 1}${bossDone ? ' besegrad' : ''}` : ''}${open ? '' : ' (låst)'}`}
-                    onClick={() => onSelect(i)}
-                  >
-                    <span className="lvl__n">{open ? lv : <Icon name="lock" size={14} />}</span>
-                    {bi !== undefined && <span className={`lvl__mark ${bossDone ? 'lvl__mark--done' : ''}`} aria-hidden><Icon name="crown" size={14} /></span>}
-                    {cleared && <span className="lvl__tick" aria-hidden><Icon name="check" size={10} /></span>}
-                    {current && <span className="lvl__flag" aria-hidden><Icon name="flag" size={14} /></span>}
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-        );
-      })}
+    <div className="levels" role="group" aria-label="Välj nivå">
+      <section className="band">
+        <div className="band__head">
+          <button className="band__nav" disabled={view <= 0} aria-label="Föregående område" onClick={() => setView((v) => Math.max(0, v - 1))}>‹</button>
+          <h3 className="band__name">{b.name} <span className="muted">{b.fromLevel}–{b.toLevel}</span></h3>
+          <button className="band__nav" disabled={view >= maxBand} aria-label="Nästa område" onClick={() => setView((v) => Math.min(maxBand, v + 1))}>›</button>
+        </div>
+        <div className="band__chips">
+          {lvls.map((lv) => {
+            const i = lv - 1;
+            const open = i <= c.unlockedStage;
+            const cleared = i < c.unlockedStage || (c.cleared && i === c.unlockedStage);
+            const current = i === c.stageIndex;
+            const highest = i === c.unlockedStage;
+            const bi = bossAt.get(lv);
+            const bossDone = bi !== undefined && bi < c.bossesDefeated;
+            const risk = open && !cleared ? safetyAt(i).risk : null;
+            const name = content.enemies[z.stages[i]!.enemyId]?.name ?? '';
+            return (
+              <button
+                key={lv}
+                data-current={current}
+                className={`lvl ${open ? '' : 'lvl--locked'} ${cleared ? 'lvl--cleared' : ''} ${current ? 'lvl--current' : ''} ${highest ? 'lvl--top' : ''} ${bi !== undefined ? 'lvl--boss' : ''} ${lv === justOpened ? 'lvl--new' : ''} ${risk ? `lvl--${risk}` : ''}`}
+                disabled={!open || !!c.boss}
+                aria-pressed={current}
+                aria-label={`Nivå ${lv}: ${name}${bi !== undefined ? `, boss ${bi + 1}${bossDone ? ' besegrad' : ''}` : ''}${open ? '' : ' (låst)'}`}
+                onClick={() => onSelect(i)}
+              >
+                <span className="lvl__n">{open ? lv : <Icon name="lock" size={14} />}</span>
+                {bi !== undefined && <span className={`lvl__mark ${bossDone ? 'lvl__mark--done' : ''}`} aria-hidden><Icon name="crown" size={14} /></span>}
+                {cleared && <span className="lvl__tick" aria-hidden><Icon name="check" size={10} /></span>}
+                {current && <span className="lvl__flag" aria-hidden><Icon name="flag" size={14} /></span>}
+              </button>
+            );
+          })}
+        </div>
+      </section>
     </div>
   );
 }

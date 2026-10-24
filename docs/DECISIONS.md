@@ -68,6 +68,7 @@
 | D-59 | **M13 zone 1 to level 40** per PROGRESSION_V2 §19: a boss every 5 levels (Gamle Betarn at 5, final boss at 40), faster tempo early (levels 6–20 about 10–15 min), about 32 h of game time with check-ins; gentler recruit curve after soldier 8; 8 h offline cap kept with a notice; non-lethal boss fights; iron from Järngruvan at boss 15 and T2 weapons at boss 20; T3 and refining move to zone 2 | 2026-10-23 | Owner |
 | D-60 | Troop XP curve gets a knee: XP to level L is unchanged up to level 12, then grows with exponent 3.4 (keeps troop levels near 50 at level 40). Enemy XP keeps rising per level. Saves keep their troop levels (XP raised to the new threshold on load) | 2026-10-23 | Lead, within the approved spec target |
 | D-61 | **Living battlefield prototype (M14):** the Battle tab gets an animated scene drawn with our own Canvas 2D renderer (no new dependencies). Troops show as formations with banners, strikes follow the real damage rate, enemies fall, loot flies to the bar. Presentation only: the core, offline and balance are untouched. After the owner tries it: continue with Canvas, or decide on PixiJS | 2026-10-23 | Owner |
+| D-62 | Battlefield continues with Canvas 2D (no PixiJS). Next: enemies attack and soldiers fall, loot lands on the real resource tiles, tap a troop or the enemy for details, and the panels under the scene are cleaned up | 2026-10-24 | Owner |
 
 ## Proposed 💡 (awaiting confirmation)
 

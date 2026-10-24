@@ -5,7 +5,7 @@ import { RaceEmblem } from './art';
 import { Icon, type UiIconName } from './art/icons';
 import { ResIcon } from './art/resources';
 import { fmtAmount, fmtRate } from './format';
-import { useRise } from './fx';
+import { useRise, useTileBump } from './fx';
 import { useSnapshot, useStore } from './game';
 import { QUALITY_COLOR, RESOURCE_LABEL, eventText, qualityName } from './labels';
 import { RARE } from './components/equipment';
@@ -41,9 +41,9 @@ function ResourceRate({ r, state, rates }: { r: ResourceId; state: GameState; ra
 }
 
 function ResourceTile({ r, state, rates }: { r: ResourceId; state: GameState; rates: Rates }) {
-  const bumps = useRise(state.resources[r], 1);
+  const bumps = useRise(state.resources[r], 1) + useTileBump(r);
   return (
-    <div className={`resource ${bumps > 0 ? 'resource--bump' : ''}`} key={bumps}>
+    <div className={`resource ${bumps > 0 ? 'resource--bump' : ''}`} key={bumps} data-res={r}>
       <span className="resource__icon" aria-hidden><ResIcon id={r} size={30} /></span>
       <span className="resource__amount">{fmtAmount(state.resources[r])}</span>
       <ResourceRate r={r} state={state} rates={rates} />
@@ -134,7 +134,7 @@ export function App() {
         <main className="layout__main">
           <div key={active} className="pane">
             {active === 'forces' && <Forces state={state} rates={rates} onGo={open} />}
-            {active === 'battle' && <Battle state={state} rates={rates} log={snap.log} />}
+            {active === 'battle' && <Battle state={state} rates={rates} log={snap.log} onOpenForces={() => open('forces')} />}
             {active === 'settlement' && <Settlement state={state} rates={rates} />}
             {active === 'forge' && <Forge state={state} rates={rates} log={snap.log} />}
             {active === 'upgrades' && <Upgrades state={state} />}

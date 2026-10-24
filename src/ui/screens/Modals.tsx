@@ -15,7 +15,7 @@ if (typeof window !== 'undefined') {
   window.addEventListener('appinstalled', () => { deferredInstall = null; });
 }
 
-function Modal({ title, children, onClose }: { title: string; children: ReactNode; onClose: () => void }) {
+export function Modal({ title, children, onClose }: { title: string; children: ReactNode; onClose: () => void }) {
   return (
     <div className="modal" role="dialog" aria-modal="true" aria-label={title} onClick={onClose}>
       <div className="modal__box panel" onClick={(e) => e.stopPropagation()}>

@@ -821,7 +821,11 @@ body {
 
 .zone-progress { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
 .zone-progress__row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-family: var(--heading); color: var(--gold-2); }
-.levels { max-height: 236px; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: 8px; padding: 6px; margin-bottom: 8px; border: 1px solid var(--line-soft); border-radius: 10px; background: #120f14; scrollbar-width: thin; }
+.levels { display: flex; flex-direction: column; gap: 8px; padding: 6px; margin-bottom: 8px; border: 1px solid var(--line-soft); border-radius: 10px; background: #120f14; scrollbar-width: thin; }
+.band__head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.band__head .band__name { flex: 1; margin: 0; text-align: center; }
+.band__nav { width: 36px; height: 32px; padding: 0; border-radius: 8px; border: 1px solid var(--line-soft); background: #1b1720; color: var(--gold-2); font: 700 1.2rem/1 var(--body); cursor: pointer; }
+.band__nav:disabled { opacity: 0.3; cursor: default; }
 .band__name { margin: 0 0 4px; font: 600 0.78rem/1.2 var(--heading); letter-spacing: 0.05em; color: var(--gold-2); text-transform: uppercase; }
 .band__name .muted { font-family: var(--body); text-transform: none; letter-spacing: 0; }
 .band--locked .band__name { opacity: 0.5; }
@@ -876,3 +880,42 @@ body {
 .resource { grid-template-rows: auto auto; row-gap: 0; }
 .boss__need { margin-bottom: 6px; }
 .boss .bar { margin-bottom: 10px; }
+
+/* Living battlefield (canvas hero of the Battle tab) */
+.living-bf {
+  display: block; width: 100%; height: clamp(220px, 64vw, 280px);
+  border-radius: var(--radius); border: 1px solid var(--line);
+  background: #120e12; box-shadow: 0 6px 22px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(227, 192, 106, 0.06);
+}
+
+/* Loot flight overlay: icons fly from the battlefield to the real resource tile */
+.loot-layer { position: fixed; left: 0; top: 0; width: 0; height: 0; z-index: 40; pointer-events: none; }
+.loot-fly { display: none; position: fixed; left: 0; top: 0; width: 12px; height: 12px; border-radius: 50%; border: 1px solid rgba(0, 0, 0, 0.55); box-shadow: 0 0 8px rgba(255, 220, 140, 0.7), inset -2px -2px 0 rgba(0, 0, 0, 0.25), inset 1px 1px 0 rgba(255, 255, 255, 0.5); will-change: transform; }
+.loot-fly[data-res='wood'] { border-radius: 2px; height: 8px; margin-top: 2px; }
+.loot-fly[data-res='ore'], .loot-fly[data-res='iron'] { border-radius: 2px; transform-origin: center; clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); border: 0; }
+.living-bf { cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+
+/* Battle tab under the scene: tap hint, detail buttons, compact boss card, tap sheets */
+.bf-details { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: -4px; }
+.bf-hint { flex: 1 0 100%; display: inline-flex; align-items: center; gap: 4px; font-size: 0.78rem; color: var(--gold-2); opacity: 0.85; animation: hint-pulse 2.4s ease-in-out infinite; }
+@keyframes hint-pulse { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+.bf-chip { display: inline-flex; align-items: center; gap: 5px; min-height: 36px; padding: 4px 10px; border-radius: 999px; border: 1px solid #4a3d2c; background: linear-gradient(180deg, #2a2430, #1a161c); color: var(--text, #ece2cc); font-size: 0.82rem; cursor: pointer; max-width: 100%; }
+.bf-chip b { color: var(--gold-2); }
+.bf-chip--foe { border-color: #6e2219; background: linear-gradient(180deg, #3a1a16, #221110); }
+.kill-line { display: flex; align-items: center; gap: 10px; margin: 0; }
+.kill-line .bar { flex: 1; min-width: 40px; }
+.kill-line > .small { white-space: nowrap; }
+.boss--compact { gap: 8px; }
+.boss--compact .boss__top { margin-bottom: 0; gap: 10px; }
+.boss__facts-row { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 3px 8px; }
+.btn--notready { opacity: 0.7; filter: grayscale(0.55); border-style: dashed; }
+.sheet-head { display: flex; gap: 12px; align-items: center; }
+.sheet-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.sheet-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.sheet-stat { display: flex; flex-direction: column; gap: 1px; padding: 6px 8px; border-radius: 8px; background: #14111a; border: 1px solid var(--line-soft); min-width: 0; }
+.sheet-stat__label { font-size: 0.75rem; color: var(--muted); display: inline-flex; align-items: center; gap: 4px; }
+.sheet-stat__value { font-size: 0.98rem; overflow-wrap: anywhere; }
+.sheet-risk { margin: 0; display: flex; gap: 6px; align-items: flex-start; font-size: 0.88rem; }
+.sheet-risk--safe { color: #b5d98a; }
+.sheet-risk--risky { color: #e8b35a; }
+.sheet-risk--deadly { color: #e8806a; }

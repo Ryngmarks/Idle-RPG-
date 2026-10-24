@@ -207,7 +207,7 @@ function LifeChip({ troop, rates, hpPerSoldier }: { troop: TroopState; rates: Ra
 }
 
 /** Racial trait feedback for one troop. Display only: the numbers come from the race's traitParams. */
-function TraitChips({ troop, state }: { troop: TroopState; state: GameState }) {
+export function TraitChips({ troop, state }: { troop: TroopState; state: GameState }) {
   const r = raceOf(state, content);
   const horde = r.traitParams?.horde;
   const adaptable = r.traitParams?.adaptable;

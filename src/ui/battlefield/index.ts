@@ -1,3 +1,3 @@
 export { LivingBattlefield } from './Battlefield';
 export { buildFieldSnap } from './snapshot';
-export type { FieldSnap } from './types';
+export type { FieldPick, FieldSnap } from './types';

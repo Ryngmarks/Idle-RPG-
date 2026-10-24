@@ -1,27 +1,35 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { content } from '../../content';
-import { currentEnemy, enemy, estimatedBossDamage, nextBoss, secondsPerKill, stageSafety, troopStats, zone, type GameEvent, type GameState, type Rates, type StageSafety } from '../../core';
+import { enemy, estimatedBossDamage, nextBoss, stageSafety, zone, type GameEvent, type GameState, type Rates, type StageSafety } from '../../core';
 import { EnemyPortrait } from '../art';
 import { Icon } from '../art/icons';
-import { buildFieldSnap, LivingBattlefield } from '../battlefield';
-import { Bar, Chip, Panel, ResAmount } from '../components/common';
+import { buildFieldSnap, LivingBattlefield, type FieldPick } from '../battlefield';
+import { Bar, Panel } from '../components/common';
 import { fmtDuration, fmtInt, fmtRate } from '../format';
 import { useStore } from '../game';
-import { BOSS_FAIL_TEXT, RESOURCE_LABEL } from '../labels';
+import { BOSS_FAIL_TEXT } from '../labels';
+import { EnemySheet, RiskBadge, TroopSheet } from './BattleSheets';
 
 const RISK_ICON = { safe: 'dotSafe', risky: 'dotRisky', deadly: 'dotDeadly' } as const;
-const RISK_BADGE = { safe: { text: 'Låg risk', tone: 'ok' }, risky: { text: 'Risk', tone: 'slow' }, deadly: { text: 'Hög risk', tone: 'warn' } } as const;
+const HINT_KEY = 'utposten:bf-hint';
+const HINT_SHOWS = 4;
 
-function RiskBadge({ risk }: { risk: StageSafety['risk'] }) {
-  return <Chip tone={RISK_BADGE[risk].tone}>{RISK_BADGE[risk].text}</Chip>;
+/** Tap hint: shown the first few visits, gone after the first tap. Storage may be unavailable, so every access is guarded. */
+function readHint(): boolean {
+  try {
+    const n = Number(localStorage.getItem(HINT_KEY) ?? '0');
+    return n < HINT_SHOWS;
+  } catch {
+    return false;
+  }
 }
-
-function riskText(s: StageSafety): string {
-  if (s.risk === 'safe') return 'Säkert: dina trupper läker snabbare än de skadas.';
-  const when = fmtDuration(s.secondsToFirstLoss);
-  return s.risk === 'risky'
-    ? `Riskabelt: första soldaten faller om cirka ${when}.`
-    : `Dödligt: första soldaten faller om ${when}. Truppen retirerar när hälften har fallit.`;
+function writeHint(n: number): void {
+  try {
+    localStorage.setItem(HINT_KEY, String(n));
+  } catch {
+    /* ignore */
+  }
 }
 
 /** Compact level picker: levels grouped by band, five per row, scrolls inside its own box. */
@@ -88,29 +96,25 @@ function BossFailure({ log, state }: { log: GameEvent[]; state: GameState }) {
 }
 
 
-export function Battle({ state, rates, log }: { state: GameState; rates: Rates; log: GameEvent[] }) {
+export function Battle({ state, rates, log, onOpenForces }: { state: GameState; rates: Rates; log: GameEvent[]; onOpenForces: () => void }) {
   const store = useStore();
   const [error, setError] = useState<string | null>(null);
+  const [sheet, setSheet] = useState<FieldPick | null>(null);
+  const [hint, setHint] = useState(readHint);
   const z = zone(state, content);
   const c = state.combat;
-  const foe = currentEnemy(state, content);
   const fighters = state.troops.filter((t) => t.activity === 'combat');
   // Risk is judged for the troops that are fighting, or for the whole army if nobody is.
   const judged = (fighters.length > 0 ? fighters : state.troops).map((t) => t.id);
   const safetyAt = (i: number) => stageSafety(state, content, { stageIndex: i }, judged);
-  const totalDps = fighters.reduce((sum, t) => sum + troopStats(state, t, content).strength, 0);
   const stage = z.stages[Math.min(c.stageIndex, z.stages.length - 1)]!;
   const onFrontier = !c.cleared && c.stageIndex === c.unlockedStage;
-  // Current enemy HP is derived from the fractional kill count (the core tracks kills continuously).
-  const frac = state.stats.totalKills % 1;
-  const showHp = rates.killsPerSec > 0 && rates.killsPerSec < 2;
   const nb = nextBoss(state, content);
   const fightIdx = c.boss ? c.boss.index : nb?.index ?? z.bosses.length - 1;
   const bossDef = z.bosses[Math.min(fightIdx, z.bosses.length - 1)]!;
   const boss = enemy(bossDef.enemyId, content);
   const allBossesDown = nb === null && !c.boss;
   const est = estimatedBossDamage(state, content);
-  const bossSafety = stageSafety(state, content, 'boss', judged);
   const here = safetyAt(c.stageIndex);
   const select = (i: number) => setError(store.command({ type: 'selectStage', stageIndex: i }));
   const highest = Math.min(z.stages.length, c.unlockedStage + 1);
@@ -128,21 +132,40 @@ export function Battle({ state, rates, log }: { state: GameState; rates: Rates; 
     prevUnlocked.current = c.unlockedStage;
   }, [c.unlockedStage]);
 
-  const spk = secondsPerKill(state, content);
-  const fighterStats = fighters.map((t) => ({ t, st: troopStats(state, t, content) }));
-  const groupMax = fighterStats.reduce((n, x) => n + x.st.maxHp, 0);
-  const groupNow = fighterStats.reduce((n, x) => n + x.st.maxHp - x.t.wounds, 0);
-  const incoming = fighters.reduce((n, t) => n + Math.max(0, rates.woundsPerSec[t.id] ?? 0), 0);
-  const healing = fighters.some((t) => (rates.woundsPerSec[t.id] ?? 0) < 0);
-  const foeHp = foe.hp * (1 - frac);
-  const soldiers = fighters.reduce((n, t) => n + t.size, 0);
-  const badge = <span className="badge boss__badge">Boss {fightIdx + 1} / {z.bosses.length}</span>;
+  // Count this visit for the tap hint.
+  useEffect(() => {
+    try {
+      writeHint(Number(localStorage.getItem(HINT_KEY) ?? '0') + 1);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+  const pick = (p: FieldPick) => {
+    setSheet(p);
+    if (hint) { setHint(false); writeHint(99); }
+  };
 
   const fieldSnap = useMemo(() => buildFieldSnap(state, rates), [state, rates]);
+  const foeName = c.boss ? boss.name : fieldSnap.enemyName;
+  const badge = <span className="badge boss__badge">Boss {fightIdx + 1} / {z.bosses.length}</span>;
 
   return (
     <div className="screen">
-      <LivingBattlefield snap={fieldSnap} />
+      <LivingBattlefield snap={fieldSnap} onPick={pick} />
+      {fighters.length > 0 && (
+        <div className="bf-details" role="group" aria-label="Detaljer">
+          {hint && <span className="bf-hint" role="note"><Icon name="arrow" size={13} /> Tryck på en trupp eller fiende</span>}
+          {fighters.map((t) => (
+            <button key={t.id} className="bf-chip" onClick={() => pick({ kind: 'troop', id: t.id })} aria-label={`Visa detaljer: ${t.name}, ${t.size} soldater`}>
+              <Icon name="soldier" size={14} /> {t.name} <b>{t.size}</b>
+            </button>
+          ))}
+          <button className="bf-chip bf-chip--foe" onClick={() => pick({ kind: 'enemy' })} aria-label={`Visa detaljer: ${foeName}`}>
+            <Icon name={c.boss ? 'crown' : 'swords'} size={14} /> {foeName}
+          </button>
+        </div>
+      )}
+
       <Panel hero icon="swords" title={z.name} aside={<span className="battle-head"><RiskBadge risk={here.risk} /></span>}>
         <div className="zone-progress">
           <div className="zone-progress__row">
@@ -162,19 +185,19 @@ export function Battle({ state, rates, log }: { state: GameState; rates: Rates; 
           <span className="switch__track"><i /></span> Gå vidare automatiskt
         </button>
         {onFrontier ? (
-          <div className="stage-progress">
-            <span className="small">Besegra {stage.killsToClear} för att öppna nästa nivå: {fmtInt(Math.floor(c.kills))} / {stage.killsToClear}</span>
+          <div className="kill-line">
+            <span className="small">Till nästa nivå <b>{fmtInt(Math.floor(c.kills))} / {stage.killsToClear}</b></span>
             <Bar value={c.kills} max={stage.killsToClear} tone="gold" label="Nivåframsteg" />
           </div>
         ) : !c.cleared ? (
-          <div className="row">
-            <p className="small muted">Här samlar du mat och erfarenhet i lugn takt. Nivå {c.unlockedStage + 1} är öppen.</p>
+          <div className="kill-line">
+            <span className="small muted">Du övar på en lägre nivå.</span>
             <button className="btn btn--small" disabled={!!c.boss} onClick={() => select(c.unlockedStage)}>
-              Gå till nivå {c.unlockedStage + 1} <Icon name={RISK_ICON[safetyAt(c.unlockedStage).risk]} size={14} />
+              Till nivå {c.unlockedStage + 1} <Icon name={RISK_ICON[safetyAt(c.unlockedStage).risk]} size={14} />
             </button>
           </div>
         ) : (
-          nb && <p className="small"><Icon name="crown" size={16} /> En boss väntar: <b>{boss.name}</b></p>
+          <p className="small kill-line"><Icon name="check" size={14} /> Nivån är klar.</p>
         )}
       </Panel>
 
@@ -182,74 +205,51 @@ export function Battle({ state, rates, log }: { state: GameState; rates: Rates; 
         <div className="cta" role="status"><Icon name="warning" size={22} /> <span>Ingen trupp strider. Ge en trupp ordern <b>Strid</b> under Styrkor.</span></div>
       )}
 
-      <Panel className="enemy enemy-card" title={c.boss ? boss.name : foe.name} aside={<span className="small muted stat"><Icon name="shield" size={16} /> Rustning {c.boss ? boss.armour : foe.armour}</span>}>
-        {!c.boss && (showHp ? (
-          <Bar value={foeHp} max={foe.hp} tone="blood" label="Fiendens HP" inside={`HP ${fmtInt(foeHp)} / ${foe.hp}`} />
-        ) : (
-          <Bar value={foe.hp} max={foe.hp} tone="blood" label="Fiendens HP" inside={rates.killsPerSec >= 2 ? `${fmtRate(rates.killsPerSec)} fiender/s` : `HP ${foe.hp}`} />
-        ))}
-        <div className="kv">
-          <span className="kv__loot">Ger {Object.entries(foe.loot).map(([r, v]) => <ResAmount key={r} r={r as keyof typeof RESOURCE_LABEL} v={fmtRate(v ?? 0)} />)} <span className="amount"><Icon name="xp" size={16} />{fmtRate(foe.xp)} XP</span></span>
-          <span className="sp" style={{ flex: 1 }} />
-          {spk !== null && <b>{spk < 1 ? 'Faller på under 1 s' : `Faller om ~${fmtRate(spk)} s`}</b>}
-        </div>
-        {fighters.length > 0 && <p className="small muted">{fighters.map((t) => t.name).join(', ')} · {fmtRate(totalDps)} DPS</p>}
-      </Panel>
-
-      {fighters.length > 0 && <Panel icon="heart" title={`Gruppens liv${soldiers > 0 ? ` · ${soldiers} ${soldiers === 1 ? 'soldat' : 'soldater'}` : ''}`}>
-        <Bar value={groupNow} max={groupMax} tone="life" label="Gruppens liv" inside={`${fmtInt(groupNow)} / ${fmtInt(groupMax)}`} />
-        <p className="small muted">
-          {incoming > 0 ? `Skada mot er ${fmtRate(incoming)}/s` : healing ? 'Läker mellan strider' : 'Ingen skada just nu'}
-          {here.risk !== 'safe' && fighters.length > 0 ? ` · ${riskText(here)}` : ''}
-        </p>
-      </Panel>}
-
-      <Panel icon="crown" title={allBossesDown ? 'Alla bossar besegrade' : `Boss: ${boss.name}`} className={`boss ${c.cleared && nb ? 'boss--ready' : ''}`} aside={allBossesDown ? undefined : badge}>
+      <Panel icon="crown" title={allBossesDown ? 'Alla bossar besegrade' : `Boss: ${boss.name}`} className={`boss boss--compact ${c.cleared && nb && est.canWin ? 'boss--ready' : ''}`} aside={allBossesDown ? undefined : badge}>
         {allBossesDown ? (
           <p><Icon name="crown" size={20} /> Gårdarna är säkra. <span className="muted">Nästa region kommer i en senare version.</span></p>
         ) : (
           <>
             <div className="boss__top">
-              <div className="boss__art"><EnemyPortrait enemyId={boss.id} size={72} /></div>
+              <div className="boss__art"><EnemyPortrait enemyId={boss.id} size={48} /></div>
               <div className="boss__facts small">
-                <span><Icon name="heart" size={14} /> HP {fmtInt(boss.hp)}</span>
-                <span><Icon name="shield" size={14} /> Rustning {boss.armour}</span>
-                <span><Icon name="clock" size={14} /> {fmtDuration(bossDef.timeLimitSec)}</span>
+                <span className="boss__facts-row"><Icon name="heart" size={14} /> {fmtInt(boss.hp)} <Icon name="shield" size={14} /> {boss.armour} <Icon name="clock" size={14} /> {fmtDuration(bossDef.timeLimitSec)}</span>
                 <span className="muted">Nivå {bossDef.level}</span>
               </div>
             </div>
             {c.boss ? (
-              <>
-                <span className="small">HP {fmtInt(c.boss.hpLeft)} / {fmtInt(boss.hp)}</span>
-                <Bar value={c.boss.hpLeft} max={boss.hp} tone="blood" label="Bossens HP" />
-                <span className="small">Tid kvar {fmtDuration(c.boss.timeLeft)}</span>
-                <Bar value={c.boss.timeLeft} max={bossDef.timeLimitSec} tone="steel" label="Tid kvar" />
-                <p className="small">Skada: {fmtRate(rates.bossDps)} per sekund</p>
-              </>
+              <p className="small"><Icon name="swords" size={14} /> Bossstriden pågår: {fmtRate(rates.bossDps)} skada/s. Tryck på bossen för detaljer.</p>
             ) : (
               <>
                 <p className={`boss__need ${est.canWin ? 'boss__need--ok' : 'boss__need--no'}`}>
                   <Icon name={est.canWin ? 'check' : 'warning'} size={16} />{' '}
-                  Behövs <b>{fmtRate(est.neededDps)}</b> skada/s, ni har <b>{fmtRate(est.dps)}</b>
+                  Behövs <b>{fmtRate(est.neededDps)}</b>/s, ni har <b>{fmtRate(est.dps)}</b>/s
                   <span className="boss__verdict">{est.canWin ? 'Redo' : 'Inte redo'}</span>
                 </p>
                 <Bar value={Math.min(est.dps, est.neededDps)} max={est.neededDps} tone={est.canWin ? 'life' : 'blood'} label="Skada mot behov" />
                 {!est.canWin && est.dps > 0 && est.damage >= est.hp && <p className="small muted">Truppen orkar inte hela striden: de retirerar efter ~{fmtDuration(est.secondsToRetreat)}.</p>}
                 <BossFailure log={log} state={state} />
                 {c.cleared ? (
-                  <button className="btn btn--primary btn--block" onClick={() => setError(store.command({ type: 'challengeBoss' }))}>
+                  <button className={`btn btn--block ${est.canWin ? 'btn--primary' : 'btn--ghost btn--notready'}`} onClick={() => setError(store.command({ type: 'challengeBoss' }))}>
                     Utmana bossen
                   </button>
                 ) : (
                   <p className="muted small"><Icon name="lock" size={16} /> Rensa nivå {bossDef.level} för att utmana bossen.</p>
                 )}
-                {c.cleared && bossSafety.risk !== 'safe' && <p className="small muted">Ingen faller i en bossstrid: trupperna retirerar med sår om de inte orkar.</p>}
               </>
             )}
           </>
         )}
         {error && <p className="error" role="alert">{error}</p>}
       </Panel>
+
+      {sheet && createPortal(
+        <>
+          {sheet?.kind === 'troop' && <TroopSheet state={state} rates={rates} troopId={sheet.id} onClose={() => setSheet(null)} onForces={() => { setSheet(null); onOpenForces(); }} />}
+          {sheet?.kind === 'enemy' && <EnemySheet state={state} rates={rates} onClose={() => setSheet(null)} />}
+        </>,
+        document.body,
+      )}
     </div>
   );
 }

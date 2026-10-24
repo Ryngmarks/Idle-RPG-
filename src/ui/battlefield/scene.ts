@@ -218,27 +218,36 @@ export class Scene {
     const old = new Map(this.vis.map((v) => [v.id, v] as const));
     const next: TroopVis[] = [];
     let relayout = old.size !== snap.troops.length;
+    const oldTotal = this.vis.reduce((n, v) => n + v.size, 0);
+    const newTotal = snap.troops.reduce((n, t) => n + t.size, 0);
+    // A real loss in a normal fight: fewer soldiers overall (a transfer between troops keeps the total).
+    const losing = !first && !snap.boss && newTotal < oldTotal && snap.incoming > 0;
     for (const t of snap.troops) {
       let v = old.get(t.id);
       const drawn = Math.min(t.size, MAX_FIG);
       if (!v) {
         v = {
           id: t.id, shown: drawn, born: new Array(MAX_FIG).fill(first ? -99 : this.clock), off: [], level: t.level, flash: -99, cycle: 0, wound: t.wound,
+          hitAt: -99, pendingIn: 0, size: t.size, fx: new Array(MAX_FIG).fill(NaN), fy: new Array(MAX_FIG).fill(NaN),
           label: t.name.length > 9 ? `${t.name.slice(0, 8)}.` : t.name, cx: 0, baseY: 0, scale: 1, perRank: 1, spacing: 10, data: t,
         };
         for (let i = 0; i < MAX_FIG; i++) v.off.push(((i * 0.6180339) + this.rnd() * 0.2) % 1);
         relayout = true;
       } else {
+        if (t.size < v.size && losing) {
+          // one figure falls per lost soldier (a couple at most per snapshot), the rest close the gap
+          for (let n = Math.min(2, v.size - t.size); n > 0; n--) this.dropSoldier(v, snap.raceId);
+        }
         if (drawn > v.shown) {
           for (let i = v.shown; i < drawn; i++) {
             v.born[i] = this.clock;
+            v.fx[i] = NaN;
             this.burst(v.cx + (i - drawn / 2) * 8, v.baseY - 14, '#e3c06a', 4);
           }
-        } else if (drawn < v.shown) {
-          this.burst(v.cx, v.baseY - 14, '#c0533f', 6);
         }
         if (drawn !== v.shown) relayout = true;
         v.shown = drawn;
+        v.size = t.size;
         if (t.level > v.level) {
           v.flash = this.clock;
           const p = this.spawn(TEXT, v.cx, v.baseY - 46 * v.scale, 0, -22, 1.4);
@@ -250,6 +259,8 @@ export class Scene {
       }
       next.push(v);
     }
+    // troops that left the field (retreat or new orders) walk off to the left
+    if (!first && !this.calm) for (const [id, v] of old) if (!snap.troops.some((t) => t.id === id)) this.pushLeaver(v, snap.raceId);
     this.vis = next;
     if (relayout) this.layout();
 
@@ -269,6 +280,38 @@ export class Scene {
       this.enemy.born = this.calm || first ? -99 : this.clock;
     }
     this.enemy.name = snap.enemyName;
+  }
+
+  /** Where figure i of a troop stands in its formation (feet position). */
+  private figX(v: TroopVis, i: number): number {
+    const r = Math.floor(i / v.perRank);
+    const k = i - r * v.perRank;
+    const inRank = Math.min(v.perRank, v.shown - r * v.perRank);
+    return v.cx + (k - (inRank - 1) / 2) * v.spacing + (r % 2 ? v.spacing / 2 : 0);
+  }
+  private figY(v: TroopVis, i: number): number {
+    return v.baseY - Math.floor(i / v.perRank) * 6 * v.scale;
+  }
+
+  private dropSoldier(v: TroopVis, race: string): void {
+    if (this.calm || v.shown <= 0) return;
+    const i = Math.min(v.shown - 1, Math.floor(this.rnd() * v.shown));
+    const x = Number.isNaN(v.fx[i]!) ? this.figX(v, i) : v.fx[i]!;
+    const y = Number.isNaN(v.fy[i]!) ? this.figY(v, i) : v.fy[i]!;
+    for (const f of this.fallers) {
+      if (f.active) continue;
+      f.active = true; f.x = x; f.y = y; f.s = v.scale; f.t = 0; f.race = race;
+      this.burst(x, y - 14 * v.scale, '#c0533f', 6);
+      return;
+    }
+  }
+
+  private pushLeaver(v: TroopVis, race: string): void {
+    for (const l of this.leavers) {
+      if (l.active) continue;
+      l.active = true; l.v = v; l.t = 0; l.race = race;
+      return;
+    }
   }
 
   private burst(x: number, y: number, color: string, n: number): void {
@@ -296,12 +339,14 @@ export class Scene {
       this.lastFall = this.clock;
       this.pushDying(this.enemy.id || snap.enemyId, this.enemy.name || snap.enemyName, false);
       this.enemy.born = this.calm ? -99 : this.clock;
-      if (!this.calm && this.clock - this.lastLoot > 0.25) {
+      // Calm: loot tosses are rare so the resource bar stays readable. Reduced motion: no flight, only the tile bump.
+      if (this.clock - this.lastLoot > (this.calm ? 1.5 : 0.7)) {
         this.lastLoot = this.clock;
         const ex = this.enemyX();
         const ey = this.enemyY() - 24;
         for (const r of snap.loot.slice(0, 3)) {
-          const p = this.spawn(LOOT, ex, ey, (this.rnd() - 0.5) * 90, -110 - this.rnd() * 40, 1.2);
+          if (this.calm) { this.onLoot?.(r, ex, ey, false); continue; }
+          const p = this.spawn(LOOT, ex, ey, (this.rnd() - 0.5) * 90, -110 - this.rnd() * 40, 0.32);
           if (p) { p.color = LOOT_COLOR[r] ?? '#ddd'; p.ri = Math.max(0, RESOURCE_ORDER.indexOf(r)); p.text = r; }
         }
       }
@@ -320,6 +365,19 @@ export class Scene {
     if (this.enemy.flinch > 0) this.enemy.flinch = Math.max(0, this.enemy.flinch - dt);
     if (this.shake > 0) this.shake = Math.max(0, this.shake - dt * 2.2);
     for (const d of this.dying) if (d.active) { d.t += dt; if (d.t > 1) d.active = false; }
+    for (const f of this.fallers) if (f.active) { f.t += dt; if (f.t > 1.3) f.active = false; }
+    for (const l of this.leavers) if (l.active) { l.t += dt; if (l.t > 2.4) { l.active = false; l.v = null; } }
+    this.tap.t += dt;
+    for (const v of this.vis) {
+      const k = Math.min(1, dt * 7);
+      for (let i = 0; i < v.shown; i++) {
+        const tx = this.figX(v, i);
+        const ty = this.figY(v, i);
+        v.fx[i] = Number.isNaN(v.fx[i]!) ? tx : v.fx[i]! + (tx - v.fx[i]!) * k;
+        v.fy[i] = Number.isNaN(v.fy[i]!) ? ty : v.fy[i]! + (ty - v.fy[i]!) * k;
+      }
+    }
+    if (snap && !this.calm) this.updateEnemyAttack(snap, dt);
 
     if (snap) {
       const engaged = snap.troops.length > 0 && (snap.killsPerSec > 0 || !!snap.boss);
@@ -343,25 +401,19 @@ export class Scene {
       if (p.t >= p.life) {
         p.active = false;
         if (p.kind === MOTE) this.motes--;
-        if (p.kind === LOOT) {
-          const s = this.spawn(SPARK, p.x, 2, 0, 20, 0.35);
-          if (s) s.color = p.color;
-        }
+        // The toss is over: the page continues the icon's flight to the real resource tile.
+        if (p.kind === LOOT) this.onLoot?.(p.text, p.x, p.y, true);
+        if (p.kind === PROJ) this.onTroopHit(p.text);
         continue;
       }
       if (p.kind === LOOT) {
-        if (p.t < 0.45) {
-          p.vy += 520 * dt;
-          p.x += p.vx * dt;
-          p.y += p.vy * dt;
-          p.sx = p.x;
-          p.sy = p.y;
-        } else {
-          const q = ease((p.t - 0.45) / (p.life - 0.45));
-          const tx = W * (0.14 + 0.72 * (p.ri / 4));
-          p.x = lerp(p.sx, tx, q) + Math.sin(q * Math.PI) * 14;
-          p.y = lerp(p.sy, -6, q);
-        }
+        p.vy += 520 * dt;
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+      } else if (p.kind === PROJ) {
+        const q = p.t / p.life;
+        p.x = lerp(p.sx, p.vx, q);
+        p.y = lerp(p.sy, p.vy, q) - Math.sin(q * Math.PI) * (p.ri === 1 ? 14 : 6);
       } else if (p.kind === MOTE) {
         p.x += p.vx * dt + Math.sin(this.clock * 1.3 + p.sx) * 0.15;
         p.y += p.vy * dt;
@@ -377,6 +429,84 @@ export class Scene {
       const idle = !snap || snap.troops.length === 0;
       const p = this.spawn(MOTE, idle ? this.w * 0.3 + (this.rnd() - 0.5) * 16 : this.rnd() * this.w, idle ? this.h * 0.8 : this.h * (0.45 + this.rnd() * 0.4), (this.rnd() - 0.5) * 6, idle ? -26 - this.rnd() * 20 : -3 - this.rnd() * 4, idle ? 1.6 : 6 + this.rnd() * 4);
       if (p) { p.color = idle ? '#ffb060' : band.mote; p.sx = this.rnd() * 10; p.size = 0.8 + this.rnd(); this.motes++; }
+    }
+  }
+
+  /** The foe strikes back: pick the troop that is really taking the damage, lunge or shoot, then land the hit. */
+  private updateEnemyAttack(snap: FieldSnap, dt: number): void {
+    const e = this.enemy;
+    const age = this.clock - e.born;
+    if (e.atk >= 0) {
+      e.atk += dt;
+      const target = this.vis.find((v) => v.id === e.target);
+      const ranged = rangedKind(e.name, e.boss);
+      if (!e.fired && target) {
+        if (ranged) {
+          if (e.atk >= e.atkDur * 0.4) {
+            e.fired = true;
+            const sc = this.enemyScale(e.boss, e.name);
+            const p = this.spawn(PROJ, this.enemyX() - 20 * sc, this.enemyY() - 38 * sc, 0, 0, 0.34);
+            if (p) {
+              p.sx = p.x;
+              p.sy = p.y;
+              p.vx = target.cx;
+              p.vy = target.baseY - 20 * target.scale;
+              p.ri = ranged === 'arrow' ? 1 : 2;
+              p.text = target.id;
+              p.color = ranged === 'arrow' ? '#d8c8a0' : BANDS[Math.min(snap.band, BANDS.length - 1)]!.mote;
+            }
+          }
+        } else if (e.atk >= e.atkDur * 0.6) {
+          e.fired = true;
+          this.onTroopHit(target.id);
+        }
+      }
+      if (e.atk >= e.atkDur) e.atk = -1;
+      return;
+    }
+    if (snap.incoming <= 0 || age < 0.9 || snap.troops.length === 0 || this.clock < e.nextAtk) return;
+    // Rhythm: the harder the foe hits relative to a soldier's health, the faster it swings (0.6 to 2.2 swings per second).
+    const rate = Math.max(0.6, Math.min(2.2, 0.6 + (4 * snap.incoming) / Math.max(1, snap.hpPerSoldier)));
+    e.nextAtk = this.clock + 1 / rate;
+    // Target weighted by incoming damage; troops that are really losing health (net wounds) count full, healed-up ones a third.
+    let total = 0;
+    for (const v of this.vis) total += v.data.incoming * (v.data.wounding > 0 ? 1 : 0.35);
+    if (total <= 0) return;
+    let roll = this.rnd() * total;
+    let pick = this.vis[0]!;
+    for (const v of this.vis) {
+      roll -= v.data.incoming * (v.data.wounding > 0 ? 1 : 0.35);
+      pick = v;
+      if (roll <= 0) break;
+    }
+    e.target = pick.id;
+    e.atk = 0;
+    e.fired = false;
+    e.atkDur = rangedKind(e.name, e.boss) ? 0.5 : 0.44;
+    e.lunge = Math.min(this.w * 0.2, Math.max(0, (this.enemyX() - pick.cx) * 0.5));
+    this.pendingRate = rate;
+  }
+
+  private pendingRate = 1;
+
+  /** A blow lands on a troop: red flash, sparks and a rate-limited red number. Bosses wound but nobody falls here. */
+  private onTroopHit(id: string): void {
+    const snap = this.snap;
+    const v = this.vis.find((x) => x.id === id);
+    if (!snap || !v) return;
+    v.hitAt = this.clock;
+    v.pendingIn += snap.incoming / this.pendingRate; // damage one blow carries at the real incoming rate
+    for (let i = 0; i < 4; i++) {
+      const a = Math.PI + (this.rnd() - 0.5) * 2;
+      const p = this.spawn(SPARK, v.cx + 8, v.baseY - 20 * v.scale, Math.cos(a) * 45, Math.sin(a) * 45 - 25, 0.4);
+      if (p) p.color = '#e0533c';
+    }
+    if (this.clock - this.lastHurtNum > 0.55 && v.pendingIn > 0) {
+      this.lastHurtNum = this.clock;
+      const p = this.spawn(DMG, v.cx + (this.rnd() - 0.5) * 16, v.baseY - 54 * v.scale, (this.rnd() - 0.5) * 8, -28, 0.9);
+      if (p) { p.text = `-${fmtRate(v.pendingIn)}`; p.color = '#ff5a48'; }
+      v.pendingIn = 0;
+      if (this.enemy.boss) this.shake = Math.max(this.shake, 0.25);
     }
   }
 
@@ -420,6 +550,7 @@ export class Scene {
 
     if (!snap || snap.troops.length === 0) {
       this.drawCamp(g, snap);
+      this.drawExits(g);
       this.drawParticles(g);
       this.drawSign(g, snap);
       return;
@@ -430,6 +561,8 @@ export class Scene {
     if (sk > 0) g.translate((this.rnd() - 0.5) * 4 * sk, (this.rnd() - 0.5) * 3 * sk);
     this.drawEnemy(g, snap);
     this.drawTroops(g, snap);
+    this.drawExits(g);
+    this.drawTapRing(g);
     this.drawParticles(g);
     g.restore();
     this.drawHud(g, snap);
@@ -445,7 +578,9 @@ export class Scene {
     for (const v of this.order) {
       const s = v.scale;
       const t = v.data;
-      const hurtAmt = Math.min(0.7, v.wound * 1.4);
+      const hf = this.calm ? 1 : (this.clock - v.hitAt) / 0.32;
+      const flashAmt = hf < 1 ? 1 - hf : 0;
+      const hurtAmt = Math.max(Math.min(0.7, v.wound * 1.4), flashAmt * 0.85);
       const hz = lerp(1.1, 0.55, Math.min(1, v.wound * 2));
       const ranks = Math.ceil(v.shown / v.perRank);
       // glow under a freshly levelled troop
@@ -468,8 +603,8 @@ export class Scene {
         const inRank = Math.min(v.perRank, v.shown - r * v.perRank);
         for (let k = 0; k < inRank; k++) {
           const i = r * v.perRank + k;
-          const x = v.cx + (k - (inRank - 1) / 2) * v.spacing + (r % 2 ? v.spacing / 2 : 0);
-          const y = v.baseY - r * 6 * s;
+          const x = (Number.isNaN(v.fx[i]!) ? this.figX(v, i) : v.fx[i]!) - flashAmt * 3 * s;
+          const y = Number.isNaN(v.fy[i]!) ? this.figY(v, i) : v.fy[i]!;
           const age = this.clock - v.born[i]!;
           let fs = s;
           let drop = 0;
@@ -525,7 +660,58 @@ export class Scene {
           }
         }
       }
+      if (flashAmt > 0) {
+        g.globalAlpha = flashAmt * 0.5;
+        g.fillStyle = '#e0533c';
+        g.beginPath();
+        g.ellipse(v.cx, v.baseY + 2, 30 * s, 6 * s, 0, 0, Math.PI * 2);
+        g.fill();
+        g.globalAlpha = 1;
+      }
       this.drawBanner(g, v, snap);
+    }
+  }
+
+  /** One soldier sprite at (x, y) feet position, optionally mirrored and tinted red. */
+  private drawFigure(g: CanvasRenderingContext2D, race: string, x: number, y: number, s: number, red: number): void {
+    const density = this.dpr * 1.5;
+    const body = soldierSprite(race, false, density);
+    g.drawImage(body.canvas, x - SOLDIER_AX * s, y - SOLDIER_AY * s, SOLDIER_W * s, SOLDIER_H * s);
+    if (red > 0.02) {
+      g.globalAlpha *= red;
+      g.drawImage(soldierSprite(race, true, density).canvas, x - SOLDIER_AX * s, y - SOLDIER_AY * s, SOLDIER_W * s, SOLDIER_H * s);
+      g.globalAlpha /= red;
+    }
+  }
+
+  /** Fallen soldiers tip over and fade; retreating troops walk off to the left. */
+  private drawExits(g: CanvasRenderingContext2D): void {
+    for (const f of this.fallers) {
+      if (!f.active) continue;
+      const q = Math.min(1, f.t / 0.45);
+      g.save();
+      g.translate(f.x, f.y);
+      g.rotate(ease(q) * 1.5 * -1);
+      g.translate(0, ease(q) * 3);
+      g.globalAlpha = Math.max(0, 1 - Math.max(0, f.t - 0.5) / 0.8);
+      this.drawFigure(g, f.race, 0, 0, f.s, 0.5 + 0.4 * (1 - q));
+      g.restore();
+    }
+    for (const l of this.leavers) {
+      const v = l.v;
+      if (!l.active || !v) continue;
+      const dx = -l.t * 78;
+      const a = Math.max(0, 1 - Math.max(0, l.t - 1.4) / 1);
+      for (let i = 0; i < v.shown; i++) {
+        const fx = Number.isNaN(v.fx[i]!) ? this.figX(v, i) : v.fx[i]!;
+        const fy = Number.isNaN(v.fy[i]!) ? this.figY(v, i) : v.fy[i]!;
+        g.save();
+        g.globalAlpha = a;
+        g.translate(fx + dx, fy - Math.abs(Math.sin(l.t * 9 + v.off[i]! * 6)) * 1.8 * v.scale);
+        g.scale(-1, 1);
+        this.drawFigure(g, l.race, 0, 0, v.scale, Math.min(0.7, v.wound * 1.4));
+        g.restore();
+      }
     }
   }
 
@@ -595,7 +781,18 @@ export class Scene {
     }
     const age = this.clock - this.enemy.born;
     const walk = age < 0.8 ? 1 - ease(age / 0.8) : 0;
-    const x = baseX + walk * this.w * 0.28 + this.enemy.flinch * 22;
+    const e = this.enemy;
+    const ranged = rangedKind(snap.enemyName, boss);
+    const aq = e.atk >= 0 ? Math.min(1, e.atk / e.atkDur) : 0;
+    // melee: wind up a step back, then charge at the troop being hit; ranged: lean back and release
+    let lunge = 0;
+    if (e.atk >= 0 && !this.calm) {
+      if (ranged) lunge = -Math.sin(aq * Math.PI) * 5;
+      else if (aq < 0.3) lunge = -8 * (aq / 0.3);
+      else if (aq < 0.65) lunge = lerp(-8, e.lunge, ease((aq - 0.3) / 0.35));
+      else lunge = lerp(e.lunge, 0, (aq - 0.65) / 0.35);
+    }
+    const x = baseX + walk * this.w * 0.28 + e.flinch * 22 - lunge;
     const bob = this.calm ? 0 : walk > 0 ? Math.abs(Math.sin(this.clock * 10)) * -3 : Math.sin(this.clock * 2.4) * 1.2;
     const squash = this.enemy.flinch > 0 ? 1 - this.enemy.flinch * 0.5 : 1;
     if (boss && !this.calm) {
@@ -608,6 +805,15 @@ export class Scene {
     g.globalAlpha = walk > 0 ? 1 - walk * 0.6 : 1;
     g.drawImage(sp.canvas, x - sp.ax * sc, baseY - sp.ay * sc * squash + bob, ENEMY_W * sc, ENEMY_H * sc * squash);
     g.globalAlpha = 1;
+    if (e.atk >= 0 && !ranged && !this.calm && aq > 0.5 && aq < 0.8) {
+      g.globalAlpha = 0.65;
+      g.strokeStyle = '#ffd6c0';
+      g.lineWidth = 2.4;
+      g.beginPath();
+      g.arc(x - 18 * sc, baseY - 38 * sc, 26 * sc, Math.PI * 0.85, Math.PI * 1.45);
+      g.stroke();
+      g.globalAlpha = 1;
+    }
   }
 
   private frac(snap: FieldSnap): number {
@@ -689,6 +895,51 @@ export class Scene {
     gr.addColorStop(1, '#c4503a');
     g.fillStyle = gr;
     g.fillRect(cx - bw / 2, ly + 5, bw * hp, 6);
+  }
+
+  private drawTapRing(g: CanvasRenderingContext2D): void {
+    const t = this.tap.t;
+    if (t > 0.5 || this.calm) return;
+    g.globalAlpha = (1 - t / 0.5) * 0.8;
+    g.strokeStyle = '#e3c06a';
+    g.lineWidth = 2;
+    g.beginPath();
+    g.ellipse(this.tap.x, this.tap.y, 18 + t * 50, 5 + t * 14, 0, 0, Math.PI * 2);
+    g.stroke();
+    g.globalAlpha = 1;
+  }
+
+  /** Hit-test a tap (canvas coordinates): troop formations first (nearest centre wins), then the enemy. */
+  pick(x: number, y: number): FieldPick | null {
+    const snap = this.snap;
+    if (!snap || snap.troops.length === 0) return null;
+    const pad = 8;
+    let best: TroopVis | null = null;
+    let bestD = Infinity;
+    for (const v of this.vis) {
+      const s = v.scale;
+      const front = Math.min(v.perRank, v.shown);
+      const half = (front / 2) * v.spacing + 24 * s;
+      const left = v.cx - half - 18 * s;
+      const right = v.cx + half;
+      const top = v.baseY - 52 * s;
+      const bottom = v.baseY + 10;
+      if (x < left - pad || x > right + pad || y < top - pad || y > bottom + pad) continue;
+      const d = Math.abs(x - v.cx) + Math.abs(y - (v.baseY - 18 * s)) * 0.5;
+      if (d < bestD) { bestD = d; best = v; }
+    }
+    if (best) {
+      this.tap.x = best.cx; this.tap.y = best.baseY + 2; this.tap.t = 0;
+      return { kind: 'troop', id: best.id };
+    }
+    const sc = this.enemyScale(!!snap.boss, snap.enemyName);
+    const ex = this.enemyX();
+    const ey = this.enemyY();
+    if (Math.abs(x - ex) <= 50 * sc + pad && y >= ey - 98 * sc - pad && y <= ey + 8 + pad) {
+      this.tap.x = ex; this.tap.y = ey + 2; this.tap.t = 0;
+      return { kind: 'enemy' };
+    }
+    return null;
   }
 
   private drawSign(g: CanvasRenderingContext2D, snap: FieldSnap | null): void {
@@ -827,6 +1078,35 @@ export class Scene {
           g.fillStyle = p.color;
           g.fillRect(p.x, p.y, p.size, p.size);
           g.globalAlpha = 1;
+          break;
+        }
+        case PROJ: {
+          const q2 = Math.min(1, q + 0.04);
+          if (p.ri === 1) {
+            // arrow: a short shaft that points along the flight
+            const dx = p.vx - p.sx;
+            const dy = p.vy - p.sy;
+            const a = Math.atan2(dy, dx);
+            g.strokeStyle = p.color;
+            g.lineWidth = 1.8;
+            g.beginPath();
+            g.moveTo(p.x - Math.cos(a) * 9, p.y - Math.sin(a) * 9);
+            g.lineTo(p.x, p.y);
+            g.stroke();
+            g.fillStyle = '#f4ead0';
+            g.fillRect(p.x - 1, p.y - 1, 3, 3);
+          } else {
+            g.globalAlpha = 0.85;
+            g.fillStyle = p.color;
+            g.beginPath();
+            g.arc(p.x, p.y, 4.5 + Math.sin(q2 * 18) * 0.8, 0, Math.PI * 2);
+            g.fill();
+            g.globalAlpha = 0.35;
+            g.beginPath();
+            g.arc(p.x, p.y, 8, 0, Math.PI * 2);
+            g.fill();
+            g.globalAlpha = 1;
+          }
           break;
         }
         case RING:
